@@ -1,3 +1,5 @@
+import { API_BASE_URL } from '../../config';
+import { useEffect, useState } from 'react';
 import { Image } from 'expo-image';
 import { Platform, StyleSheet } from 'react-native';
 
@@ -8,6 +10,15 @@ import { ThemedView } from '@/components/themed-view';
 import { Link } from 'expo-router';
 
 export default function HomeScreen() {
+  const [health, setHealth] = useState<string>('loading...');
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/health`)
+      .then((r) => r.json())
+      .then((j) => setHealth(JSON.stringify(j)))
+      .catch((e) => setHealth(String(e)));
+  }, []);
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
@@ -19,6 +30,7 @@ export default function HomeScreen() {
       }>
       <ThemedView style={styles.titleContainer}>
         <ThemedText type="title">Welcome!</ThemedText>
+        <ThemedText>{health}</ThemedText>
         <HelloWave />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
@@ -60,9 +72,7 @@ export default function HomeScreen() {
           </Link.Menu>
         </Link>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
+        <ThemedText>{`Tap the Explore tab to learn more about what's included in this starter app.`}</ThemedText>
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
