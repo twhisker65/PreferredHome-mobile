@@ -41,3 +41,4 @@ app-example
 # generated native folders
 /ios
 /android
+api_url_hits.txt
