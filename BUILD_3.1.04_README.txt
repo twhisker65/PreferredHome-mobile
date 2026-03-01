@@ -1,0 +1,17 @@
+BUILD 3.1.04 - PreferredHome mobile - Basics clean pass
+
+Commit description (suggested):
+BUILD 3.1.04: SafeArea header fix, Listings single-scroll, Home top 3, Add sections+keyboard flow, Calendar scaffold, link handlers
+
+What changed (high level):
+- Fix GestureHandlerRootView requirement at app root
+- Fix header bleeding into status bar using safe-area padding
+- Listings: replace nested ScrollView+DraggableFlatList with SectionList (scroll works). Keep Preferred/Other sections. Drag-sort intentionally disabled for now.
+- Home: show top 3 preferred as quick view (matches Listings cards)
+- Add: 4 collapsible sections with ScrollView and keyboard “Next” flow; Save button only (no auto-save)
+- Calendar: react-native-calendars month grid with dots + appointment list scaffold
+
+Notes:
+- You must install react-native-calendars if not already installed.
+- This is a patch zip (overwrites only the files inside).
+

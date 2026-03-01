@@ -1,0 +1,6 @@
+Build 3.1.02 Notes
+- Listings now fetch live data from FastAPI /listings using API_BASE_URL (root config.ts).
+- Manual drag order persists locally using AsyncStorage (key: preferredhome.order.v1).
+- Preferred listings always shown above Other; drag reorder is within each group only.
+- Requires dependency:
+    npm i @react-native-async-storage/async-storage --no-audit --no-fund

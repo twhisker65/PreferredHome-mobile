@@ -1,0 +1,5 @@
+.vscode/
+.expo/
+node_modules/
+api_url_hits.txt
+*.log

@@ -1,3 +1,3 @@
-// Set this to your Render URL (or local dev URL if you switch back).
-// Example: https://preferredhome-api.onrender.com
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
+// Central config for API base URL.
+// This file intentionally re-exports from the repo-root config.ts.
+export { API_BASE_URL } from "../config";

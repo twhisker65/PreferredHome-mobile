@@ -1,164 +1,102 @@
-import React, { useMemo, useState } from "react";
-import { SafeAreaView, View, Text, Pressable } from "react-native";
-import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
+import React, { useEffect, useMemo, useState } from "react";
+import { View, Text, ActivityIndicator, RefreshControl, SectionList, Pressable } from "react-native";
 import { colors } from "../../styles/colors";
-import { spacing } from "../../styles/spacing";
-import { typography } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
-import { SidePanel } from "../../components/SidePanel";
-import { MenuSheet } from "../../components/MenuSheet";
 import { ListingCard } from "../../components/ListingCard";
-import { mockListings } from "../../lib/mockListings";
-import type { Listing } from "../../lib/types";
+import { useListings } from "../../lib/useListings";
+import { applyOrder } from "../../lib/orderApply";
+import { loadOrder } from "../../lib/orderStorage";
+import type { ListingUI } from "../../lib/types";
 
-export default function ListingsTab() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [selected, setSelected] = useState<Listing | null>(null);
+type Section = { title: string; data: ListingUI[] };
 
-  // Split into groups, pinned preferred above non-preferred (no crossing boundary)
-  const [preferred, setPreferred] = useState<Listing[]>(() => mockListings.filter((l) => l.preferred));
-  const [others, setOthers] = useState<Listing[]>(() => mockListings.filter((l) => !l.preferred));
-
-  const data = useMemo(() => [...preferred, ...others], [preferred, others]);
-
-  const renderItem = ({ item, drag, isActive }: RenderItemParams<Listing>) => {
-    const isPreferredGroup = item.preferred;
-
-    return (
-      <Pressable
-        onLongPress={drag}
-        delayLongPress={220}
-        style={{
-          opacity: isActive ? 0.9 : 1,
-          paddingBottom: spacing.md,
-        }}
-      >
-        <ListingCard
-          item={item}
-          onPressCompare={() => {}}
-          onPressView={() => {
-            setSelected(item);
-            setDetailOpen(true);
-          }}
-          onPressEdit={() => {}}
-          onPressDelete={() => {}}
-        />
-      </Pressable>
-    );
-  };
-
+function SectionHeader({ title }: { title: string }) {
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-      <TopBar onPressMenu={() => setMenuOpen(true)} />
-
-      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <Text style={typography.h2}>Listings</Text>
-        <Pressable
-          onPress={() => setFilterOpen(true)}
-          style={({ pressed }) => ({
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: pressed ? colors.cardHover : colors.card,
-            borderRadius: 12,
-            paddingHorizontal: 12,
-            paddingVertical: 10,
-          })}
-        >
-          <Text style={[typography.muted, { fontWeight: "800", color: colors.textPrimary }]}>Filters</Text>
-        </Pressable>
-      </View>
-
-      <View style={{ flex: 1, paddingHorizontal: spacing.lg }}>
-        {/* Preferred group */}
-        <Text style={[typography.muted, { marginBottom: spacing.sm }]}>Preferred</Text>
-        <DraggableFlatList
-          data={preferred}
-          keyExtractor={(item) => item.id}
-          onDragEnd={({ data }) => setPreferred(data)}
-          renderItem={renderItem}
-        />
-
-        <View style={{ height: spacing.lg }} />
-
-        {/* Others group */}
-        <Text style={[typography.muted, { marginBottom: spacing.sm }]}>Other</Text>
-        <DraggableFlatList
-          data={others}
-          keyExtractor={(item) => item.id}
-          onDragEnd={({ data }) => setOthers(data)}
-          renderItem={renderItem}
-        />
-      </View>
-
-      {/* Left slide-out menu */}
-      <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
-        <MenuSheet
-          onGoProfile={() => setMenuOpen(false)}
-          onGoSettings={() => setMenuOpen(false)}
-          onClose={() => setMenuOpen(false)}
-        />
-      </SidePanel>
-
-      {/* Left slide-out filters */}
-      <SidePanel visible={filterOpen} side="left" onClose={() => setFilterOpen(false)}>
-        <FilterPanel onClose={() => setFilterOpen(false)} />
-      </SidePanel>
-
-      {/* Right slide-out details */}
-      <SidePanel visible={detailOpen} side="right" onClose={() => setDetailOpen(false)}>
-        <DetailPanel item={selected} />
-      </SidePanel>
-    </SafeAreaView>
-  );
-}
-
-function FilterPanel({ onClose }: { onClose: () => void }) {
-  return (
-    <View style={{ flex: 1, padding: spacing.lg, gap: 14 }}>
-      <Text style={typography.h2}>Filters</Text>
-      <Text style={typography.muted}>First pass: UI shell only. Next build wires to Baseline + Categories.</Text>
-
-      <View style={{ flex: 1 }} />
-
-      <Pressable
-        onPress={onClose}
-        style={({ pressed }) => ({
-          borderWidth: 1,
-          borderColor: colors.border,
-          backgroundColor: pressed ? colors.cardHover : colors.card,
-          borderRadius: 12,
-          paddingVertical: 12,
-          alignItems: "center",
-        })}
-      >
-        <Text style={[typography.body, { fontWeight: "800" }]}>Close</Text>
-      </Pressable>
+    <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 }}>
+      <Text style={{ color: colors.textSecondary, fontSize: 12, letterSpacing: 0.8 }}>
+        {title.toUpperCase()}
+      </Text>
     </View>
   );
 }
 
-function DetailPanel({ item }: { item: Listing | null }) {
-  if (!item) {
-    return (
-      <View style={{ flex: 1, padding: spacing.lg }}>
-        <Text style={typography.muted}>No listing selected.</Text>
-      </View>
-    );
-  }
+export default function ListingsScreen() {
+  const { listings, loading, refreshing, error, refresh } = useListings();
+  const [preferred, setPreferred] = useState<ListingUI[]>([]);
+  const [other, setOther] = useState<ListingUI[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const saved = await loadOrder();
+      const ordered = applyOrder(listings, saved);
+      setPreferred(ordered.preferred);
+      setOther(ordered.other);
+    })();
+  }, [listings]);
+
+  const sections: Section[] = useMemo(
+    () => [
+      { title: "Preferred", data: preferred },
+      { title: "Other", data: other },
+    ],
+    [preferred, other]
+  );
 
   return (
-    <View style={{ flex: 1, padding: spacing.lg, gap: 10 }}>
-      <Text style={typography.h2}>{item.buildingName}</Text>
-      <Text style={typography.muted}>{item.addressLine}</Text>
-      <Text style={typography.muted}>{item.unitSummary}</Text>
-      <Text style={[typography.body, { fontWeight: "800" }]}>${item.monthlyTotal.toLocaleString()} / mo</Text>
-      <Text style={typography.muted}>{item.source}</Text>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <TopBar title="PreferredHome" />
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator />
+          <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Loading listings...</Text>
+        </View>
+      ) : error ? (
+        <View style={{ flex: 1, padding: 16 }}>
+          <Text style={{ color: colors.red, fontSize: 14, marginBottom: 8 }}>Load failed</Text>
+          <Text style={{ color: colors.textSecondary }}>{error}</Text>
+        </View>
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          renderSectionHeader={({ section }) => <SectionHeader title={section.title} />}
+          renderItem={({ item }) => (
+            <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+              <ListingCard listing={item} />
+            </View>
+          )}
+          contentContainerStyle={{ paddingBottom: 24 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+          stickySectionHeadersEnabled={false}
+          ListHeaderComponent={
+            <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={{ color: colors.text, fontSize: 22, fontWeight: "800" }}>Listings</Text>
 
-      <View style={{ flex: 1 }} />
+                <Pressable
+                  onPress={() => {}}
+                  style={({ pressed }) => [
+                    {
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      backgroundColor: pressed ? "rgba(255,255,255,0.04)" : "transparent",
+                    },
+                  ]}
+                >
+                  <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "700" }}>Filter</Text>
+                </Pressable>
+              </View>
 
-      <Text style={typography.muted}>First pass: detail panel shell.</Text>
+              <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 13 }}>
+                Drag-sort is temporarily disabled while we stabilize scrolling and layout.
+              </Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
