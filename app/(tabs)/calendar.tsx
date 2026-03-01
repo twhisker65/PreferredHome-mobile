@@ -1,8 +1,11 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { View, Text, FlatList } from "react-native";
+import { router } from "expo-router";
 import { CalendarList } from "react-native-calendars";
 import { colors } from "../../styles/colors";
 import { TopBar } from "../../components/TopBar";
+import { SidePanel } from "../../components/SidePanel";
+import { MenuSheet } from "../../components/MenuSheet";
 
 type Appt = {
   id: string;
@@ -19,62 +22,85 @@ const MOCK: Appt[] = [
 ];
 
 export default function CalendarScreen() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const markedDates = useMemo(() => {
     const m: Record<string, any> = {};
     for (const a of MOCK) {
-      m[a.date] = { ...(m[a.date] ?? {}), marked: true, dotColor: "#2f80ff" };
+      m[a.date] = { ...(m[a.date] ?? {}), marked: true, dotColor: colors.primaryBlue };
     }
     return m;
   }, []);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <TopBar title="PreferredHome" />
+      <TopBar title="PreferredHome" onPressMenu={() => setMenuOpen(true)} />
+
+      <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
+        <MenuSheet
+          onGoProfile={() => {
+            setMenuOpen(false);
+            router.push("/profile");
+          }}
+          onGoSettings={() => {
+            setMenuOpen(false);
+            router.push("/settings");
+          }}
+          onClose={() => setMenuOpen(false)}
+        />
+      </SidePanel>
 
       <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 }}>
-        <Text style={{ color: colors.text, fontSize: 22, fontWeight: "900" }}>Calendar</Text>
+        <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: "900" }}>Calendar</Text>
         <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 13 }}>
-          Month grid with dots for viewing appointments. List below.
+          Month view + your scheduled tours (mock data for now).
         </Text>
       </View>
 
       <CalendarList
-        pastScrollRange={12}
-        futureScrollRange={12}
-        scrollEnabled
-        showScrollIndicator
+        horizontal
+        pagingEnabled
+        pastScrollRange={6}
+        futureScrollRange={6}
         markedDates={markedDates}
         theme={{
-          calendarBackground: "transparent",
-          dayTextColor: colors.text,
-          monthTextColor: colors.text,
-          textSectionTitleColor: colors.textSecondary,
-          selectedDayTextColor: colors.text,
-          todayTextColor: "#2f80ff",
-          arrowColor: colors.textSecondary,
+          calendarBackground: colors.background,
+          monthTextColor: colors.textPrimary,
+          dayTextColor: colors.textPrimary,
+          textDisabledColor: colors.textSecondary,
+          arrowColor: colors.textPrimary,
+          todayTextColor: colors.accentBlue,
+          selectedDayBackgroundColor: colors.primaryBlue,
+          selectedDayTextColor: colors.textPrimary,
+          dotColor: colors.primaryBlue,
+          textDayFontWeight: "700",
+          textMonthFontWeight: "800",
+          textDayHeaderFontWeight: "800",
         }}
         style={{ borderTopWidth: 1, borderTopColor: colors.border }}
       />
 
-      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
-        <Text style={{ color: colors.textSecondary, fontSize: 12, letterSpacing: 0.8 }}>APPOINTMENTS</Text>
-      </View>
+      <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 12 }}>
+        <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "900", marginBottom: 10 }}>
+          Appointments
+        </Text>
 
-      <FlatList
-        data={MOCK}
-        keyExtractor={(i) => i.id}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-        renderItem={({ item }) => (
-          <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 14, marginBottom: 10 }}>
-            <Text style={{ color: colors.text, fontSize: 15, fontWeight: "800" }}>
-              {item.date} {item.time ? `• ${item.time}` : ""}
-            </Text>
-            <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{item.building ?? "—"}</Text>
-            <Text style={{ color: colors.textSecondary }}>{item.address ?? "—"}</Text>
-            <Text style={{ color: colors.textSecondary, marginTop: 6 }}>Contact: {item.contact ?? "—"}</Text>
-          </View>
-        )}
-      />
+        <FlatList
+          data={MOCK}
+          keyExtractor={(i) => i.id}
+          contentContainerStyle={{ paddingBottom: 24 }}
+          renderItem={({ item }) => (
+            <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 14, backgroundColor: colors.card, marginBottom: 10 }}>
+              <Text style={{ color: colors.textPrimary, fontWeight: "900" }}>
+                {item.building ?? "Tour"}{item.time ? ` · ${item.time}` : ""}
+              </Text>
+              <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{item.date}</Text>
+              {item.address ? <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{item.address}</Text> : null}
+              {item.contact ? <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{item.contact}</Text> : null}
+            </View>
+          )}
+        />
+      </View>
     </View>
   );
 }

@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, ActivityIndicator, RefreshControl, SectionList, Pressable } from "react-native";
+import { View, Text, ActivityIndicator, RefreshControl, SectionList, Pressable, Alert } from "react-native";
+import { router } from "expo-router";
 import { colors } from "../../styles/colors";
 import { TopBar } from "../../components/TopBar";
 import { ListingCard } from "../../components/ListingCard";
+import { SidePanel } from "../../components/SidePanel";
+import { MenuSheet } from "../../components/MenuSheet";
 import { useListings } from "../../lib/useListings";
 import { applyOrder } from "../../lib/orderApply";
 import { loadOrder } from "../../lib/orderStorage";
@@ -13,17 +16,21 @@ type Section = { title: string; data: ListingUI[] };
 function SectionHeader({ title }: { title: string }) {
   return (
     <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 12, letterSpacing: 0.8 }}>
-        {title.toUpperCase()}
-      </Text>
+      <Text style={{ color: colors.textSecondary, fontSize: 12, letterSpacing: 0.8 }}>{title.toUpperCase()}</Text>
     </View>
   );
 }
 
 export default function ListingsScreen() {
   const { listings, loading, refreshing, error, refresh } = useListings();
+
   const [preferred, setPreferred] = useState<ListingUI[]>([]);
   const [other, setOther] = useState<ListingUI[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  // local-only selections (no persistence in 3.1.05)
+  const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     (async () => {
@@ -42,9 +49,101 @@ export default function ListingsScreen() {
     [preferred, other]
   );
 
+  function togglePreferred(id: string) {
+    const flip = (arr: ListingUI[]) => arr.map((l) => (l.id === id ? { ...l, preferred: !l.preferred } : l));
+    // If item is in preferred section and turned off, move it to other; and vice versa.
+    const inPreferred = preferred.some((l) => l.id === id);
+    const inOther = other.some((l) => l.id === id);
+
+    if (inPreferred) {
+      const item = preferred.find((l) => l.id === id);
+      if (!item) return;
+      const updated = { ...item, preferred: !item.preferred };
+      setPreferred((p) => p.filter((l) => l.id !== id));
+      setOther((o) => [updated, ...o]);
+      return;
+    }
+
+    if (inOther) {
+      const item = other.find((l) => l.id === id);
+      if (!item) return;
+      const updated = { ...item, preferred: !item.preferred };
+      setOther((o) => o.filter((l) => l.id !== id));
+      setPreferred((p) => [updated, ...p]);
+      return;
+    }
+
+    // fallback
+    setPreferred(flip);
+    setOther(flip);
+  }
+
+  function toggleCompare(id: string) {
+    setCompareIds((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else {
+        // cap at 4 per plan
+        if (next.size >= 4) return next;
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function deleteListing(id: string) {
+    Alert.alert("Delete listing?", "This only removes it locally for now (no backend delete in 3.1.05).", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          setPreferred((p) => p.filter((l) => l.id !== id));
+          setOther((o) => o.filter((l) => l.id !== id));
+          setCompareIds((s) => {
+            const next = new Set(s);
+            next.delete(id);
+            return next;
+          });
+        },
+      },
+    ]);
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <TopBar title="PreferredHome" />
+      <TopBar title="PreferredHome" onPressMenu={() => setMenuOpen(true)} />
+
+      <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
+        <MenuSheet
+          onGoProfile={() => {
+            setMenuOpen(false);
+            router.push("/profile");
+          }}
+          onGoSettings={() => {
+            setMenuOpen(false);
+            router.push("/settings");
+          }}
+          onClose={() => setMenuOpen(false)}
+        />
+      </SidePanel>
+
+      <SidePanel visible={filterOpen} side="right" onClose={() => setFilterOpen(false)}>
+        <View style={{ padding: 18, gap: 12 }}>
+          <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "900" }}>Filters</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+            Filter logic is staged for 3.1.07. This panel is the stable UI shell.
+          </Text>
+
+          <View style={{ height: 1, backgroundColor: colors.border, marginTop: 6 }} />
+          <Text style={{ color: colors.textSecondary, fontSize: 12, letterSpacing: 0.8 }}>PLACEHOLDERS</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>• Status</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>• Max rent</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>• Bedrooms</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>• Neighborhood</Text>
+        </View>
+      </SidePanel>
+
       {loading ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator />
@@ -62,19 +161,27 @@ export default function ListingsScreen() {
           renderSectionHeader={({ section }) => <SectionHeader title={section.title} />}
           renderItem={({ item }) => (
             <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-              <ListingCard listing={item} />
+              <ListingCard
+                listing={item}
+                compareSelected={compareIds.has(item.id)}
+                onTogglePreferred={() => togglePreferred(item.id)}
+                onToggleCompare={() => toggleCompare(item.id)}
+                onView={() => Alert.alert("View", "Detail sheet is staged for 3.1.09.")}
+                onEdit={() => Alert.alert("Edit", "Edit flow is staged (will route to Add/Edit later).")}
+                onDelete={() => deleteListing(item.id)}
+              />
             </View>
           )}
           contentContainerStyle={{ paddingBottom: 24 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
           stickySectionHeadersEnabled={false}
           ListHeaderComponent={
-            <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 }}>
+            <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <Text style={{ color: colors.text, fontSize: 22, fontWeight: "800" }}>Listings</Text>
+                <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: "900" }}>Listings</Text>
 
                 <Pressable
-                  onPress={() => {}}
+                  onPress={() => setFilterOpen(true)}
                   style={({ pressed }) => [
                     {
                       paddingHorizontal: 12,
@@ -86,13 +193,9 @@ export default function ListingsScreen() {
                     },
                   ]}
                 >
-                  <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "700" }}>Filter</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "800" }}>Filter</Text>
                 </Pressable>
               </View>
-
-              <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 13 }}>
-                Drag-sort is temporarily disabled while we stabilize scrolling and layout.
-              </Text>
             </View>
           }
         />
