@@ -112,7 +112,7 @@ export default function ListingsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <TopBar title="PreferredHome" onPressMenu={() => setMenuOpen(true)} />
+      <TopBar title="PreferredHome" onPressMenu={() => setMenuOpen(true)} rightIconName="filter" onPressRight={() => setFilterOpen(true)} />
 
       <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
         <MenuSheet
@@ -175,29 +175,6 @@ export default function ListingsScreen() {
           contentContainerStyle={{ paddingBottom: 24 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
           stickySectionHeadersEnabled={false}
-          ListHeaderComponent={
-            <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: "900" }}>Listings</Text>
-
-                <Pressable
-                  onPress={() => setFilterOpen(true)}
-                  style={({ pressed }) => [
-                    {
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      borderRadius: 999,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      backgroundColor: pressed ? "rgba(255,255,255,0.04)" : "transparent",
-                    },
-                  ]}
-                >
-                  <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "800" }}>Filter</Text>
-                </Pressable>
-              </View>
-            </View>
-          }
         />
       )}
     </View>

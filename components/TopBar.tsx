@@ -7,9 +7,12 @@ import { colors } from "../styles/colors";
 type Props = {
   title?: string;
   onPressMenu?: () => void;
+
+  rightIconName?: React.ComponentProps<typeof Ionicons>["name"];
+  onPressRight?: () => void;
 };
 
-export function TopBar({ title = "PreferredHome", onPressMenu }: Props) {
+export function TopBar({ title = "PreferredHome", onPressMenu, rightIconName, onPressRight }: Props) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -21,14 +24,22 @@ export function TopBar({ title = "PreferredHome", onPressMenu }: Props) {
           hitSlop={12}
           style={({ pressed }) => [styles.iconBtn, pressed && onPressMenu ? { opacity: 0.75 } : null]}
         >
-          <Ionicons name="menu" size={24} color={colors.textPrimary} />
+          {/* Hamburger +1.25x */}
+          <Ionicons name="menu" size={30} color={colors.textPrimary} />
         </Pressable>
 
         <Text numberOfLines={1} style={styles.title}>
           {title}
         </Text>
 
-        <View style={styles.iconBtn} />
+        <Pressable
+          onPress={onPressRight}
+          disabled={!onPressRight || !rightIconName}
+          hitSlop={12}
+          style={({ pressed }) => [styles.iconBtn, pressed && onPressRight ? { opacity: 0.75 } : null]}
+        >
+          {rightIconName ? <Ionicons name={rightIconName} size={26} color={colors.textPrimary} /> : null}
+        </Pressable>
       </View>
       <View style={styles.divider} />
     </View>

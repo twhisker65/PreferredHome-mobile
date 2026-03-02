@@ -16,16 +16,14 @@ export default function CompareTab() {
       <TopBar onPressMenu={() => setMenuOpen(true)} />
 
       <View style={{ padding: spacing.lg, gap: 12 }}>
-        <Text style={typography.h2}>Compare</Text>
-
-        <View style={{ flexDirection: "row", gap: 10 }}>
+<View style={{ flexDirection: "row", gap: 10 }}>
           <ToggleBtn label="Card view" active={mode === "cards"} onPress={() => setMode("cards")} />
           <ToggleBtn label="Table view" active={mode === "table"} onPress={() => setMode("table")} />
         </View>
 
         <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: 14, padding: spacing.lg, gap: 8 }}>
           <Text style={typography.body}>First pass: UI shell.</Text>
-          <Text style={typography.muted}>Selection limit 3–4 listings. Baseline indicators (green/yellow/red) next.</Text>
+          <Text style={typography.muted}>Selection limit 4 listings. Baseline indicators (green/yellow/red) next.</Text>
         </View>
       </View>
 

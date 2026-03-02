@@ -6,7 +6,7 @@ import type { ListingUI } from "../lib/types";
 import { StatusPill } from "./StatusPill";
 
 type Props = {
-  listing?: ListingUI; // defensive: avoid crash if caller passes undefined
+  listing?: ListingUI;
   compareSelected?: boolean;
 
   onTogglePreferred?: () => void;
@@ -27,8 +27,8 @@ export function ListingCard({
 }: Props) {
   if (!listing) return null;
 
-  const heart = listing.preferred ? "heart" : "heart-outline";
-  const compareIcon = compareSelected ? "checkbox" : "square-outline";
+  const preferredColor = listing.preferred ? colors.primaryBlue : colors.textSecondary;
+  const compareColor = compareSelected ? colors.primaryBlue : colors.textSecondary;
 
   return (
     <View
@@ -40,87 +40,70 @@ export function ListingCard({
         overflow: "hidden",
       }}
     >
-      <View style={{ flexDirection: "row", padding: 14, gap: 12 }}>
-        {/* Photo */}
-        <View style={{ width: 72, height: 72, borderRadius: 14, overflow: "hidden", position: "relative" }}>
-          {listing.photoUrl ? (
-            <Image source={{ uri: listing.photoUrl }} style={{ width: "100%", height: "100%" }} />
-          ) : (
-            <View style={{ width: "100%", height: "100%", backgroundColor: colors.cardHover, borderWidth: 1, borderColor: colors.border }} />
-          )}
-
-          <View style={{ position: "absolute", left: 6, top: 6 }}>
-            <StatusPill status={listing.status} />
+      <View style={{ flexDirection: "row", padding: 12, gap: 12 }}>
+        {/* Photo + Status (status is under photo per instructions) */}
+        <View style={{ width: 76 }}>
+          <View
+            style={{
+              width: 76,
+              height: 76,
+              borderRadius: 14,
+              overflow: "hidden",
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.cardHover,
+            }}
+          >
+            {listing.photoUrl ? (
+              <Image source={{ uri: listing.photoUrl }} style={{ width: "100%", height: "100%" }} />
+            ) : null}
           </View>
 
-          <Pressable
-            onPress={onTogglePreferred}
-            disabled={!onTogglePreferred}
-            hitSlop={10}
-            style={({ pressed }) => ({
-              position: "absolute",
-              right: 6,
-              top: 6,
-              width: 30,
-              height: 30,
-              borderRadius: 999,
-              backgroundColor: "rgba(0,0,0,0.35)",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: pressed && onTogglePreferred ? 0.75 : 1,
-            })}
-          >
-            <Ionicons name={heart as any} size={18} color={colors.textPrimary} />
-          </Pressable>
+          <View style={{ marginTop: 8, alignItems: "flex-start" }}>
+            <StatusPill status={listing.status} />
+          </View>
         </View>
 
         {/* Text */}
         <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "900" }} numberOfLines={1}>
+          <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "900" }} numberOfLines={1}>
             {listing.buildingName}
           </Text>
 
-          <Text style={{ color: colors.textSecondary, marginTop: 6 }} numberOfLines={2}>
+          <Text style={{ color: colors.textSecondary, marginTop: 4, fontSize: 13 }} numberOfLines={2}>
             {listing.addressLine}
           </Text>
 
-          <Text style={{ color: colors.textSecondary, marginTop: 6 }} numberOfLines={1}>
+          <Text style={{ color: colors.textSecondary, marginTop: 4, fontSize: 13 }} numberOfLines={1}>
             {listing.unitSummary}
           </Text>
 
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginTop: 10 }}>
-            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "900" }}>
-              {listing.priceSummary}
-            </Text>
-            <Text style={{ color: colors.textSecondary }} numberOfLines={1}>
-              {listing.sourceLabel}
-            </Text>
-          </View>
+          <Text style={{ color: colors.textPrimary, marginTop: 8, fontSize: 16, fontWeight: "900" }}>
+            {listing.priceSummary}
+          </Text>
         </View>
       </View>
 
-      {/* Action Row */}
+      {/* Action Row (icons only, no labels) */}
       <View style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: colors.border }}>
-        <ActionBtn icon={heart} label="Preferred" onPress={onTogglePreferred} />
-        <ActionBtn icon={compareIcon} label="Compare" onPress={onToggleCompare} />
-        <ActionBtn icon="eye-outline" label="View" onPress={onView} />
-        <ActionBtn icon="pencil-outline" label="Edit" onPress={onEdit} />
-        <ActionBtn icon="trash-outline" label="Delete" onPress={onDelete} danger />
+        <IconBtn icon={listing.preferred ? "heart" : "heart-outline"} onPress={onTogglePreferred} color={preferredColor} />
+        <IconBtn icon={"git-compare-outline"} onPress={onToggleCompare} color={compareColor} />
+        <IconBtn icon={"eye-outline"} onPress={onView} color={colors.textSecondary} />
+        <IconBtn icon={"pencil-outline"} onPress={onEdit} color={colors.textSecondary} />
+        <IconBtn icon={"trash-outline"} onPress={onDelete} color={colors.textSecondary} />
       </View>
     </View>
   );
 }
 
-function ActionBtn({
+function IconBtn({
   icon,
-  label,
   onPress,
-  danger,
+  color,
 }: {
-  icon: any;
-  label: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
   onPress?: () => void;
-  danger?: boolean;
+  color: string;
 }) {
   return (
     <Pressable
@@ -128,16 +111,13 @@ function ActionBtn({
       disabled={!onPress}
       style={({ pressed }) => ({
         flex: 1,
-        paddingVertical: 10,
+        paddingVertical: 12,
         alignItems: "center",
         justifyContent: "center",
         opacity: pressed && onPress ? 0.75 : 1,
       })}
     >
-      <Ionicons name={icon} size={18} color={danger ? colors.red : colors.textSecondary} />
-      <Text style={{ marginTop: 4, fontSize: 11, color: danger ? colors.red : colors.textSecondary, fontWeight: "800" }}>
-        {label}
-      </Text>
+      <Ionicons name={icon} size={20} color={color} />
     </Pressable>
   );
 }

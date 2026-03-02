@@ -10,16 +10,40 @@ import { MenuSheet } from "../../components/MenuSheet";
 type Appt = {
   id: string;
   date: string; // YYYY-MM-DD
-  time?: string;
+  time?: string; // HH:MM (24h)
   building?: string;
   address?: string;
   contact?: string;
 };
 
 const MOCK: Appt[] = [
-  { id: "a1", date: "2026-03-03", time: "11:00", building: "Royal View", address: "42 Barker Ave 6D", contact: "Leasing" },
-  { id: "a2", date: "2026-03-08", time: "14:30", building: "Brentwood Condominiums", address: "300 Main St 3J", contact: "Agent" },
+  { id: "a1", date: "2026-03-03", time: "11:00", building: "Royal View", address: "42 Barker Ave, White Plains, NY 10601, 6D", contact: "Leasing" },
+  { id: "a2", date: "2026-03-08", time: "14:30", building: "Brentwood Condominiums", address: "300 Main St, White Plains, NY 10601, 3J", contact: "Agent" },
 ];
+
+function formatWhen(dateYYYYMMDD: string, time24?: string) {
+  if (!dateYYYYMMDD) return "";
+  const [y, m, d] = dateYYYYMMDD.split("-").map((x) => Number(x));
+  if (!y || !m || !d) return dateYYYYMMDD;
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const mon = monthNames[m - 1] ?? "";
+  const day = String(d).padStart(2, "0");
+
+  if (!time24) return `${mon} ${day}`;
+
+  const [hhRaw, mmRaw] = time24.split(":");
+  const hh = Number(hhRaw);
+  const mm = Number(mmRaw ?? "0");
+  if (!Number.isFinite(hh)) return `${mon} ${day}`;
+  const ampm = hh >= 12 ? "PM" : "AM";
+  const hour12 = ((hh + 11) % 12) + 1;
+  const min2 = String(mm).padStart(2, "0");
+  return `${mon} ${day} - ${String(hour12).padStart(2, "0")}:${min2} ${ampm}`;
+}
+
+function safeText(v?: string) {
+  return v && v.trim().length ? v.trim() : "—";
+}
 
 export default function CalendarScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -27,7 +51,12 @@ export default function CalendarScreen() {
   const markedDates = useMemo(() => {
     const m: Record<string, any> = {};
     for (const a of MOCK) {
-      m[a.date] = { ...(m[a.date] ?? {}), marked: true, dotColor: colors.primaryBlue };
+      m[a.date] = {
+        customStyles: {
+          container: { backgroundColor: colors.primaryBlue, borderRadius: 16 },
+          text: { color: colors.background, fontWeight: "900" },
+        },
+      };
     }
     return m;
   }, []);
@@ -50,14 +79,8 @@ export default function CalendarScreen() {
         />
       </SidePanel>
 
-      <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 }}>
-        <Text style={{ color: colors.textPrimary, fontSize: 22, fontWeight: "900" }}>Calendar</Text>
-        <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 13 }}>
-          Month view + your scheduled tours (mock data for now).
-        </Text>
-      </View>
-
       <CalendarList
+        markingType="custom"
         horizontal
         pagingEnabled
         pastScrollRange={6}
@@ -72,33 +95,38 @@ export default function CalendarScreen() {
           todayTextColor: colors.accentBlue,
           selectedDayBackgroundColor: colors.primaryBlue,
           selectedDayTextColor: colors.textPrimary,
-          dotColor: colors.primaryBlue,
           textDayFontWeight: "700",
           textMonthFontWeight: "800",
           textDayHeaderFontWeight: "800",
         }}
-        style={{ borderTopWidth: 1, borderTopColor: colors.border }}
       />
 
       <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 12 }}>
-        <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "900", marginBottom: 10 }}>
-          Appointments
-        </Text>
-
         <FlatList
           data={MOCK}
           keyExtractor={(i) => i.id}
           contentContainerStyle={{ paddingBottom: 24 }}
-          renderItem={({ item }) => (
-            <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 14, backgroundColor: colors.card, marginBottom: 10 }}>
-              <Text style={{ color: colors.textPrimary, fontWeight: "900" }}>
-                {item.building ?? "Tour"}{item.time ? ` · ${item.time}` : ""}
-              </Text>
-              <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{item.date}</Text>
-              {item.address ? <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{item.address}</Text> : null}
-              {item.contact ? <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{item.contact}</Text> : null}
-            </View>
-          )}
+          renderItem={({ item }) => {
+            const when = formatWhen(item.date, item.time);
+            return (
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: 16,
+                  padding: 14,
+                  backgroundColor: colors.card,
+                  marginBottom: 10,
+                }}
+              >
+                <Text style={{ color: colors.textPrimary, fontWeight: "900" }}>
+                  {safeText(item.building)}{when ? ` - ${when}` : ""}
+                </Text>
+                <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{safeText(item.address)}</Text>
+                <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{safeText(item.contact)}</Text>
+              </View>
+            );
+          }}
         />
       </View>
     </View>
