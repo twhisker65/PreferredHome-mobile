@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, ActivityIndicator, RefreshControl, ScrollView } from "react-native";
+import { router } from "expo-router";
 import { colors } from "../../styles/colors";
 import { TopBar } from "../../components/TopBar";
 import { ListingCard } from "../../components/ListingCard";
+import { SidePanel } from "../../components/SidePanel";
+import { MenuSheet } from "../../components/MenuSheet";
 import { useListings } from "../../lib/useListings";
 import { applyOrder } from "../../lib/orderApply";
 import { loadOrder } from "../../lib/orderStorage";
@@ -12,7 +15,7 @@ function StatPill({ label, value }: { label: string; value: string }) {
   return (
     <View style={{ flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 12 }}>
       <Text style={{ color: colors.textSecondary, fontSize: 11, letterSpacing: 0.7 }}>{label.toUpperCase()}</Text>
-      <Text style={{ color: colors.text, marginTop: 6, fontSize: 18, fontWeight: "800" }}>{value}</Text>
+      <Text style={{ color: colors.textPrimary, marginTop: 6, fontSize: 18, fontWeight: "900" }}>{value}</Text>
     </View>
   );
 }
@@ -25,6 +28,7 @@ function fmtMoney(n: number) {
 export default function HomeScreen() {
   const { listings, loading, refreshing, error, refresh } = useListings();
   const [preferredTop, setPreferredTop] = useState<ListingUI[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -40,15 +44,27 @@ export default function HomeScreen() {
     const min = Math.min(...rents);
     const max = Math.max(...rents);
     const avg = rents.reduce((a, b) => a + b, 0) / rents.length;
-    const sorted = [...rents].sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-    return { min, max, avg, median, count: rents.length };
+    return { min, max, avg, count: rents.length };
   }, [listings]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <TopBar title="PreferredHome" />
+      <TopBar title="PreferredHome" onPressMenu={() => setMenuOpen(true)} />
+
+      <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
+        <MenuSheet
+          onGoProfile={() => {
+            setMenuOpen(false);
+            router.push("/profile");
+          }}
+          onGoSettings={() => {
+            setMenuOpen(false);
+            router.push("/settings");
+          }}
+          onClose={() => setMenuOpen(false)}
+        />
+      </SidePanel>
+
       {loading ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator />
@@ -62,54 +78,39 @@ export default function HomeScreen() {
       ) : (
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 24 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
         >
-          <View style={{ paddingHorizontal: 16, paddingTop: 14 }}>
-            <Text style={{ color: colors.text, fontSize: 26, fontWeight: "900" }}>Home</Text>
+          <Text style={{ color: colors.textPrimary, fontSize: 26, fontWeight: "900" }}>Home</Text>
+          <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 13 }}>
+            Snapshot of your current listing set.
+          </Text>
+
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+            <StatPill label="Avg Base Rent" value={stats ? fmtMoney(stats.avg) : "—"} />
+            <StatPill label="Min Base Rent" value={stats ? fmtMoney(stats.min) : "—"} />
+          </View>
+
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+            <StatPill label="Max Base Rent" value={stats ? fmtMoney(stats.max) : "—"} />
+            <StatPill label="Count" value={stats ? String(stats.count) : "0"} />
+          </View>
+
+          <View style={{ marginTop: 18 }}>
+            <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "900" }}>Top Preferred</Text>
             <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 13 }}>
-              Quick view: top 3 preferred. Full sorting lives in Listings.
+              First 3 from your Preferred ordering.
             </Text>
-          </View>
 
-          <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
-            <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 14 }}>
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: "800" }}>Base Rent Snapshot</Text>
-              {!stats ? (
-                <Text style={{ color: colors.textSecondary, marginTop: 8 }}>No rent data yet.</Text>
-              ) : (
-                <>
-                  <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 13 }}>
-                    {stats.count} listings with base rent
-                  </Text>
-                  <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
-                    <StatPill label="Lowest" value={fmtMoney(stats.min)} />
-                    <StatPill label="Baseline" value={fmtMoney(stats.median)} />
-                  </View>
-                  <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-                    <StatPill label="Average" value={fmtMoney(stats.avg)} />
-                    <StatPill label="Highest" value={fmtMoney(stats.max)} />
-                  </View>
-                </>
-              )}
+            <View style={{ marginTop: 12, gap: 12 }}>
+              {preferredTop.map((l) => (
+                <ListingCard key={l.id} listing={l} />
+              ))}
+              {!preferredTop.length ? (
+                <Text style={{ color: colors.textSecondary, marginTop: 8 }}>No preferred listings yet.</Text>
+              ) : null}
             </View>
           </View>
-
-          <View style={{ paddingHorizontal: 16, paddingTop: 18, paddingBottom: 8 }}>
-            <Text style={{ color: colors.textSecondary, fontSize: 12, letterSpacing: 0.8 }}>TOP PREFERRED</Text>
-          </View>
-
-          {preferredTop.map((item) => (
-            <View key={item.id} style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-              <ListingCard listing={item} />
-            </View>
-          ))}
-
-          {!preferredTop.length ? (
-            <View style={{ paddingHorizontal: 16 }}>
-              <Text style={{ color: colors.textSecondary }}>No preferred listings yet.</Text>
-            </View>
-          ) : null}
         </ScrollView>
       )}
     </View>

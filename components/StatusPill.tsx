@@ -4,20 +4,7 @@ import { colors } from "../styles/colors";
 import type { ListingStatus } from "../lib/types";
 
 function bgFor(status: ListingStatus) {
-  switch (status) {
-    case "Available":
-      return colors.green;
-    case "Inquired":
-      return colors.yellow;
-    case "Visited":
-      return colors.purple;
-    case "Applied":
-      return colors.primaryBlue;
-    case "Rejected":
-      return colors.red;
-    default:
-      return colors.border;
-  }
+  return (colors.status as any)[status] ?? colors.status.Unknown;
 }
 
 export function StatusPill({ status }: { status?: ListingStatus }) {
@@ -31,9 +18,7 @@ export function StatusPill({ status }: { status?: ListingStatus }) {
         borderRadius: 999,
       }}
     >
-      <Text style={{ color: colors.textPrimary, fontSize: 12, fontWeight: "700" }}>
-        {safeStatus}
-      </Text>
+      <Text style={{ color: colors.textPrimary, fontSize: 12, fontWeight: "800" }}>{safeStatus}</Text>
     </View>
   );
 }

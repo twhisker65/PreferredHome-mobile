@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/colors";
 
 type Props = {
@@ -16,10 +17,11 @@ export function TopBar({ title = "PreferredHome", onPressMenu }: Props) {
       <View style={styles.row}>
         <Pressable
           onPress={onPressMenu}
+          disabled={!onPressMenu}
           hitSlop={12}
-          style={({ pressed }) => [styles.iconBtn, pressed && { opacity: 0.75 }]}
+          style={({ pressed }) => [styles.iconBtn, pressed && onPressMenu ? { opacity: 0.75 } : null]}
         >
-          <Text style={styles.icon}>≡</Text>
+          <Ionicons name="menu" size={24} color={colors.textPrimary} />
         </Pressable>
 
         <Text numberOfLines={1} style={styles.title}>
@@ -49,23 +51,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  icon: {
-    color: colors.text,
-    fontSize: 22,
-    lineHeight: 22,
-    marginTop: -2,
-  },
   title: {
     flex: 1,
-    color: colors.text,
+    color: colors.textPrimary,
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: "800",
     textAlign: "center",
     letterSpacing: 0.2,
   },
   divider: {
     height: 1,
     backgroundColor: colors.border,
-    opacity: 0.6,
   },
 });

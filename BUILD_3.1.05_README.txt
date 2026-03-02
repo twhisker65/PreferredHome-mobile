@@ -1,0 +1,7 @@
+Build 3.1.05: UI stabilization + core interactions
+
+- Fix color token mismatches by adding legacy aliases + aligning StatusPill/TopBar to current palette
+- Extend ListingUI with baseRent/fees/sqft and populate via normalization (enables Home stats)
+- Update ListingCard to 3.1.05 layout: square photo placeholder, status overlay, preferred heart, and action row
+- Listings: remove drag-sort notice, add left Menu sheet, add right Filter side panel shell, add local compare selection + local delete/preferred toggles
+- Home/Add/Calendar: standardize TopBar menu behavior and fix text colors; Add gains missing UI fields (address split, sqft, floor, toggles, unit type selector)

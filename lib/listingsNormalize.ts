@@ -81,7 +81,7 @@ export function normalizeListing(raw: any): ListingUI {
     str(pick(raw, ["id", "ID", "listingId", "listing_id", "rowId", "row_id"])) ||
     [buildingName, addressLine, sourceLabel].filter(Boolean).join("|");
 
-  return {
+    return {
     id,
     status,
     preferred,
@@ -91,6 +91,13 @@ export function normalizeListing(raw: any): ListingUI {
     priceSummary,
     sourceLabel,
     photoUrl,
+
+    baseRent: rent,
+    fees: fees ?? 0,
+    sqft,
+
     raw,
   };
+
+
 }
