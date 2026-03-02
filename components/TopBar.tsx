@@ -28,9 +28,16 @@ export function TopBar({ title = "PreferredHome", onPressMenu, rightIconName, on
           <Ionicons name="menu" size={30} color={colors.textPrimary} />
         </Pressable>
 
-        <Text numberOfLines={1} style={styles.title}>
-          {title}
-        </Text>
+        {title === "PreferredHome" ? (
+          <Text numberOfLines={1} style={styles.title}>
+            <Text style={{ color: colors.primaryBlue }}>Preferred</Text>
+            <Text style={{ color: colors.textPrimary }}>Home</Text>
+          </Text>
+        ) : (
+          <Text numberOfLines={1} style={styles.title}>
+            {title}
+          </Text>
+        )}
 
         <Pressable
           onPress={onPressRight}

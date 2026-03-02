@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { SafeAreaView, View, Text, Pressable } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { colors } from "../../styles/colors";
 import { spacing } from "../../styles/spacing";
 import { typography } from "../../styles/typography";
@@ -17,8 +19,8 @@ export default function CompareTab() {
 
       <View style={{ padding: spacing.lg, gap: 12 }}>
 <View style={{ flexDirection: "row", gap: 10 }}>
-          <ToggleBtn label="Card view" active={mode === "cards"} onPress={() => setMode("cards")} />
-          <ToggleBtn label="Table view" active={mode === "table"} onPress={() => setMode("table")} />
+          <ToggleBtn label="Card view" icon="albums-outline" active={mode === "cards"} onPress={() => setMode("cards")} />
+          <ToggleBtn label="Table view" icon="list-outline" active={mode === "table"} onPress={() => setMode("table")} />
         </View>
 
         <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: 14, padding: spacing.lg, gap: 8 }}>
@@ -28,13 +30,23 @@ export default function CompareTab() {
       </View>
 
       <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
-        <MenuSheet onGoProfile={() => setMenuOpen(false)} onGoSettings={() => setMenuOpen(false)} onClose={() => setMenuOpen(false)} />
+        <MenuSheet
+          onGoProfile={() => {
+            setMenuOpen(false);
+            router.push("/profile");
+          }}
+          onGoSettings={() => {
+            setMenuOpen(false);
+            router.push("/settings");
+          }}
+          onClose={() => setMenuOpen(false)}
+        />
       </SidePanel>
     </SafeAreaView>
   );
 }
 
-function ToggleBtn({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function ToggleBtn({ label, icon, active, onPress }: { label: string; icon: React.ComponentProps<typeof Ionicons>["name"]; active: boolean; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}

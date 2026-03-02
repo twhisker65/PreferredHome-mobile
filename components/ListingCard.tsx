@@ -40,14 +40,14 @@ export function ListingCard({
         overflow: "hidden",
       }}
     >
-      <View style={{ flexDirection: "row", padding: 12, gap: 12 }}>
+      <View style={{ flexDirection: "row", padding: 6, gap: 8 }}>
         {/* Photo + Status (status is under photo per instructions) */}
-        <View style={{ width: 76 }}>
+        <View style={{ width: 64 }}>
           <View
             style={{
-              width: 76,
-              height: 76,
-              borderRadius: 14,
+              width: 64,
+              height: 64,
+              borderRadius: 12,
               overflow: "hidden",
               borderWidth: 1,
               borderColor: colors.border,
@@ -59,26 +59,26 @@ export function ListingCard({
             ) : null}
           </View>
 
-          <View style={{ marginTop: 8, alignItems: "flex-start" }}>
+          <View style={{ marginTop: 6, alignItems: "flex-start" }}>
             <StatusPill status={listing.status} />
           </View>
         </View>
 
         {/* Text */}
         <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "900" }} numberOfLines={1}>
+          <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "900" }} numberOfLines={1}>
             {listing.buildingName}
           </Text>
 
-          <Text style={{ color: colors.textSecondary, marginTop: 4, fontSize: 13 }} numberOfLines={2}>
+          <Text style={{ color: colors.textSecondary, marginTop: 3, fontSize: 12 }} numberOfLines={2}>
             {listing.addressLine}
           </Text>
 
-          <Text style={{ color: colors.textSecondary, marginTop: 4, fontSize: 13 }} numberOfLines={1}>
+          <Text style={{ color: colors.textSecondary, marginTop: 3, fontSize: 12 }} numberOfLines={1}>
             {listing.unitSummary}
           </Text>
 
-          <Text style={{ color: colors.textPrimary, marginTop: 8, fontSize: 16, fontWeight: "900" }}>
+          <Text style={{ color: colors.textPrimary, marginTop: 6, fontSize: 15, fontWeight: "900" }}>
             {listing.priceSummary}
           </Text>
         </View>
@@ -111,7 +111,7 @@ function IconBtn({
       disabled={!onPress}
       style={({ pressed }) => ({
         flex: 1,
-        paddingVertical: 12,
+        paddingVertical: 10,
         alignItems: "center",
         justifyContent: "center",
         opacity: pressed && onPress ? 0.75 : 1,

@@ -1,0 +1,30 @@
+Build 3.1.07 — UI polish + profile toggles + calendar wired to Sheets
+
+What changed
+1) TopBar title styling: "Preferred" is blue, "Home" is white (default title).
+2) Listing cards tightened: reduced padding + typography so more content fits.
+3) Add Listing:
+   - Removed Profile Toggles block from Add screen.
+   - Profile toggles now live on Profile page (hamburger menu).
+   - Yes/No switches use blue highlight when ON.
+   - Date fields default blank until you pick a date (calendar still opens to today).
+   - City/State fields removed from Add UI (will be derived from ZIP later when Save is wired).
+   - Text inputs: keyboard Enter now advances to the next field (return key shows Next).
+4) Profile page:
+   - Children / Pets / Car toggles are real, stored in AsyncStorage, and gate Add sections.
+5) Calendar:
+   - Appointments now come from Sheets via /listings payload (viewingDate/viewingTime + contactName).
+   - Contact name is shown on the 3rd line (per 3.1.07).
+6) Compare:
+   - Card/Table toggle buttons now include icons.
+   - Menu routing to Profile/Settings is wired.
+
+Files changed / added
+- components/TopBar.tsx
+- components/ListingCard.tsx
+- lib/listingsNormalize.ts
+- lib/profileStorage.ts (NEW)
+- app/profile.tsx
+- app/(tabs)/add.tsx
+- app/(tabs)/calendar.tsx
+- app/(tabs)/compare.tsx
