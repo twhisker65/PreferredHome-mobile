@@ -81,28 +81,19 @@ export default function HomeScreen() {
           contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
         >
-          <Text style={{ color: colors.textPrimary, fontSize: 26, fontWeight: "900" }}>Home</Text>
-          <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 13 }}>
-            Snapshot of your current listing set.
-          </Text>
-
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+<View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
             <StatPill label="Avg Base Rent" value={stats ? fmtMoney(stats.avg) : "—"} />
             <StatPill label="Min Base Rent" value={stats ? fmtMoney(stats.min) : "—"} />
           </View>
 
           <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
             <StatPill label="Max Base Rent" value={stats ? fmtMoney(stats.max) : "—"} />
-            <StatPill label="Count" value={stats ? String(stats.count) : "0"} />
+            <StatPill label="Listings" value={stats ? String(stats.count) : "0"} />
           </View>
 
           <View style={{ marginTop: 18 }}>
-            <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "900" }}>Top Preferred</Text>
-            <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 13 }}>
-              First 3 from your Preferred ordering.
-            </Text>
-
-            <View style={{ marginTop: 12, gap: 12 }}>
+            <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "900" }}>Preferred</Text>
+<View style={{ marginTop: 12, gap: 12 }}>
               {preferredTop.map((l) => (
                 <ListingCard key={l.id} listing={l} />
               ))}
