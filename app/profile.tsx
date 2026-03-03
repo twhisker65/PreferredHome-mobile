@@ -5,13 +5,23 @@ import { colors } from "../styles/colors";
 import { spacing } from "../styles/spacing";
 import { typography } from "../styles/typography";
 import { TopBar } from "../components/TopBar";
+import { loadProfileToggles, saveProfileToggles, type ProfileToggles } from "../lib/profileStorage";
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const [toggles, setToggles] = useState<{ kids: boolean; car: boolean; pets: boolean }>({ kids: false, car: false, pets: false });
+  const [toggles, setToggles] = useState<ProfileToggles>({ children: false, pets: false, car: false });
 
-  function setOne(key: "kids" | "car" | "pets", value: boolean) {
-    setToggles((prev) => ({ ...prev, [key]: value }));
+  useEffect(() => {
+    (async () => {
+      const t = await loadProfileToggles();
+      setToggles(t);
+    })();
+  }, []);
+
+  async function setOne(key: keyof ProfileToggles, value: boolean) {
+    const next = { ...toggles, [key]: value };
+    setToggles(next);
+    await saveProfileToggles(next);
   }
 
   return (
@@ -21,9 +31,13 @@ export default function ProfileScreen() {
       <View style={{ padding: spacing.lg, gap: 14 }}>
         <Text style={typography.h2}>Profile Toggles</Text>
 
-        <Row label="Kids" value={toggles.kids} onValueChange={(v) => setOne("kids", v)} />
+        <Row label="Kids" value={toggles.children} onValueChange={(v) => setOne("children", v)} />
         <Row label="Car" value={toggles.car} onValueChange={(v) => setOne("car", v)} />
         <Row label="Pets" value={toggles.pets} onValueChange={(v) => setOne("pets", v)} />
+
+        <Text style={[typography.muted, { marginTop: spacing.md }]}>
+          These toggles gate sections in Add Listing (Schools, Pet Amenities, Parking Fees).
+        </Text>
       </View>
     </SafeAreaView>
   );
