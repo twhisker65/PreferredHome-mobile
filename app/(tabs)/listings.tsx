@@ -44,7 +44,7 @@ export default function ListingsScreen() {
   const sections: Section[] = useMemo(
     () => [
       { title: "Preferred", data: preferred },
-      { title: "Other", data: other },
+      { title: "Candidates", data: other },
     ],
     [preferred, other]
   );

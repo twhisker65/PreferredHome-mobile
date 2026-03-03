@@ -17,11 +17,11 @@ export default function CompareTab() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <TopBar onPressMenu={() => setMenuOpen(true)} />
 
-      <View style={{ padding: spacing.lg, gap: 12 }}>
-<View style={{ flexDirection: "row", gap: 10 }}>
-          <ToggleBtn label="Card view" icon="grid-outline" active={mode === "cards"} onPress={() => setMode("cards")} />
-          <ToggleBtn label="Table view" icon="list-outline" active={mode === "table"} onPress={() => setMode("table")} />
-        </View>
+      <View style={{ padding: spacing.lg, gap: 12, flex: 1 }}>
+<View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 18, marginTop: 6, marginBottom: 10 }}>
+            <IconToggle icon="grid-outline" active={mode === "cards"} onPress={() => setMode("cards")} />
+            <IconToggle icon="list-outline" active={mode === "table"} onPress={() => setMode("table")} />
+          </View>
 
         <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: 14, padding: spacing.lg, gap: 8 }}>
           <Text style={typography.body}>First pass: UI shell.</Text>
@@ -46,20 +46,31 @@ export default function CompareTab() {
   );
 }
 
-function ToggleBtn({ label, icon, active, onPress }: { label: string; icon: React.ComponentProps<typeof Ionicons>["name"]; active: boolean; onPress: () => void }) {
+
+function IconToggle({
+  icon,
+  active,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  active: boolean;
+  onPress: () => void;
+}) {
   return (
     <Pressable
       onPress={onPress}
+      hitSlop={10}
       style={({ pressed }) => ({
-        borderWidth: 1,
-        borderColor: active ? colors.primaryBlue : colors.border,
-        backgroundColor: pressed ? colors.cardHover : colors.card,
-        borderRadius: 999,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
+        width: 44,
+        height: 34,
+        borderRadius: 12,
+        borderWidth: 0,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: pressed ? "rgba(255,255,255,0.03)" : "transparent",
       })}
     >
-      <Text style={[typography.muted, { fontWeight: "900", color: active ? colors.textPrimary : colors.textSecondary }]}>{label}</Text>
+      <Ionicons name={icon} size={20} color={active ? colors.primaryBlue : colors.textSecondary} />
     </Pressable>
   );
 }

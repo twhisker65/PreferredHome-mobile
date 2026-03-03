@@ -104,11 +104,9 @@ export default function CalendarScreen() {
   const markedDates = useMemo(() => {
     const m: Record<string, any> = {};
     for (const a of appts) {
-      m[a.date] = {
-        customStyles: {
-          container: { backgroundColor: colors.primaryBlue, borderRadius: 16 },
-          text: { color: colors.background, fontWeight: "900" },
-        },
+            m[a.date] = {
+        marked: true,
+        dotColor: colors.primaryBlue,
       };
     }
     return m;
@@ -140,7 +138,7 @@ export default function CalendarScreen() {
           horizontal
           pagingEnabled
           hideExtraDays
-          markingType={"custom"}
+          markingType={"dot"}
           markedDates={markedDates}
           style={{ borderRadius: 18, overflow: "hidden" }}
           theme={{
@@ -155,7 +153,7 @@ export default function CalendarScreen() {
       </View>
 
       <View style={{ paddingHorizontal: 16, paddingTop: 18, paddingBottom: 10 }}>
-        <Text style={{ color: colors.textPrimary, fontSize: 26, fontWeight: "900" }}>Appointments</Text>
+        <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "900" }}>Appointments</Text>
       </View>
 
       {loading ? (
@@ -173,16 +171,17 @@ export default function CalendarScreen() {
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 28, gap: 12 }}
           renderItem={({ item }) => (
             <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 14, backgroundColor: colors.card }}>
-              <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "900" }}>
-                {safeText(item.building)}{item.time ? ` · ${item.time}` : ""}
+              <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "900" }} numberOfLines={1}>
+                {safeText(item.building)} - {safeText(item.date)}{item.time ? ` - ${item.time}` : ""}
               </Text>
 
-              <Text style={{ color: colors.textSecondary, marginTop: 8 }}>{safeText(item.date)}</Text>
+              <Text style={{ color: colors.textSecondary, marginTop: 8 }} numberOfLines={2}>
+                {safeText(item.address)}
+              </Text>
 
-              {/* 3rd line: contact name (per 3.1.07) */}
-              <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{safeText(item.contact)}</Text>
-
-              <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{safeText(item.address)}</Text>
+              <Text style={{ color: colors.textSecondary, marginTop: 6 }} numberOfLines={1}>
+                {safeText(item.contact)}
+              </Text>
             </View>
           )}
         />

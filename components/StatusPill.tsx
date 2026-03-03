@@ -14,8 +14,10 @@ export function StatusPill({ status, fullWidth }: { status?: ListingStatus; full
       style={{
         backgroundColor: bgFor(safeStatus),
         paddingHorizontal: 10,
-        paddingVertical: 6,
+        paddingVertical: 0,
         borderRadius: 999,
+        height: 20,
+        justifyContent: "center",
         ...(fullWidth ? { width: "100%", alignItems: "center" } : null),
       }}
     >

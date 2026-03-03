@@ -15,7 +15,6 @@ import { TopBar } from "../../components/TopBar";
 import { SidePanel } from "../../components/SidePanel";
 import { MenuSheet } from "../../components/MenuSheet";
 import { CalendarList } from "react-native-calendars";
-import { loadProfileToggles, type ProfileToggles } from "../../lib/profileStorage";
 
 type Draft = {
   // Status & ID
@@ -741,10 +740,10 @@ export default function AddScreen() {
 
       {/* Picker Modal */}
       <Modal visible={!!picker} transparent animationType="fade" onRequestClose={() => setPicker(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", padding: 18, justifyContent: "center" }} onPress={() => setPicker(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", padding: 18, justifyContent: "center", alignItems: "center" }} onPress={() => setPicker(null)}>
           <Pressable
             onPress={() => {}}
-            style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 18, overflow: "hidden" }}
+            style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 18, overflow: "hidden", width: "100%", maxWidth: 380 }}
           >
             <View style={{ padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
               <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 16 }}>{picker?.title ?? ""}</Text>
@@ -814,7 +813,7 @@ export default function AddScreen() {
                     textMonthFontWeight: "800",
                     textDayHeaderFontWeight: "800",
                   }}
-                  style={{ height: 360 }}
+                  style={{ height: 360, alignSelf: "center" }}
                 />
               </View>
             ) : null}
@@ -825,7 +824,7 @@ export default function AddScreen() {
       {/* Time Picker Modal */}
       <Modal visible={timePicker.open} transparent animationType="fade" onRequestClose={() => setTimePicker((t) => ({ ...t, open: false }))}>
         <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", padding: 18, justifyContent: "center" }}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", padding: 18, justifyContent: "center", alignItems: "center" }}
           onPress={() => setTimePicker((t) => ({ ...t, open: false }))}
         >
           <Pressable

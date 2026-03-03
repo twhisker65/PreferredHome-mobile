@@ -67,20 +67,20 @@ export function normalizeListing(raw: any): ListingUI {
   const unitSummary = [unitType, bdText, baText, sqftText].join(" · ");
 
   // --- Costs ---
-  const baseRent = num(pick(raw, ["baseRent", "base_rent", "Base Rent", "base rent", "Monthly Rent (Base Rent)", "Monthly Rent", "monthly_rent", "rent", "Rent"]));
+  const baseRent = num(pick(raw, ["baseRent", "base_rent", "Base Rent", "base rent", "Monthly Rent (Base Rent)", "Monthly Rent", "monthly_rent", "monthlyRent", "monthly rent", "Rent", "rent", "rent_monthly", "Monthly Base Rent", "MonthlyBaseRent", "BaseRentMonthly", "monthlyRentBase", "monthly_rent_base", "baseRentMonthly"]));
 
-  const parkingFee = num(pick(raw, ["parkingFee", "parking_fee", "Parking Fee", "Parking Monthly", "parking monthly", "Monthly Parking"])) ?? 0;
-  const amenityFee = num(pick(raw, ["amenityFee", "amenity_fee", "Amenity Fee", "Amenities Fee", "amenities_fee"])) ?? 0;
-  const adminFee = num(pick(raw, ["adminFee", "admin_fee", "Admin Fee", "Application/Admin Fee", "application_admin_fee"])) ?? 0;
-  const utilityFee = num(pick(raw, ["utilityFee", "utility_fee", "Utility Fee", "Utilities Fee", "utilities_fee"])) ?? 0;
-  const otherFee = num(pick(raw, ["otherFee", "other_fee", "Other Fee", "Other Monthly Fee", "other_monthly_fee"])) ?? 0;
+  const parkingFee = num(pick(raw, ["parkingFee","parking_fee","Parking Fee","Parking Monthly","parking monthly","Monthly Parking","Monthly Parking Fee","parkingMonthlyFee","monthlyParkingFee","parking_fee_monthly"])) ?? 0;
+  const amenityFee = num(pick(raw, ["amenityFee","amenity_fee","Amenity Fee","Amenities Fee","amenities_fee","Monthly Amenity Fee","amenityMonthlyFee","monthlyAmenityFee"])) ?? 0;
+  const adminFee = num(pick(raw, ["adminFee","admin_fee","Admin Fee","Application/Admin Fee","application_admin_fee","Monthly Admin Fee","adminMonthlyFee","monthlyAdminFee"])) ?? 0;
+  const utilityFee = num(pick(raw, ["utilityFee","utility_fee","Utility Fee","Utilities Fee","utilities_fee","Monthly Utility Fee","utilityMonthlyFee","monthlyUtilityFee"])) ?? 0;
+  const otherFee = num(pick(raw, ["otherFee","other_fee","Other Fee","Other Monthly Fee","other_monthly_fee","Monthly Other Fee","otherMonthlyFee","monthlyOtherFee"])) ?? 0;
 
   const fees = parkingFee + amenityFee + adminFee + utilityFee + otherFee;
   const hasFees = fees > 0;
 
   const priceSummary =
     baseRent !== null && Number.isFinite(baseRent)
-      ? `$${Math.round(baseRent).toLocaleString()}/mo${hasFees ? " +fees" : ""}`
+      ? `$${Math.round(baseRent).toLocaleString()}/mo${hasFees ? ` +$${Math.round(fees).toLocaleString()} fees` : ""}`
       : "—";
 
   // --- Status / Preferred ---

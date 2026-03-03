@@ -1,0 +1,24 @@
+BUILD 3.1.09 README
+
+Scope (per BUILD 3.1.09 instructions + your clarifications):
+- Home: compute Avg/Min/Max using Base Rent only; exclude 0/empty; count = all listings; label "All listings".
+- Listings cards: show base rent as "$3,200/mo"; append "+$### fees" only when total fees > 0; no total monthly calc.
+- Status pill: reduce height to align with action-row icon height.
+- Listings grouping label: "Candidates" (logic unchanged).
+- Add page: center calendar modal.
+- Compare page: standalone grid/list icons centered; highlight blue when active.
+- Calendar page: restore month calendar + dots + appointments list; "Appointments" header typography matches Add section headers; appointment card rows:
+  1) Building — Date — Time
+  2) Full address
+  3) Contact name
+- Profile: add Lifestyle toggles (Kids, Car, Pets) with default OFF (existing persistence kept as-is; no new storage added).
+
+Changed files:
+app/(tabs)/add.tsx
+app/(tabs)/calendar.tsx
+app/(tabs)/compare.tsx
+app/(tabs)/index.tsx
+app/(tabs)/listings.tsx
+app/profile.tsx
+components/StatusPill.tsx
+lib/listingsNormalize.ts

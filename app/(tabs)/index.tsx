@@ -88,7 +88,7 @@ export default function HomeScreen() {
 
           <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
             <StatPill label="Max Base Rent" value={stats.max !== null ? fmtMoney(stats.max) : "—"} />
-            <StatPill label="Listings" value={String(stats.count)} />
+            <StatPill label="All listings" value={String(stats.count)} />
           </View>
 
           <View style={{ marginTop: 18 }}>
