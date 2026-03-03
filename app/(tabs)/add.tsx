@@ -124,6 +124,18 @@ function todayYYYYMMDD() {
   return `${y}-${m}-${day}`;
 }
 
+
+function buildTimeOptions() {
+  const out: string[] = [];
+  for (let h = 6; h <= 22; h++) {
+    for (const m of [0, 15, 30, 45]) {
+      const hh = String(h).padStart(2, "0");
+      const mm = String(m).padStart(2, "0");
+      out.push(`${hh}:${mm}`);
+    }
+  }
+  return out;
+}
 type SectionKey = "property" | "costs" | "features" | "contact" | "timeline" | "schools" | "notes";
 
 function Section({
@@ -173,6 +185,8 @@ function Field({
   fieldKey,
   inputRefs,
   onNext,
+  scrollRef,
+  fieldY,
 }: {
   label: string;
   value: string;
@@ -183,9 +197,16 @@ function Field({
   fieldKey?: string;
   inputRefs?: React.MutableRefObject<Record<string, TextInput | null>>;
   onNext?: (key: string) => void;
+  scrollRef?: React.RefObject<ScrollView>;
+  fieldY?: React.MutableRefObject<Record<string, number>>;
 }) {
   return (
-    <View style={{ gap: 6 }}>
+    <View
+      style={{ gap: 6 }}
+      onLayout={(e) => {
+        if (fieldKey && fieldY) fieldY.current[fieldKey] = e.nativeEvent.layout.y;
+      }}
+    >
       <Label>{label}</Label>
       <TextInput
         ref={(r) => {
@@ -197,9 +218,15 @@ function Field({
         placeholderTextColor={"rgba(148,163,184,0.6)"}
         keyboardType={keyboardType}
         returnKeyType={multiline ? "default" : "next"}
+        enterKeyHint={multiline ? "enter" : "next"}
         blurOnSubmit={!!multiline}
         onSubmitEditing={() => {
           if (!multiline && fieldKey && onNext) onNext(fieldKey);
+        }}
+        onFocus={() => {
+          if (!fieldKey || !scrollRef || !fieldY) return;
+          const y = fieldY.current[fieldKey];
+          if (typeof y === "number") scrollRef.current?.scrollTo({ y: Math.max(y - 20, 0), animated: true });
         }}
         multiline={multiline}
         style={{
@@ -225,10 +252,29 @@ function Toggle({
   value: boolean;
   onValueChange: (v: boolean) => void;
 }) {
+  const active = !!value;
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderColor: colors.border, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: colors.card }}>
-      <Text style={{ color: colors.textPrimary, fontWeight: "800" }}>{label}</Text>
-      <Switch value={value} onValueChange={onValueChange} trackColor={{ false: colors.border, true: colors.primaryBlue }} thumbColor={colors.textPrimary} />
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        borderWidth: 1,
+        borderColor: active ? colors.primaryBlue : colors.border,
+        borderRadius: 14,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        backgroundColor: colors.card,
+      }}
+    >
+      <Text style={{ color: active ? colors.primaryBlue : colors.textPrimary, fontWeight: "800" }}>{label}</Text>
+
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{ false: colors.border, true: colors.card }} // white track when YES
+        thumbColor={active ? colors.primaryBlue : colors.textSecondary} // blue dot when YES
+      />
     </View>
   );
 }
@@ -326,6 +372,8 @@ export default function AddScreen() {
   });
   // Keyboard "Next" behavior for text inputs (Enter advances to next field).
   const inputRefs = useRef<Record<string, TextInput | null>>({});
+  const scrollRef = useRef<ScrollView>(null);
+  const fieldY = useRef<Record<string, number>>({});
 
   const inputOrder: string[] = [
     // Property
@@ -469,6 +517,12 @@ export default function AddScreen() {
     initialDate?: string;
   } | null>(null);
 
+  const [timePicker, setTimePicker] = useState<{ open: boolean; value: string; onPick: (v: string) => void }>({
+    open: false,
+    value: "11:00",
+    onPick: () => {},
+  });
+
   const marked = useMemo(() => {
     if (!picker || picker.mode !== "date") return {};
     const d = picker.initialDate || todayYYYYMMDD();
@@ -490,6 +544,11 @@ export default function AddScreen() {
   function openDate(title: string, initialDate: string, onPick: (yyyyMMdd: string) => void) {
     setPicker({ mode: "date", title, initialDate, onPickDate: onPick });
   }
+  function openTime(current: string, onPick: (v: string) => void) {
+    const initial = (current && /^\d{1,2}:\d{2}$/.test(current)) ? current : "11:00";
+    setTimePicker({ open: true, value: initial, onPick });
+  }
+
 
   function saveDraft() {
     // Backend save is staged; UI-only in 3.1.06.
@@ -516,7 +575,7 @@ export default function AddScreen() {
         />
       </SidePanel>
 
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 28 }}>
+      <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 28 }}>
 
         <Section title="Property" open={open.property} onToggle={() => toggleSection("property")}>
           <SelectRow
@@ -529,17 +588,17 @@ export default function AddScreen() {
 
           <Toggle label="Preferred" value={draft.preferred} onValueChange={(v) => setDraft((d) => ({ ...d, preferred: v }))} />
 
-          <Field label="Listing URL" value={draft.listingUrl} onChangeText={(t) => setDraft((d) => ({ ...d, listingUrl: t }))} placeholder="https://..." />
-          <Field label="Listing Site" value={draft.listingSite} onChangeText={(t) => setDraft((d) => ({ ...d, listingSite: t }))} placeholder="Streeteasy, Zillow, etc." />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Listing URL" value={draft.listingUrl} onChangeText={(t) => setDraft((d) => ({ ...d, listingUrl: t }))} placeholder="https://..." />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Listing Site" value={draft.listingSite} onChangeText={(t) => setDraft((d) => ({ ...d, listingSite: t }))} placeholder="Streeteasy, Zillow, etc." />
 
-          <Field label="Building Name" fieldKey="buildingName" inputRefs={inputRefs} onNext={focusNext} value={draft.buildingName} onChangeText={(t) => setDraft((d) => ({ ...d, buildingName: t }))} />
-          <Field label="Street Address" fieldKey="streetAddress" inputRefs={inputRefs} onNext={focusNext} value={draft.streetAddress} onChangeText={(t) => setDraft((d) => ({ ...d, streetAddress: t }))} placeholder="Street only" />
-          <Field label="Zip Code" fieldKey="zipCode" inputRefs={inputRefs} onNext={focusNext} value={draft.zipCode} onChangeText={(t) => setDraft((d) => ({ ...d, zipCode: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Building Name" fieldKey="buildingName" inputRefs={inputRefs} onNext={focusNext} value={draft.buildingName} onChangeText={(t) => setDraft((d) => ({ ...d, buildingName: t }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Street Address" fieldKey="streetAddress" inputRefs={inputRefs} onNext={focusNext} value={draft.streetAddress} onChangeText={(t) => setDraft((d) => ({ ...d, streetAddress: t }))} placeholder="Street only" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Zip Code" fieldKey="zipCode" inputRefs={inputRefs} onNext={focusNext} value={draft.zipCode} onChangeText={(t) => setDraft((d) => ({ ...d, zipCode: t }))} keyboardType="number-pad" />
 
           {/* Not optional (must always be present in Add + View) */}
-          <Field label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={(t) => setDraft((d) => ({ ...d, neighborhood: t }))} />
-          <Field label="Apartment / Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={(t) => setDraft((d) => ({ ...d, unitNumber: t }))} />
-          <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={(t) => setDraft((d) => ({ ...d, neighborhood: t }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Apartment / Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={(t) => setDraft((d) => ({ ...d, unitNumber: t }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="number-pad" />
           <Toggle label="Top Floor" value={draft.topFloor} onValueChange={(v) => setDraft((d) => ({ ...d, topFloor: v }))} />
           <Toggle label="Corner Unit" value={draft.cornerUnit} onValueChange={(v) => setDraft((d) => ({ ...d, cornerUnit: v }))} />
 
@@ -549,13 +608,13 @@ export default function AddScreen() {
             onPress={() => openSingle("Unit Type", UNIT_TYPES, draft.unitType, (v) => setDraft((d) => ({ ...d, unitType: v })))}
           />
 
-          <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bedrooms: t }))} keyboardType="decimal-pad" />
-          <Field label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bathrooms: t }))} keyboardType="decimal-pad" />
-          <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={(t) => setDraft((d) => ({ ...d, squareFootage: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bedrooms: t }))} keyboardType="decimal-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bathrooms: t }))} keyboardType="decimal-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={(t) => setDraft((d) => ({ ...d, squareFootage: t }))} keyboardType="number-pad" />
 
           <Toggle label="Furnished" value={draft.furnished} onValueChange={(v) => setDraft((d) => ({ ...d, furnished: v }))} />
 
-          <Field label="Lease Length" fieldKey="leaseLength" inputRefs={inputRefs} onNext={focusNext} value={draft.leaseLength} onChangeText={(t) => setDraft((d) => ({ ...d, leaseLength: t }))} placeholder="e.g. 12 months" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Lease Length" fieldKey="leaseLength" inputRefs={inputRefs} onNext={focusNext} value={draft.leaseLength} onChangeText={(t) => setDraft((d) => ({ ...d, leaseLength: t }))} placeholder="e.g. 12 months" />
 
           <SelectRow
             label="Date Available"
@@ -572,15 +631,15 @@ export default function AddScreen() {
         </Section>
 
         <Section title="Costs" open={open.costs} onToggle={() => toggleSection("costs")}>
-          <Field label="Monthly Rent (Base Rent)" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={(t) => setDraft((d) => ({ ...d, baseRent: t }))} keyboardType="number-pad" />
-          {toggles.car ? <Field label="Parking Fee" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={(t) => setDraft((d) => ({ ...d, parkingFee: t }))} keyboardType="number-pad" /> : null}
-          <Field label="Amenity Fee" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={(t) => setDraft((d) => ({ ...d, amenityFee: t }))} keyboardType="number-pad" />
-          <Field label="Admin Fee" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={(t) => setDraft((d) => ({ ...d, adminFee: t }))} keyboardType="number-pad" />
-          <Field label="Utility Fee" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={(t) => setDraft((d) => ({ ...d, utilityFee: t }))} keyboardType="number-pad" />
-          <Field label="Other Fee" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={(t) => setDraft((d) => ({ ...d, otherFee: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Monthly Rent (Base Rent)" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={(t) => setDraft((d) => ({ ...d, baseRent: t }))} keyboardType="number-pad" />
+          {toggles.car ? <Field scrollRef={scrollRef} fieldY={fieldY} label="Parking Fee" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={(t) => setDraft((d) => ({ ...d, parkingFee: t }))} keyboardType="number-pad" /> : null}
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Amenity Fee" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={(t) => setDraft((d) => ({ ...d, amenityFee: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Admin Fee" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={(t) => setDraft((d) => ({ ...d, adminFee: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Utility Fee" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={(t) => setDraft((d) => ({ ...d, utilityFee: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Other Fee" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={(t) => setDraft((d) => ({ ...d, otherFee: t }))} keyboardType="number-pad" />
 
-          <Field label="Security Deposit" fieldKey="securityDeposit" inputRefs={inputRefs} onNext={focusNext} value={draft.securityDeposit} onChangeText={(t) => setDraft((d) => ({ ...d, securityDeposit: t }))} keyboardType="number-pad" />
-          <Field label="Application Fee" fieldKey="applicationFee" inputRefs={inputRefs} onNext={focusNext} value={draft.applicationFee} onChangeText={(t) => setDraft((d) => ({ ...d, applicationFee: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Security Deposit" fieldKey="securityDeposit" inputRefs={inputRefs} onNext={focusNext} value={draft.securityDeposit} onChangeText={(t) => setDraft((d) => ({ ...d, securityDeposit: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Application Fee" fieldKey="applicationFee" inputRefs={inputRefs} onNext={focusNext} value={draft.applicationFee} onChangeText={(t) => setDraft((d) => ({ ...d, applicationFee: t }))} keyboardType="number-pad" />
         </Section>
 
         <Section title="Features" open={open.features} onToggle={() => toggleSection("features")}>
@@ -614,55 +673,55 @@ export default function AddScreen() {
         </Section>
 
         <Section title="Contact + Transportation" open={open.contact} onToggle={() => toggleSection("contact")}>
-          <Field label="Contact Name" fieldKey="contactName" inputRefs={inputRefs} onNext={focusNext} value={draft.contactName} onChangeText={(t) => setDraft((d) => ({ ...d, contactName: t }))} />
-          <Field label="Contact Phone" fieldKey="contactPhone" inputRefs={inputRefs} onNext={focusNext} value={draft.contactPhone} onChangeText={(t) => setDraft((d) => ({ ...d, contactPhone: t }))} keyboardType="phone-pad" />
-          <Field label="Contact Email" fieldKey="contactEmail" inputRefs={inputRefs} onNext={focusNext} value={draft.contactEmail} onChangeText={(t) => setDraft((d) => ({ ...d, contactEmail: t }))} keyboardType="email-address" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Contact Name" fieldKey="contactName" inputRefs={inputRefs} onNext={focusNext} value={draft.contactName} onChangeText={(t) => setDraft((d) => ({ ...d, contactName: t }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Contact Phone" fieldKey="contactPhone" inputRefs={inputRefs} onNext={focusNext} value={draft.contactPhone} onChangeText={(t) => setDraft((d) => ({ ...d, contactPhone: t }))} keyboardType="phone-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Contact Email" fieldKey="contactEmail" inputRefs={inputRefs} onNext={focusNext} value={draft.contactEmail} onChangeText={(t) => setDraft((d) => ({ ...d, contactEmail: t }))} keyboardType="email-address" />
 
           <Toggle label="No Board Approval" value={draft.noBoardApproval} onValueChange={(v) => setDraft((d) => ({ ...d, noBoardApproval: v }))} />
           <Toggle label="No Broker Fee" value={draft.noBrokerFee} onValueChange={(v) => setDraft((d) => ({ ...d, noBrokerFee: v }))} />
 
-          <Field label="Commute Time (mins)" fieldKey="commuteTime" inputRefs={inputRefs} onNext={focusNext} value={draft.commuteTime} onChangeText={(t) => setDraft((d) => ({ ...d, commuteTime: t }))} keyboardType="number-pad" />
-          <Field label="Walk Score" fieldKey="walkScore" inputRefs={inputRefs} onNext={focusNext} value={draft.walkScore} onChangeText={(t) => setDraft((d) => ({ ...d, walkScore: t }))} keyboardType="number-pad" />
-          <Field label="Transit Score" fieldKey="transitScore" inputRefs={inputRefs} onNext={focusNext} value={draft.transitScore} onChangeText={(t) => setDraft((d) => ({ ...d, transitScore: t }))} keyboardType="number-pad" />
-          <Field label="Bike Score" fieldKey="bikeScore" inputRefs={inputRefs} onNext={focusNext} value={draft.bikeScore} onChangeText={(t) => setDraft((d) => ({ ...d, bikeScore: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Commute Time (mins)" fieldKey="commuteTime" inputRefs={inputRefs} onNext={focusNext} value={draft.commuteTime} onChangeText={(t) => setDraft((d) => ({ ...d, commuteTime: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Walk Score" fieldKey="walkScore" inputRefs={inputRefs} onNext={focusNext} value={draft.walkScore} onChangeText={(t) => setDraft((d) => ({ ...d, walkScore: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Transit Score" fieldKey="transitScore" inputRefs={inputRefs} onNext={focusNext} value={draft.transitScore} onChangeText={(t) => setDraft((d) => ({ ...d, transitScore: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Bike Score" fieldKey="bikeScore" inputRefs={inputRefs} onNext={focusNext} value={draft.bikeScore} onChangeText={(t) => setDraft((d) => ({ ...d, bikeScore: t }))} keyboardType="number-pad" />
         </Section>
 
         <Section title="Timeline" open={open.timeline} onToggle={() => toggleSection("timeline")}>
           <SelectRow label="Contacted Date" value={draft.contactedDate} emptyLabel="Select" onPress={() => openDate("Contacted Date", draft.contactedDate || todayYYYYMMDD(), (v) => setDraft((d) => ({ ...d, contactedDate: v })))} />
           <SelectRow label="Viewing Date" value={draft.viewingDate} emptyLabel="Select" onPress={() => openDate("Viewing Date", draft.viewingDate || todayYYYYMMDD(), (v) => setDraft((d) => ({ ...d, viewingDate: v })))} />
-          <Field label="Viewing Time (HH:MM)" fieldKey="viewingTime" inputRefs={inputRefs} onNext={focusNext} value={draft.viewingTime} onChangeText={(t) => setDraft((d) => ({ ...d, viewingTime: t }))} placeholder="11:00" />
+          <SelectRow label="Viewing Time" value={draft.viewingTime} emptyLabel="Select" onPress={() => openTime(draft.viewingTime, (v) => setDraft((d) => ({ ...d, viewingTime: v })))} />
           <SelectRow label="Applied Date" value={draft.appliedDate} emptyLabel="Select" onPress={() => openDate("Applied Date", draft.appliedDate || todayYYYYMMDD(), (v) => setDraft((d) => ({ ...d, appliedDate: v })))} />
         </Section>
 
         {toggles.children ? (
           <Section title="Schools" open={open.schools} onToggle={() => toggleSection("schools")}>
             <Text style={{ color: colors.textPrimary, fontWeight: "900", marginBottom: 6 }}>Elementary</Text>
-            <Field label="Name" value={draft.elementarySchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, elementarySchoolName: t }))} />
-            <Field label="Rating" value={draft.elementaryRating} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryRating: t }))} keyboardType="number-pad" />
-            <Field label="Grades" value={draft.elementaryGrades} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryGrades: t }))} />
-            <Field label="Distance" value={draft.elementaryDistance} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryDistance: t }))} keyboardType="decimal-pad" />
+            <Field scrollRef={scrollRef} fieldY={fieldY} label="Name" value={draft.elementarySchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, elementarySchoolName: t }))} />
+            <Field scrollRef={scrollRef} fieldY={fieldY} label="Rating" value={draft.elementaryRating} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryRating: t }))} keyboardType="number-pad" />
+            <Field scrollRef={scrollRef} fieldY={fieldY} label="Grades" value={draft.elementaryGrades} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryGrades: t }))} />
+            <Field scrollRef={scrollRef} fieldY={fieldY} label="Distance" value={draft.elementaryDistance} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryDistance: t }))} keyboardType="decimal-pad" />
 
             <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
 
             <Text style={{ color: colors.textPrimary, fontWeight: "900", marginBottom: 6 }}>Middle</Text>
-            <Field label="Name" value={draft.middleSchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, middleSchoolName: t }))} />
-            <Field label="Rating" value={draft.middleRating} onChangeText={(t) => setDraft((d) => ({ ...d, middleRating: t }))} keyboardType="number-pad" />
-            <Field label="Grades" value={draft.middleGrades} onChangeText={(t) => setDraft((d) => ({ ...d, middleGrades: t }))} />
-            <Field label="Distance" value={draft.middleDistance} onChangeText={(t) => setDraft((d) => ({ ...d, middleDistance: t }))} keyboardType="decimal-pad" />
+            <Field scrollRef={scrollRef} fieldY={fieldY} label="Name" value={draft.middleSchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, middleSchoolName: t }))} />
+            <Field scrollRef={scrollRef} fieldY={fieldY} label="Rating" value={draft.middleRating} onChangeText={(t) => setDraft((d) => ({ ...d, middleRating: t }))} keyboardType="number-pad" />
+            <Field scrollRef={scrollRef} fieldY={fieldY} label="Grades" value={draft.middleGrades} onChangeText={(t) => setDraft((d) => ({ ...d, middleGrades: t }))} />
+            <Field scrollRef={scrollRef} fieldY={fieldY} label="Distance" value={draft.middleDistance} onChangeText={(t) => setDraft((d) => ({ ...d, middleDistance: t }))} keyboardType="decimal-pad" />
 
             <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
 
             <Text style={{ color: colors.textPrimary, fontWeight: "900", marginBottom: 6 }}>High</Text>
-            <Field label="Name" value={draft.highSchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, highSchoolName: t }))} />
-            <Field label="Rating" value={draft.highRating} onChangeText={(t) => setDraft((d) => ({ ...d, highRating: t }))} keyboardType="number-pad" />
-            <Field label="Grades" value={draft.highGrades} onChangeText={(t) => setDraft((d) => ({ ...d, highGrades: t }))} />
-            <Field label="Distance" value={draft.highDistance} onChangeText={(t) => setDraft((d) => ({ ...d, highDistance: t }))} keyboardType="decimal-pad" />
+            <Field scrollRef={scrollRef} fieldY={fieldY} label="Name" value={draft.highSchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, highSchoolName: t }))} />
+            <Field scrollRef={scrollRef} fieldY={fieldY} label="Rating" value={draft.highRating} onChangeText={(t) => setDraft((d) => ({ ...d, highRating: t }))} keyboardType="number-pad" />
+            <Field scrollRef={scrollRef} fieldY={fieldY} label="Grades" value={draft.highGrades} onChangeText={(t) => setDraft((d) => ({ ...d, highGrades: t }))} />
+            <Field scrollRef={scrollRef} fieldY={fieldY} label="Distance" value={draft.highDistance} onChangeText={(t) => setDraft((d) => ({ ...d, highDistance: t }))} keyboardType="decimal-pad" />
           </Section>
         ) : null}
 
         <Section title="Notes" open={open.notes} onToggle={() => toggleSection("notes")}>
-          <Field label="Pros" fieldKey="pros" inputRefs={inputRefs} onNext={focusNext} value={draft.pros} onChangeText={(t) => setDraft((d) => ({ ...d, pros: t }))} multiline />
-          <Field label="Cons" fieldKey="cons" inputRefs={inputRefs} onNext={focusNext} value={draft.cons} onChangeText={(t) => setDraft((d) => ({ ...d, cons: t }))} multiline />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Pros" fieldKey="pros" inputRefs={inputRefs} onNext={focusNext} value={draft.pros} onChangeText={(t) => setDraft((d) => ({ ...d, pros: t }))} multiline />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Cons" fieldKey="cons" inputRefs={inputRefs} onNext={focusNext} value={draft.cons} onChangeText={(t) => setDraft((d) => ({ ...d, cons: t }))} multiline />
         </Section>
 
         <Pressable
@@ -762,6 +821,71 @@ export default function AddScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Time Picker Modal */}
+      <Modal visible={timePicker.open} transparent animationType="fade" onRequestClose={() => setTimePicker((t) => ({ ...t, open: false }))}>
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", padding: 18, justifyContent: "center" }}
+          onPress={() => setTimePicker((t) => ({ ...t, open: false }))}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 18, overflow: "hidden" }}
+          >
+            <View style={{ padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 16 }}>Select Time</Text>
+              <Pressable onPress={() => setTimePicker((t) => ({ ...t, open: false }))} hitSlop={10}>
+                <Ionicons name="close" size={20} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <View style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+              <ScrollView style={{ maxHeight: 320 }}>
+                {buildTimeOptions().map((t) => {
+                  const active = t === timePicker.value;
+                  return (
+                    <Pressable
+                      key={t}
+                      onPress={() => setTimePicker((s) => ({ ...s, value: t }))}
+                      style={({ pressed }) => ({
+                        paddingHorizontal: 14,
+                        paddingVertical: 12,
+                        borderTopWidth: 1,
+                        borderTopColor: colors.border,
+                        backgroundColor: active ? colors.cardHover : pressed ? colors.cardHover : colors.background,
+                      })}
+                    >
+                      <Text style={{ color: active ? colors.primaryBlue : colors.textPrimary, fontWeight: "800" }}>{t}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
+              <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 10, padding: 14 }}>
+                <Pressable
+                  onPress={() => setTimePicker((t) => ({ ...t, open: false }))}
+                  style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.border }}
+                >
+                  <Text style={{ color: colors.textPrimary, fontWeight: "800" }}>Cancel</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => {
+                    const v = timePicker.value;
+                    const cb = timePicker.onPick;
+                    setTimePicker((t) => ({ ...t, open: false }));
+                    cb(v);
+                  }}
+                  style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: colors.primaryBlue }}
+                >
+                  <Text style={{ color: colors.background, fontWeight: "900" }}>Done</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+>
     </View>
   );
 }

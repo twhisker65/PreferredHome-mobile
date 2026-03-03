@@ -132,20 +132,17 @@ export default function CalendarScreen() {
         />
       </SidePanel>
 
-      <View style={{ paddingHorizontal: 16, paddingTop: 14 }}>
-        <Text style={{ color: colors.textPrimary, fontSize: 44, fontWeight: "900" }}>Calendar</Text>
-        <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 16 }}>
-          Month view + your scheduled tours (from Sheets).
-        </Text>
-      </View>
-
       <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
         <CalendarList
           current={appts[0]?.date ?? undefined}
           pastScrollRange={6}
           futureScrollRange={6}
+          horizontal
+          pagingEnabled
+          hideExtraDays
           markingType={"custom"}
           markedDates={markedDates}
+          style={{ borderRadius: 18, overflow: "hidden" }}
           theme={{
             calendarBackground: colors.background,
             monthTextColor: colors.textPrimary,

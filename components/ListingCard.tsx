@@ -42,12 +42,12 @@ export function ListingCard({
     >
       <View style={{ flexDirection: "row", padding: 6, gap: 8 }}>
         {/* Photo + Status (status is under photo per instructions) */}
-        <View style={{ width: 64 }}>
+        <View style={{ width: 80 }}>
           <View
             style={{
-              width: 64,
-              height: 64,
-              borderRadius: 12,
+              width: 80,
+              height: 80,
+              borderRadius: 14,
               overflow: "hidden",
               borderWidth: 1,
               borderColor: colors.border,
@@ -59,8 +59,8 @@ export function ListingCard({
             ) : null}
           </View>
 
-          <View style={{ marginTop: 6, alignItems: "flex-start" }}>
-            <StatusPill status={listing.status} />
+          <View style={{ marginTop: 6, alignSelf: "stretch" }}>
+            <StatusPill status={listing.status} fullWidth />
           </View>
         </View>
 

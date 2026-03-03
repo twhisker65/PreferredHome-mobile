@@ -19,7 +19,7 @@ export default function CompareTab() {
 
       <View style={{ padding: spacing.lg, gap: 12 }}>
 <View style={{ flexDirection: "row", gap: 10 }}>
-          <ToggleBtn label="Card view" icon="albums-outline" active={mode === "cards"} onPress={() => setMode("cards")} />
+          <ToggleBtn label="Card view" icon="grid-outline" active={mode === "cards"} onPress={() => setMode("cards")} />
           <ToggleBtn label="Table view" icon="list-outline" active={mode === "table"} onPress={() => setMode("table")} />
         </View>
 

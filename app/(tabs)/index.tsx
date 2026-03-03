@@ -40,11 +40,11 @@ export default function HomeScreen() {
 
   const stats = useMemo(() => {
     const rents = listings.map((l) => l.baseRent ?? 0).filter((n) => n > 0);
-    if (!rents.length) return null;
-    const min = Math.min(...rents);
-    const max = Math.max(...rents);
-    const avg = rents.reduce((a, b) => a + b, 0) / rents.length;
-    return { min, max, avg, count: rents.length };
+    const count = listings.length;
+    const min = rents.length ? Math.min(...rents) : null;
+    const max = rents.length ? Math.max(...rents) : null;
+    const avg = rents.length ? rents.reduce((a, b) => a + b, 0) / rents.length : null;
+    return { min, max, avg, count };
   }, [listings]);
 
   return (
@@ -82,13 +82,13 @@ export default function HomeScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
         >
 <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
-            <StatPill label="Avg Base Rent" value={stats ? fmtMoney(stats.avg) : "—"} />
-            <StatPill label="Min Base Rent" value={stats ? fmtMoney(stats.min) : "—"} />
+            <StatPill label="Avg Base Rent" value={stats.avg !== null ? fmtMoney(stats.avg) : "—"} />
+            <StatPill label="Min Base Rent" value={stats.min !== null ? fmtMoney(stats.min) : "—"} />
           </View>
 
           <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-            <StatPill label="Max Base Rent" value={stats ? fmtMoney(stats.max) : "—"} />
-            <StatPill label="Listings" value={stats ? String(stats.count) : "0"} />
+            <StatPill label="Max Base Rent" value={stats.max !== null ? fmtMoney(stats.max) : "—"} />
+            <StatPill label="Listings" value={String(stats.count)} />
           </View>
 
           <View style={{ marginTop: 18 }}>
