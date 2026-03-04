@@ -1,8 +1,0 @@
-BUILD 3.1.09.2 HOTFIX
-
-Fixes:
-- Add screen crash: remove undefined loadProfileToggles reference
-- Remove placeholder profile-toggle gating from Add screen to avoid runtime dependency until persistence is explicitly implemented
-
-Files:
-- app/(tabs)/add.tsx

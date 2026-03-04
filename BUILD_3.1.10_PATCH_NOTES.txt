@@ -1,0 +1,4 @@
+Build 3.1.10 PATCH (source-only)
+Includes ONLY updated source files under /app and /lib.
+Copy these into your repo root (C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile), allowing overwrite.
+Excludes caches (.expo), node_modules, android/ios artifacts, etc.

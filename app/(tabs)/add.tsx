@@ -885,7 +885,6 @@ export default function AddScreen() {
           </Pressable>
         </Pressable>
       </Modal>
->
     </View>
   );
 }

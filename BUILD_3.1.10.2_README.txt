@@ -1,0 +1,14 @@
+BUILD 3.1.10.2 HOTFIX
+
+Purpose
+- Fix Add tab red-screen crash: "Text strings must be rendered within a <Text> component."
+
+Root Cause
+- app/(tabs)/add.tsx contained a stray '>' character after the Time Picker Modal, which React Native treated as a raw text node inside a <View>.
+
+Changes
+- app/(tabs)/add.tsx: removed stray '>' character after </Modal> (Time Picker Modal)
+
+Files included in this ZIP (updated only)
+- app/(tabs)/add.tsx
+- BUILD_3.1.10.2_README.txt
