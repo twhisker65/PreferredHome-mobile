@@ -93,15 +93,16 @@ export default function CalendarScreen() {
     for (const l of listings) {
       const raw = l.raw ?? {};
 
-      const viewingDate = str(
-        pick(raw, ["viewingDate", "viewing_date", "Viewing Date", "tourDate", "tour_date", "Tour Date", "viewing_datetime"])
+      // Single source of truth: "Viewing Appointment" column in ISO 8601 format
+      // e.g. "2026-03-07T12:00:00" or "2026-03-07"
+      const viewingAppt = str(
+        pick(raw, ["viewingAppointment", "Viewing Appointment", "viewing_appointment", "viewing_datetime"])
       );
-      const viewingTime = str(pick(raw, ["viewingTime", "viewing_time", "Viewing Time", "tourTime", "tour_time", "Tour Time"]));
 
-      const parsed = parseDateTime(viewingDate, viewingTime);
+      const parsed = parseDateTime(viewingAppt);
       if (!parsed) continue;
 
-      const contact = str(pick(raw, ["contactName", "contact_name", "Contact Name", "leasingContact", "Leasing Contact", "contact"])) || "";
+      const contact = str(pick(raw, ["contactName", "contact_name", "Contact Name"])) || "";
 
       out.push({
         id: l.id,
@@ -125,8 +126,8 @@ export default function CalendarScreen() {
     const m: Record<string, any> = {};
     for (const a of appts) {
       m[a.date] = {
-        marked: true,
-        dotColor: colors.primaryBlue,
+        selected: true,
+        selectedColor: colors.primaryBlue,
       };
     }
     return m;
@@ -159,7 +160,6 @@ export default function CalendarScreen() {
         <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
           <Calendar
             hideExtraDays
-            markingType={"dot"}
             markedDates={markedDates}
             style={{ borderRadius: 18, overflow: "hidden" }}
             theme={{

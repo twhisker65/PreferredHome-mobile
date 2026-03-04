@@ -15,7 +15,7 @@ import { headingLabel } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
 import { SidePanel } from "../../components/SidePanel";
 import { MenuSheet } from "../../components/MenuSheet";
-import { CalendarList } from "react-native-calendars";
+import { Calendar } from "react-native-calendars";
 import { loadProfileToggles, type ProfileToggles } from "../../lib/profileStorage";
 
 type Draft = {
@@ -794,10 +794,9 @@ export default function AddScreen() {
             ) : null}
 
             {picker?.mode === "date" ? (
-              <View style={{ borderTopWidth: 1, borderTopColor: colors.border, alignItems: "center" }}>
-                <CalendarList
-                  horizontal
-                  pagingEnabled
+              <View style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+                <Calendar
+                  current={picker.initialDate || todayYYYYMMDD()}
                   markedDates={marked}
                   onDayPress={(day) => {
                     picker.onPickDate?.(day.dateString);
@@ -816,7 +815,6 @@ export default function AddScreen() {
                     textMonthFontWeight: "800",
                     textDayHeaderFontWeight: "800",
                   }}
-                  style={{ height: 360, width: "100%" }}
                 />
               </View>
             ) : null}
@@ -848,7 +846,11 @@ export default function AddScreen() {
                   return (
                     <Pressable
                       key={t}
-                      onPress={() => setTimePicker((s) => ({ ...s, value: t }))}
+                      onPress={() => {
+                        const cb = timePicker.onPick;
+                        setTimePicker((s) => ({ ...s, open: false, value: t }));
+                        cb(t);
+                      }}
                       style={({ pressed }) => ({
                         paddingHorizontal: 14,
                         paddingVertical: 12,
@@ -862,27 +864,6 @@ export default function AddScreen() {
                   );
                 })}
               </ScrollView>
-
-              <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 10, padding: 14 }}>
-                <Pressable
-                  onPress={() => setTimePicker((t) => ({ ...t, open: false }))}
-                  style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.border }}
-                >
-                  <Text style={{ color: colors.textPrimary, fontWeight: "800" }}>Cancel</Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => {
-                    const v = timePicker.value;
-                    const cb = timePicker.onPick;
-                    setTimePicker((t) => ({ ...t, open: false }));
-                    cb(v);
-                  }}
-                  style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14, backgroundColor: colors.primaryBlue }}
-                >
-                  <Text style={{ color: colors.background, fontWeight: "900" }}>Done</Text>
-                </Pressable>
-              </View>
             </View>
           </Pressable>
         </Pressable>

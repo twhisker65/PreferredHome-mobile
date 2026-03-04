@@ -8,6 +8,7 @@ import { StatusPill } from "./StatusPill";
 type Props = {
   listing?: ListingUI;
   compareSelected?: boolean;
+  hideActions?: boolean;
 
   onTogglePreferred?: () => void;
   onToggleCompare?: () => void;
@@ -19,6 +20,7 @@ type Props = {
 export function ListingCard({
   listing,
   compareSelected,
+  hideActions,
   onTogglePreferred,
   onToggleCompare,
   onView,
@@ -85,13 +87,15 @@ export function ListingCard({
       </View>
 
       {/* Action Row (icons only, no labels) */}
-      <View style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: colors.border }}>
-        <IconBtn icon={listing.preferred ? "heart" : "heart-outline"} onPress={onTogglePreferred} color={preferredColor} />
-        <IconBtn icon={"git-compare-outline"} onPress={onToggleCompare} color={compareColor} />
-        <IconBtn icon={"eye-outline"} onPress={onView} color={colors.textSecondary} />
-        <IconBtn icon={"pencil-outline"} onPress={onEdit} color={colors.textSecondary} />
-        <IconBtn icon={"trash-outline"} onPress={onDelete} color={colors.textSecondary} />
-      </View>
+      {!hideActions ? (
+        <View style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: colors.border }}>
+          <IconBtn icon={listing.preferred ? "heart" : "heart-outline"} onPress={onTogglePreferred} color={preferredColor} />
+          <IconBtn icon={"git-compare-outline"} onPress={onToggleCompare} color={compareColor} />
+          <IconBtn icon={"eye-outline"} onPress={onView} color={colors.textSecondary} />
+          <IconBtn icon={"pencil-outline"} onPress={onEdit} color={colors.textSecondary} />
+          <IconBtn icon={"trash-outline"} onPress={onDelete} color={colors.textSecondary} />
+        </View>
+      ) : null}
     </View>
   );
 }

@@ -1,0 +1,14 @@
+BUILD 3.1.12.2 — HOTFIX
+
+FILES CHANGED (1)
+- app/(tabs)/calendar.tsx
+
+ROOT CAUSE
+API returns contact field as "contactName" (camelCase).
+Code was looking for "contact_name" and "Contact Name" — no match.
+
+FIX
+Added "contactName" as the first lookup key for contact name field.
+
+SUGGESTED COMMIT MESSAGE
+Build 3.1.12.2 — Hotfix calendar contactName field name

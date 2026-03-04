@@ -1,0 +1,32 @@
+BUILD 3.1.12
+
+FILES CHANGED (4)
+- components/ListingCard.tsx
+- app/(tabs)/index.tsx
+- app/(tabs)/add.tsx
+- app/(tabs)/calendar.tsx
+
+CHANGES BY FILE
+
+components/ListingCard.tsx
+- Added hideActions prop
+- When hideActions=true the icon row and its separator are hidden
+- Listings page cards unchanged (hideActions not passed)
+
+app/(tabs)/index.tsx
+- "TOP 3" heading replaces "PREFERRED"
+- Home page cards now use hideActions — no icon row, card ends after rent line
+
+app/(tabs)/add.tsx
+- Date picker: replaced CalendarList with Calendar component — fixes broken modal
+- Time picker: selecting a time now saves and closes immediately, no Done/Cancel buttons
+- Single select fields already auto-closed on selection (no change needed)
+
+app/(tabs)/calendar.tsx
+- Appointment field mapping updated to single field: "Viewing Appointment" column
+- Accepts ISO 8601 format: 2026-03-07T12:00:00 or 2026-03-07
+- Appointment dates now show filled blue circle on calendar (not dot)
+- Reduced alias list to: "Viewing Appointment", "viewing_appointment", "viewing_datetime"
+
+SUGGESTED COMMIT MESSAGE
+Build 3.1.12 — Home TOP 3 cards no icons, date picker fix, time picker auto-close, calendar appointment field fix

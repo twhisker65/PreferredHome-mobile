@@ -93,10 +93,10 @@ export default function HomeScreen() {
           </View>
 
           <View style={{ marginTop: 18 }}>
-            <Text style={headingLabel}>Preferred</Text>
+            <Text style={headingLabel}>Top 3</Text>
 <View style={{ marginTop: 12, gap: 12 }}>
               {preferredTop.map((l) => (
-                <ListingCard key={l.id} listing={l} />
+                <ListingCard key={l.id} listing={l} hideActions />
               ))}
               {!preferredTop.length ? (
                 <Text style={{ color: colors.textSecondary, marginTop: 8 }}>No preferred listings yet.</Text>
