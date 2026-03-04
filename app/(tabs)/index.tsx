@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, ActivityIndicator, RefreshControl, ScrollView } from "react-native";
 import { router } from "expo-router";
 import { colors } from "../../styles/colors";
+import { headingLabel } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
 import { ListingCard } from "../../components/ListingCard";
 import { SidePanel } from "../../components/SidePanel";
@@ -92,7 +93,7 @@ export default function HomeScreen() {
           </View>
 
           <View style={{ marginTop: 18 }}>
-            <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "900" }}>Preferred</Text>
+            <Text style={headingLabel}>Preferred</Text>
 <View style={{ marginTop: 12, gap: 12 }}>
               {preferredTop.map((l) => (
                 <ListingCard key={l.id} listing={l} />

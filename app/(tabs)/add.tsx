@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { colors } from "../../styles/colors";
+import { headingLabel } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
 import { SidePanel } from "../../components/SidePanel";
 import { MenuSheet } from "../../components/MenuSheet";
@@ -129,9 +130,10 @@ function buildTimeOptions() {
   const out: string[] = [];
   for (let h = 6; h <= 22; h++) {
     for (const m of [0, 15, 30, 45]) {
-      const hh = String(h).padStart(2, "0");
+      const period = h < 12 ? "AM" : "PM";
+      const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
       const mm = String(m).padStart(2, "0");
-      out.push(`${hh}:${mm}`);
+      out.push(`${display}:${mm} ${period}`);
     }
   }
   return out;
@@ -162,7 +164,7 @@ function Section({
           justifyContent: "space-between",
         })}
       >
-        <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 15 }}>{title}</Text>
+        <Text style={headingLabel}>{title}</Text>
         <Ionicons name={open ? "chevron-up" : "chevron-down"} size={18} color={colors.textSecondary} />
       </Pressable>
 
@@ -362,8 +364,8 @@ export default function AddScreen() {
 
 
   const [open, setOpen] = useState<Record<SectionKey, boolean>>({
-    property: true,
-    costs: true,
+    property: false,
+    costs: false,
     features: false,
     contact: false,
     timeline: false,
@@ -478,7 +480,7 @@ export default function AddScreen() {
 
     contactedDate: "",
     viewingDate: "",
-    viewingTime: "11:00",
+    viewingTime: "11:00 AM",
     appliedDate: "",
 
     elementarySchoolName: "",
@@ -519,7 +521,7 @@ export default function AddScreen() {
 
   const [timePicker, setTimePicker] = useState<{ open: boolean; value: string; onPick: (v: string) => void }>({
     open: false,
-    value: "11:00",
+    value: "11:00 AM",
     onPick: () => {},
   });
 
@@ -545,7 +547,7 @@ export default function AddScreen() {
     setPicker({ mode: "date", title, initialDate, onPickDate: onPick });
   }
   function openTime(current: string, onPick: (v: string) => void) {
-    const initial = (current && /^\d{1,2}:\d{2}$/.test(current)) ? current : "11:00";
+    const initial = (current && /^\d{1,2}:\d{2} (AM|PM)$/i.test(current)) ? current : "11:00 AM";
     setTimePicker({ open: true, value: initial, onPick });
   }
 
@@ -792,7 +794,7 @@ export default function AddScreen() {
             ) : null}
 
             {picker?.mode === "date" ? (
-              <View style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+              <View style={{ borderTopWidth: 1, borderTopColor: colors.border, alignItems: "center" }}>
                 <CalendarList
                   horizontal
                   pagingEnabled
@@ -814,7 +816,7 @@ export default function AddScreen() {
                     textMonthFontWeight: "800",
                     textDayHeaderFontWeight: "800",
                   }}
-                  style={{ height: 360, alignSelf: "stretch" }}
+                  style={{ height: 360, width: "100%" }}
                 />
               </View>
             ) : null}

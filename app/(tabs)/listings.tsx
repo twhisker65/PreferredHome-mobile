@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, ActivityIndicator, RefreshControl, SectionList, Pressable, Alert } from "react-native";
 import { router } from "expo-router";
 import { colors } from "../../styles/colors";
+import { headingLabel } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
 import { ListingCard } from "../../components/ListingCard";
 import { SidePanel } from "../../components/SidePanel";
@@ -16,7 +17,7 @@ type Section = { title: string; data: ListingUI[] };
 function SectionHeader({ title }: { title: string }) {
   return (
     <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 12, letterSpacing: 0.8 }}>{title.toUpperCase()}</Text>
+      <Text style={headingLabel}>{title}</Text>
     </View>
   );
 }

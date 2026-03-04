@@ -1,0 +1,46 @@
+BUILD 3.1.11
+
+FILES CHANGED (7)
+- styles/typography.ts
+- app/(tabs)/index.tsx
+- app/(tabs)/listings.tsx
+- app/(tabs)/add.tsx
+- app/(tabs)/compare.tsx
+- app/(tabs)/calendar.tsx
+- app/profile.tsx
+
+CHANGES BY FILE
+
+styles/typography.ts
+- Added headingLabel export: shared HEADING FONT STYLE token
+  (all caps, 15px, weight 900, textPrimary, letterSpacing 0.5)
+- Change this one token to update all headings across the app
+
+app/(tabs)/index.tsx
+- "Preferred" heading uses headingLabel
+
+app/(tabs)/listings.tsx
+- "PREFERRED" and "CANDIDATES" section headers use headingLabel
+
+app/(tabs)/add.tsx
+- All section grouping headers use headingLabel
+- All sections collapsed by default on page load
+- Date picker calendar centered in modal
+- Time picker converted to AM/PM format (e.g. 11:00 AM, 2:30 PM)
+
+app/(tabs)/compare.tsx
+- Card/list toggle icons resized to 24px to match nav bar
+
+app/(tabs)/calendar.tsx
+- Replaced CalendarList with Calendar (single month) to fix scrolling conflict
+- Page scrolls via outer ScrollView — calendar no longer blocks scroll
+- "Appointments" heading uses headingLabel
+- Appointment cards: Row 1 Building Name + Date/Time, Row 2 full address, Row 3 contact name
+- Time displayed in AM/PM format
+
+app/profile.tsx
+- Removed Kids, Car, Pets lifestyle toggles
+- Placeholder text shown; toggles to be re-implemented in a future build
+
+SUGGESTED COMMIT MESSAGE
+Build 3.1.11 — Heading font style token, sections closed by default, AM/PM time, calendar scroll fix, appointment cards, Compare icon resize, Profile toggles removed

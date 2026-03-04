@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, FlatList, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
-import { CalendarList } from "react-native-calendars";
+import { Calendar } from "react-native-calendars";
 import { colors } from "../../styles/colors";
+import { headingLabel } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
 import { SidePanel } from "../../components/SidePanel";
 import { MenuSheet } from "../../components/MenuSheet";
@@ -11,7 +12,7 @@ import { useListings } from "../../lib/useListings";
 type Appt = {
   id: string;
   date: string; // YYYY-MM-DD
-  time?: string; // HH:MM
+  time?: string; // HH:MM (24hr internal)
   building?: string;
   address?: string;
   contact?: string;
@@ -33,7 +34,6 @@ function parseDateTime(rawDate: string, rawTime?: string): { date: string; time?
   const d = str(rawDate);
   const t = str(rawTime);
 
-  // If datetime is combined: "YYYY-MM-DD HH:MM" or ISO string.
   if (d.includes("T")) {
     const iso = new Date(d);
     if (!Number.isNaN(iso.getTime())) {
@@ -56,6 +56,29 @@ function parseDateTime(rawDate: string, rawTime?: string): { date: string; time?
   return { date: d, time: timeOnly };
 }
 
+function formatTime(t?: string): string {
+  if (!t) return "";
+  // Already AM/PM format
+  if (/AM|PM/i.test(t)) return t.toUpperCase();
+  // Convert HH:MM 24hr to AM/PM
+  const match = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return t;
+  const h = parseInt(match[1], 10);
+  const m = match[2];
+  const period = h < 12 ? "AM" : "PM";
+  const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${display}:${m} ${period}`;
+}
+
+function formatDate(d: string): string {
+  // YYYY-MM-DD → "Mar 03"
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const match = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return d;
+  const month = months[parseInt(match[2], 10) - 1] ?? match[2];
+  return `${month} ${match[3]}`;
+}
+
 function safeText(v?: string) {
   return v && v.trim().length ? v.trim() : "—";
 }
@@ -65,8 +88,6 @@ export default function CalendarScreen() {
   const { listings, loading, error } = useListings();
 
   const appts: Appt[] = useMemo(() => {
-    // Build appointments from listings.
-    // Source of truth: listing raw payload coming from Google Sheets.
     const out: Appt[] = [];
 
     for (const l of listings) {
@@ -92,7 +113,6 @@ export default function CalendarScreen() {
       });
     }
 
-    // Sort by date then time
     out.sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return (a.time ?? "").localeCompare(b.time ?? "");
@@ -104,7 +124,7 @@ export default function CalendarScreen() {
   const markedDates = useMemo(() => {
     const m: Record<string, any> = {};
     for (const a of appts) {
-            m[a.date] = {
+      m[a.date] = {
         marked: true,
         dotColor: colors.primaryBlue,
       };
@@ -130,62 +150,88 @@ export default function CalendarScreen() {
         />
       </SidePanel>
 
-      <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
-        <CalendarList
-          current={appts[0]?.date ?? undefined}
-          pastScrollRange={6}
-          futureScrollRange={6}
-          horizontal
-          pagingEnabled
-          hideExtraDays
-          markingType={"dot"}
-          markedDates={markedDates}
-          style={{ borderRadius: 18, overflow: "hidden" }}
-          theme={{
-            calendarBackground: colors.background,
-            monthTextColor: colors.textPrimary,
-            dayTextColor: colors.textPrimary,
-            textDisabledColor: colors.textSecondary,
-            todayTextColor: colors.primaryBlue,
-            arrowColor: colors.textPrimary,
-          }}
-        />
-      </View>
-
-      <View style={{ paddingHorizontal: 16, paddingTop: 18, paddingBottom: 10 }}>
-        <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "900" }}>Appointments</Text>
-      </View>
-
-      {loading ? (
-        <View style={{ padding: 16 }}>
-          <ActivityIndicator />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 28 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Calendar — single month, not a list, so it does not scroll internally */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
+          <Calendar
+            hideExtraDays
+            markingType={"dot"}
+            markedDates={markedDates}
+            style={{ borderRadius: 18, overflow: "hidden" }}
+            theme={{
+              calendarBackground: colors.background,
+              monthTextColor: colors.textPrimary,
+              dayTextColor: colors.textPrimary,
+              textDisabledColor: colors.textSecondary,
+              todayTextColor: colors.primaryBlue,
+              arrowColor: colors.textPrimary,
+              textDayFontWeight: "700",
+              textMonthFontWeight: "800",
+              textDayHeaderFontWeight: "800",
+            }}
+          />
         </View>
-      ) : error ? (
-        <View style={{ paddingHorizontal: 16, paddingBottom: 20 }}>
-          <Text style={{ color: colors.textSecondary }}>{error}</Text>
+
+        {/* Appointments heading */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 22, paddingBottom: 12 }}>
+          <Text style={headingLabel}>Appointments</Text>
         </View>
-      ) : (
-        <FlatList
-          data={appts}
-          keyExtractor={(i) => i.id + "|" + i.date + "|" + (i.time ?? "")}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 28, gap: 12 }}
-          renderItem={({ item }) => (
-            <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 14, backgroundColor: colors.card }}>
-              <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "900" }} numberOfLines={1}>
-                {safeText(item.building)} - {safeText(item.date)}{item.time ? ` - ${item.time}` : ""}
-              </Text>
 
-              <Text style={{ color: colors.textSecondary, marginTop: 8 }} numberOfLines={2}>
-                {safeText(item.address)}
-              </Text>
+        {/* Appointment cards */}
+        {loading ? (
+          <View style={{ paddingHorizontal: 16 }}>
+            <ActivityIndicator />
+          </View>
+        ) : error ? (
+          <View style={{ paddingHorizontal: 16 }}>
+            <Text style={{ color: colors.textSecondary }}>{error}</Text>
+          </View>
+        ) : appts.length === 0 ? (
+          <View style={{ paddingHorizontal: 16 }}>
+            <Text style={{ color: colors.textSecondary }}>No appointments scheduled.</Text>
+          </View>
+        ) : (
+          <View style={{ paddingHorizontal: 16, gap: 12 }}>
+            {appts.map((item) => {
+              const dateStr = formatDate(item.date);
+              const timeStr = formatTime(item.time);
+              const dateTime = timeStr ? `${dateStr} - ${timeStr}` : dateStr;
 
-              <Text style={{ color: colors.textSecondary, marginTop: 6 }} numberOfLines={1}>
-                {safeText(item.contact)}
-              </Text>
-            </View>
-          )}
-        />
-      )}
+              return (
+                <View
+                  key={item.id + "|" + item.date + "|" + (item.time ?? "")}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    borderRadius: 18,
+                    padding: 14,
+                    backgroundColor: colors.card,
+                  }}
+                >
+                  {/* Row 1: Building Name — Date & Time */}
+                  <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "900" }} numberOfLines={1}>
+                    {safeText(item.building)} — {dateTime}
+                  </Text>
+
+                  {/* Row 2: Full address */}
+                  <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 13 }} numberOfLines={2}>
+                    {safeText(item.address)}
+                  </Text>
+
+                  {/* Row 3: Contact name */}
+                  <Text style={{ color: colors.textSecondary, marginTop: 4, fontSize: 13 }} numberOfLines={1}>
+                    {safeText(item.contact)}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }

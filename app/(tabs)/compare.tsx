@@ -70,7 +70,7 @@ function IconToggle({
         backgroundColor: pressed ? "rgba(255,255,255,0.03)" : "transparent",
       })}
     >
-      <Ionicons name={icon} size={20} color={active ? colors.primaryBlue : colors.textSecondary} />
+      <Ionicons name={icon} size={24} color={active ? colors.primaryBlue : colors.textSecondary} />
     </Pressable>
   );
 }
