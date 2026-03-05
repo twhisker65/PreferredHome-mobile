@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   Pressable,
   Switch,
   Modal,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -16,14 +18,12 @@ import { TopBar } from "../../components/TopBar";
 import { SidePanel } from "../../components/SidePanel";
 import { MenuSheet } from "../../components/MenuSheet";
 import { Calendar } from "react-native-calendars";
-import { loadProfileToggles, type ProfileToggles } from "../../lib/profileStorage";
+import { postListing } from "../../lib/api";
 
 type Draft = {
   // Status & ID
   status: string;
   preferred: boolean;
-  listingUrl: string;
-  listingSite: string;
 
   // Location
   buildingName: string;
@@ -43,21 +43,28 @@ type Draft = {
   bathrooms: string;
   squareFootage: string;
   furnished: boolean;
-  leaseLength: string;
-  dateAvailable: string; // YYYY-MM-DD
-  acType: string;
-  laundry: string;
-  parkingType: string;
 
   // Costs
   baseRent: string;
-  parkingFee: string;
   amenityFee: string;
   adminFee: string;
   utilityFee: string;
+  parkingFee: string;
   otherFee: string;
   securityDeposit: string;
   applicationFee: string;
+
+  // Features (multi-select)
+  utilitiesIncluded: string[];
+  unitFeatures: string[];
+  buildingAmenities: string[];
+  petAmenities: string[];
+  closeBy: string[];
+
+  // Features (single select)
+  acType: string;
+  laundry: string;
+  parkingType: string;
 
   // Transportation
   commuteTime: string;
@@ -65,20 +72,7 @@ type Draft = {
   transitScore: string;
   bikeScore: string;
 
-  // Contact
-  contactName: string;
-  contactPhone: string;
-  contactEmail: string;
-  noBoardApproval: boolean;
-  noBrokerFee: boolean;
-
-  // Timeline
-  contactedDate: string; // YYYY-MM-DD
-  viewingDate: string; // YYYY-MM-DD
-  viewingTime: string; // HH:MM
-  appliedDate: string; // YYYY-MM-DD
-
-  // Schools (children)
+  // Schools
   elementarySchoolName: string;
   elementaryRating: string;
   elementaryGrades: string;
@@ -92,25 +86,35 @@ type Draft = {
   highGrades: string;
   highDistance: string;
 
-  // Multi-selects
-  utilitiesIncluded: string[];
-  unitFeatures: string[];
-  buildingAmenities: string[];
-  petAmenities: string[];
-  closeBy: string[];
+  // Listing
+  listingSite: string;
+  listingUrl: string;
+  photoUrl: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
+  leaseLength: string;
+  noBoardApproval: boolean;
+  noBrokerFee: boolean;
+
+  // Timeline
+  dateAvailable: string;
+  contactedDate: string;
+  viewingDate: string;
+  viewingTime: string;
+  appliedDate: string;
 
   // Notes
   pros: string;
   cons: string;
 };
 
-const STATUS = ["Available", "Inquired", "Visited", "Applied", "Rejected", "Unknown"];
+const STATUS = ["New", "Contacted", "Scheduled", "Viewed", "Shortlisted", "Applied", "Approved", "Signed", "Rejected", "Archived"];
 const UNIT_TYPES = ["Condo", "Co-Op", "Rental"];
 const AC_TYPES = ["Central", "Wall", "Window", "None"];
 const LAUNDRY = ["In-Unit", "On Floor", "In Building", "None"];
 const PARKING = ["Covered", "Uncovered", "None"];
 
-// Multi-select options (open for now; controlled lists later)
 const UTILITIES = ["Gas", "Electric", "Internet", "Water", "Sewage", "Trash", "Parking"];
 const UNIT_FEATURES = ["Hardwood floors", "Air conditioning", "Dishwasher", "Microwave", "Balcony/Terrace"];
 const BUILDING_AMENITIES = ["Extra storage", "Rooftop space", "Common lounge", "Barbecue area", "Firepits", "Gym", "Pool"];
@@ -125,7 +129,6 @@ function todayYYYYMMDD() {
   return `${y}-${m}-${day}`;
 }
 
-
 function buildTimeOptions() {
   const out: string[] = [];
   for (let h = 6; h <= 22; h++) {
@@ -138,7 +141,8 @@ function buildTimeOptions() {
   }
   return out;
 }
-type SectionKey = "property" | "costs" | "features" | "contact" | "timeline" | "schools" | "notes";
+
+type SectionKey = "property" | "costs" | "features" | "transportation" | "schools" | "listing" | "timeline" | "notes";
 
 function Section({
   title,
@@ -270,12 +274,11 @@ function Toggle({
       }}
     >
       <Text style={{ color: active ? colors.primaryBlue : colors.textPrimary, fontWeight: "800" }}>{label}</Text>
-
       <Switch
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: colors.border, true: colors.card }} // white track when YES
-        thumbColor={active ? colors.primaryBlue : colors.textSecondary} // blue dot when YES
+        trackColor={{ false: colors.border, true: colors.card }}
+        thumbColor={active ? colors.primaryBlue : colors.textSecondary}
       />
     </View>
   );
@@ -322,7 +325,6 @@ function MultiRow({
   label: string;
   values: string[];
   onPress: () => void;
-  emptyLabel?: string;
 }) {
   const text = values.length ? values.join(", ") : "—";
   return (
@@ -351,68 +353,43 @@ function MultiRow({
 
 export default function AddScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
-
-  // Profile toggles live on the Profile page (hamburger menu).
-  const [toggles, setToggles] = useState<ProfileToggles>({ children: false, pets: false, car: false });
-
-  useEffect(() => {
-    (async () => {
-      const t = await loadProfileToggles();
-      setToggles(t);
-    })();
-  }, []);
-
+  const [saving, setSaving] = useState(false);
 
   const [open, setOpen] = useState<Record<SectionKey, boolean>>({
     property: false,
     costs: false,
     features: false,
-    contact: false,
-    timeline: false,
+    transportation: false,
     schools: false,
+    listing: false,
+    timeline: false,
     notes: false,
   });
-  // Keyboard "Next" behavior for text inputs (Enter advances to next field).
+
   const inputRefs = useRef<Record<string, TextInput | null>>({});
   const scrollRef = useRef<ScrollView>(null);
   const fieldY = useRef<Record<string, number>>({});
 
+  // Input tab order — grouped by similar keyboard types to reduce keyboard switching
   const inputOrder: string[] = [
-    // Property
-    "buildingName",
-    "streetAddress",
-    "zipCode",
-    "neighborhood",
-    "unitNumber",
-    "floorNumber",
-    // Unit
-    "bedrooms",
-    "bathrooms",
-    "squareFootage",
-    "leaseLength",
-    // Costs
-    "baseRent",
-    "parkingFee",
-    "amenityFee",
-    "adminFee",
-    "utilityFee",
-    "otherFee",
-    "securityDeposit",
-    "applicationFee",
-    // Transportation
-    "commuteTime",
-    "walkScore",
-    "transitScore",
-    "bikeScore",
-    // Contact
-    "contactName",
-    "contactPhone",
-    "contactEmail",
-    // Timeline
-    "viewingTime",
-    // Notes
-    "pros",
-    "cons",
+    // Text fields — Property
+    "buildingName", "streetAddress", "zipCode", "neighborhood", "unitNumber",
+    // Number fields — Property
+    "floorNumber", "bedrooms", "bathrooms", "squareFootage",
+    // Number fields — Costs
+    "baseRent", "amenityFee", "adminFee", "utilityFee", "parkingFee", "otherFee", "securityDeposit", "applicationFee",
+    // Number fields — Transportation
+    "commuteTime", "walkScore", "transitScore", "bikeScore",
+    // Text fields — Schools
+    "elementarySchoolName", "elementaryGrades", "elementaryDistance",
+    "middleSchoolName", "middleGrades", "middleDistance",
+    "highSchoolName", "highGrades", "highDistance",
+    // Number fields — Schools
+    "elementaryRating", "middleRating", "highRating",
+    // Text fields — Listing
+    "listingSite", "listingUrl", "photoUrl", "contactName", "contactPhone", "contactEmail", "leaseLength",
+    // Text fields — Notes
+    "pros", "cons",
   ];
 
   function focusNext(currentKey: string) {
@@ -428,13 +405,9 @@ export default function AddScreen() {
     }
   }
 
-
-
   const [draft, setDraft] = useState<Draft>(() => ({
-    status: "Available",
+    status: "New",
     preferred: false,
-    listingUrl: "",
-    listingSite: "",
 
     buildingName: "",
     streetAddress: "",
@@ -452,36 +425,30 @@ export default function AddScreen() {
     bathrooms: "",
     squareFootage: "",
     furnished: false,
-    leaseLength: "",
-    dateAvailable: "",
-    acType: "None",
-    laundry: "None",
-    parkingType: "None",
 
     baseRent: "",
-    parkingFee: "",
     amenityFee: "",
     adminFee: "",
     utilityFee: "",
+    parkingFee: "",
     otherFee: "",
     securityDeposit: "",
     applicationFee: "",
+
+    utilitiesIncluded: [],
+    unitFeatures: [],
+    buildingAmenities: [],
+    petAmenities: [],
+    closeBy: [],
+
+    acType: "None",
+    laundry: "None",
+    parkingType: "None",
 
     commuteTime: "",
     walkScore: "",
     transitScore: "",
     bikeScore: "",
-
-    contactName: "",
-    contactPhone: "",
-    contactEmail: "",
-    noBoardApproval: false,
-    noBrokerFee: false,
-
-    contactedDate: "",
-    viewingDate: "",
-    viewingTime: "11:00 AM",
-    appliedDate: "",
 
     elementarySchoolName: "",
     elementaryRating: "",
@@ -496,17 +463,26 @@ export default function AddScreen() {
     highGrades: "",
     highDistance: "",
 
-    utilitiesIncluded: [],
-    unitFeatures: [],
-    buildingAmenities: [],
-    petAmenities: [],
-    closeBy: [],
+    listingSite: "",
+    listingUrl: "",
+    photoUrl: "",
+    contactName: "",
+    contactPhone: "",
+    contactEmail: "",
+    leaseLength: "",
+    noBoardApproval: false,
+    noBrokerFee: false,
+
+    dateAvailable: "",
+    contactedDate: "",
+    viewingDate: "",
+    viewingTime: "11:00 AM",
+    appliedDate: "",
 
     pros: "",
     cons: "",
   }));
 
-  // Picker modal state (single select / multi select / date)
   const [picker, setPicker] = useState<{
     mode: "single" | "multi" | "date";
     title: string;
@@ -546,17 +522,124 @@ export default function AddScreen() {
   function openDate(title: string, initialDate: string, onPick: (yyyyMMdd: string) => void) {
     setPicker({ mode: "date", title, initialDate, onPickDate: onPick });
   }
+
   function openTime(current: string, onPick: (v: string) => void) {
-    const initial = (current && /^\d{1,2}:\d{2} (AM|PM)$/i.test(current)) ? current : "11:00 AM";
+    const initial = current && /^\d{1,2}:\d{2} (AM|PM)$/i.test(current) ? current : "11:00 AM";
     setTimePicker({ open: true, value: initial, onPick });
   }
 
+  // Build viewingAppointment datetime string from date + time parts
+  function buildViewingAppointment(): string {
+    if (!draft.viewingDate) return "";
+    const timePart = draft.viewingTime || "12:00 PM";
+    // Convert "HH:MM AM/PM" → "HH:MM:00" 24h
+    const match = timePart.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return `${draft.viewingDate} 12:00:00`;
+    let h = parseInt(match[1], 10);
+    const min = match[2];
+    const period = match[3].toUpperCase();
+    if (period === "AM" && h === 12) h = 0;
+    if (period === "PM" && h !== 12) h += 12;
+    return `${draft.viewingDate} ${String(h).padStart(2, "0")}:${min}:00`;
+  }
 
-  function saveDraft() {
-    // Backend save is staged; UI-only in 3.1.06.
-    // Keeping this action for your workflow.
-    // eslint-disable-next-line no-alert
-    alert("Saved (UI only). Backend write is staged for later builds.");
+  async function handleSave() {
+    if (!draft.buildingName.trim()) {
+      Alert.alert("Required", "Building Name is required before saving.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload: Record<string, any> = {
+        status: draft.status,
+        preferred: draft.preferred,
+
+        buildingName: draft.buildingName,
+        streetAddress: draft.streetAddress,
+        city: draft.city,
+        state: draft.state,
+        zipCode: draft.zipCode,
+        neighborhood: draft.neighborhood,
+        unitNumber: draft.unitNumber,
+        floorNumber: draft.floorNumber ? Number(draft.floorNumber) : null,
+        topFloor: draft.topFloor,
+        cornerUnit: draft.cornerUnit,
+
+        unitType: draft.unitType,
+        bedrooms: draft.bedrooms ? Number(draft.bedrooms) : null,
+        bathrooms: draft.bathrooms ? Number(draft.bathrooms) : null,
+        squareFootage: draft.squareFootage ? Number(draft.squareFootage) : null,
+        furnished: draft.furnished,
+
+        baseRent: draft.baseRent ? Number(draft.baseRent) : null,
+        amenityFee: draft.amenityFee ? Number(draft.amenityFee) : null,
+        adminFee: draft.adminFee ? Number(draft.adminFee) : null,
+        utilityFee: draft.utilityFee ? Number(draft.utilityFee) : null,
+        parkingFee: draft.parkingFee ? Number(draft.parkingFee) : null,
+        otherFee: draft.otherFee ? Number(draft.otherFee) : null,
+        securityDeposit: draft.securityDeposit ? Number(draft.securityDeposit) : null,
+        applicationFee: draft.applicationFee ? Number(draft.applicationFee) : null,
+
+        utilitiesIncluded: draft.utilitiesIncluded.join(","),
+        unitFeatures: draft.unitFeatures.join(","),
+        buildingAmenities: draft.buildingAmenities.join(","),
+        petAmenities: draft.petAmenities.join(","),
+        closeBy: draft.closeBy.join(","),
+
+        acType: draft.acType,
+        laundry: draft.laundry,
+        parkingType: draft.parkingType,
+
+        commuteTime: draft.commuteTime ? Number(draft.commuteTime) : null,
+        walkScore: draft.walkScore ? Number(draft.walkScore) : null,
+        transitScore: draft.transitScore ? Number(draft.transitScore) : null,
+        bikeScore: draft.bikeScore ? Number(draft.bikeScore) : null,
+
+        elementarySchoolName: draft.elementarySchoolName,
+        elementaryRating: draft.elementaryRating ? Number(draft.elementaryRating) : null,
+        elementaryGrades: draft.elementaryGrades,
+        elementaryDistance: draft.elementaryDistance ? Number(draft.elementaryDistance) : null,
+        middleSchoolName: draft.middleSchoolName,
+        middleRating: draft.middleRating ? Number(draft.middleRating) : null,
+        middleGrades: draft.middleGrades,
+        middleDistance: draft.middleDistance ? Number(draft.middleDistance) : null,
+        highSchoolName: draft.highSchoolName,
+        highRating: draft.highRating ? Number(draft.highRating) : null,
+        highGrades: draft.highGrades,
+        highDistance: draft.highDistance ? Number(draft.highDistance) : null,
+
+        listingSite: draft.listingSite,
+        listingUrl: draft.listingUrl,
+        photoUrl: draft.photoUrl,
+        contactName: draft.contactName,
+        contactPhone: draft.contactPhone,
+        contactEmail: draft.contactEmail,
+        leaseLength: draft.leaseLength,
+        noBoardApproval: draft.noBoardApproval,
+        noBrokerFee: draft.noBrokerFee,
+
+        dateAvailable: draft.dateAvailable || null,
+        contactedDate: draft.contactedDate || null,
+        viewingAppointment: buildViewingAppointment() || null,
+        appliedDate: draft.appliedDate || null,
+
+        pros: draft.pros,
+        cons: draft.cons,
+      };
+
+      await postListing(payload);
+      Alert.alert("Saved", "Listing added successfully.", [
+        {
+          text: "OK",
+          onPress: () => router.push("/(tabs)/listings"),
+        },
+      ]);
+    } catch (err: any) {
+      Alert.alert("Save Failed", err?.message ?? "Something went wrong. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -577,167 +660,143 @@ export default function AddScreen() {
         />
       </SidePanel>
 
-      <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 28 }}>
-
+      <ScrollView
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 28 }}
+      >
+        {/* ── PROPERTY ── */}
         <Section title="Property" open={open.property} onToggle={() => toggleSection("property")}>
           <SelectRow
             label="Status"
             value={draft.status}
-            onPress={() =>
-              openSingle("Status", STATUS, draft.status, (v) => setDraft((d) => ({ ...d, status: v })))
-            }
+            onPress={() => openSingle("Status", STATUS, draft.status, (v) => setDraft((d) => ({ ...d, status: v })))}
           />
-
-          <Toggle label="Preferred" value={draft.preferred} onValueChange={(v) => setDraft((d) => ({ ...d, preferred: v }))} />
-
-          <Field scrollRef={scrollRef} fieldY={fieldY} label="Listing URL" value={draft.listingUrl} onChangeText={(t) => setDraft((d) => ({ ...d, listingUrl: t }))} placeholder="https://..." />
-          <Field scrollRef={scrollRef} fieldY={fieldY} label="Listing Site" value={draft.listingSite} onChangeText={(t) => setDraft((d) => ({ ...d, listingSite: t }))} placeholder="Streeteasy, Zillow, etc." />
-
-          <Field scrollRef={scrollRef} fieldY={fieldY} label="Building Name" fieldKey="buildingName" inputRefs={inputRefs} onNext={focusNext} value={draft.buildingName} onChangeText={(t) => setDraft((d) => ({ ...d, buildingName: t }))} />
-          <Field scrollRef={scrollRef} fieldY={fieldY} label="Street Address" fieldKey="streetAddress" inputRefs={inputRefs} onNext={focusNext} value={draft.streetAddress} onChangeText={(t) => setDraft((d) => ({ ...d, streetAddress: t }))} placeholder="Street only" />
-          <Field scrollRef={scrollRef} fieldY={fieldY} label="Zip Code" fieldKey="zipCode" inputRefs={inputRefs} onNext={focusNext} value={draft.zipCode} onChangeText={(t) => setDraft((d) => ({ ...d, zipCode: t }))} keyboardType="number-pad" />
-
-          {/* Not optional (must always be present in Add + View) */}
-          <Field scrollRef={scrollRef} fieldY={fieldY} label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={(t) => setDraft((d) => ({ ...d, neighborhood: t }))} />
-          <Field scrollRef={scrollRef} fieldY={fieldY} label="Apartment / Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={(t) => setDraft((d) => ({ ...d, unitNumber: t }))} />
-          <Field scrollRef={scrollRef} fieldY={fieldY} label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="number-pad" />
-          <Toggle label="Top Floor" value={draft.topFloor} onValueChange={(v) => setDraft((d) => ({ ...d, topFloor: v }))} />
-          <Toggle label="Corner Unit" value={draft.cornerUnit} onValueChange={(v) => setDraft((d) => ({ ...d, cornerUnit: v }))} />
-
           <SelectRow
             label="Unit Type"
             value={draft.unitType}
             onPress={() => openSingle("Unit Type", UNIT_TYPES, draft.unitType, (v) => setDraft((d) => ({ ...d, unitType: v })))}
           />
-
+          <Toggle label="Preferred" value={draft.preferred} onValueChange={(v) => setDraft((d) => ({ ...d, preferred: v }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Building Name" fieldKey="buildingName" inputRefs={inputRefs} onNext={focusNext} value={draft.buildingName} onChangeText={(t) => setDraft((d) => ({ ...d, buildingName: t }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Street Address" fieldKey="streetAddress" inputRefs={inputRefs} onNext={focusNext} value={draft.streetAddress} onChangeText={(t) => setDraft((d) => ({ ...d, streetAddress: t }))} placeholder="Street only" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Zip Code" fieldKey="zipCode" inputRefs={inputRefs} onNext={focusNext} value={draft.zipCode} onChangeText={(t) => setDraft((d) => ({ ...d, zipCode: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={(t) => setDraft((d) => ({ ...d, neighborhood: t }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Apartment / Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={(t) => setDraft((d) => ({ ...d, unitNumber: t }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="number-pad" />
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bedrooms: t }))} keyboardType="decimal-pad" />
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bathrooms: t }))} keyboardType="decimal-pad" />
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={(t) => setDraft((d) => ({ ...d, squareFootage: t }))} keyboardType="number-pad" />
-
+          <Toggle label="Top Floor" value={draft.topFloor} onValueChange={(v) => setDraft((d) => ({ ...d, topFloor: v }))} />
+          <Toggle label="Corner Unit" value={draft.cornerUnit} onValueChange={(v) => setDraft((d) => ({ ...d, cornerUnit: v }))} />
           <Toggle label="Furnished" value={draft.furnished} onValueChange={(v) => setDraft((d) => ({ ...d, furnished: v }))} />
-
-          <Field scrollRef={scrollRef} fieldY={fieldY} label="Lease Length" fieldKey="leaseLength" inputRefs={inputRefs} onNext={focusNext} value={draft.leaseLength} onChangeText={(t) => setDraft((d) => ({ ...d, leaseLength: t }))} placeholder="e.g. 12 months" />
-
-          <SelectRow
-            label="Date Available"
-            value={draft.dateAvailable}
-            onPress={() => openDate("Date Available", draft.dateAvailable || todayYYYYMMDD(), (v) => setDraft((d) => ({ ...d, dateAvailable: v })))}
-          />
-
-          <SelectRow label="AC Type" value={draft.acType} onPress={() => openSingle("AC Type", AC_TYPES, draft.acType, (v) => setDraft((d) => ({ ...d, acType: v })))} />
-          <SelectRow label="Laundry" value={draft.laundry} onPress={() => openSingle("Laundry", LAUNDRY, draft.laundry, (v) => setDraft((d) => ({ ...d, laundry: v })))} />
-
-          {toggles.car ? (
-            <SelectRow label="Parking Type" value={draft.parkingType} onPress={() => openSingle("Parking Type", PARKING, draft.parkingType, (v) => setDraft((d) => ({ ...d, parkingType: v })))} />
-          ) : null}
         </Section>
 
+        {/* ── COSTS ── */}
         <Section title="Costs" open={open.costs} onToggle={() => toggleSection("costs")}>
-          <Field scrollRef={scrollRef} fieldY={fieldY} label="Monthly Rent (Base Rent)" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={(t) => setDraft((d) => ({ ...d, baseRent: t }))} keyboardType="number-pad" />
-          {toggles.car ? <Field scrollRef={scrollRef} fieldY={fieldY} label="Parking Fee" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={(t) => setDraft((d) => ({ ...d, parkingFee: t }))} keyboardType="number-pad" /> : null}
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Monthly Rent" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={(t) => setDraft((d) => ({ ...d, baseRent: t }))} keyboardType="number-pad" />
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Amenity Fee" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={(t) => setDraft((d) => ({ ...d, amenityFee: t }))} keyboardType="number-pad" />
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Admin Fee" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={(t) => setDraft((d) => ({ ...d, adminFee: t }))} keyboardType="number-pad" />
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Utility Fee" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={(t) => setDraft((d) => ({ ...d, utilityFee: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Parking Fee" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={(t) => setDraft((d) => ({ ...d, parkingFee: t }))} keyboardType="number-pad" />
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Other Fee" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={(t) => setDraft((d) => ({ ...d, otherFee: t }))} keyboardType="number-pad" />
-
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Security Deposit" fieldKey="securityDeposit" inputRefs={inputRefs} onNext={focusNext} value={draft.securityDeposit} onChangeText={(t) => setDraft((d) => ({ ...d, securityDeposit: t }))} keyboardType="number-pad" />
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Application Fee" fieldKey="applicationFee" inputRefs={inputRefs} onNext={focusNext} value={draft.applicationFee} onChangeText={(t) => setDraft((d) => ({ ...d, applicationFee: t }))} keyboardType="number-pad" />
         </Section>
 
+        {/* ── FEATURES ── */}
         <Section title="Features" open={open.features} onToggle={() => toggleSection("features")}>
-          <MultiRow
-            label="Utilities Included"
-            values={draft.utilitiesIncluded}
-            onPress={() => openMulti("Utilities Included", UTILITIES, draft.utilitiesIncluded, (v) => setDraft((d) => ({ ...d, utilitiesIncluded: v })))}
-          />
-          <MultiRow
-            label="Unit Features"
-            values={draft.unitFeatures}
-            onPress={() => openMulti("Unit Features", UNIT_FEATURES, draft.unitFeatures, (v) => setDraft((d) => ({ ...d, unitFeatures: v })))}
-          />
-          <MultiRow
-            label="Building Amenities"
-            values={draft.buildingAmenities}
-            onPress={() => openMulti("Building Amenities", BUILDING_AMENITIES, draft.buildingAmenities, (v) => setDraft((d) => ({ ...d, buildingAmenities: v })))}
-          />
-          {toggles.pets ? (
-            <MultiRow
-              label="Pet Amenities"
-              values={draft.petAmenities}
-              onPress={() => openMulti("Pet Amenities", PET_AMENITIES, draft.petAmenities, (v) => setDraft((d) => ({ ...d, petAmenities: v })))}
-            />
-          ) : null}
-          <MultiRow
-            label="Close By"
-            values={draft.closeBy}
-            onPress={() => openMulti("Close By", CLOSE_BY, draft.closeBy, (v) => setDraft((d) => ({ ...d, closeBy: v })))}
-          />
+          <MultiRow label="Utilities Included" values={draft.utilitiesIncluded} onPress={() => openMulti("Utilities Included", UTILITIES, draft.utilitiesIncluded, (v) => setDraft((d) => ({ ...d, utilitiesIncluded: v })))} />
+          <MultiRow label="Unit Features" values={draft.unitFeatures} onPress={() => openMulti("Unit Features", UNIT_FEATURES, draft.unitFeatures, (v) => setDraft((d) => ({ ...d, unitFeatures: v })))} />
+          <MultiRow label="Building Amenities" values={draft.buildingAmenities} onPress={() => openMulti("Building Amenities", BUILDING_AMENITIES, draft.buildingAmenities, (v) => setDraft((d) => ({ ...d, buildingAmenities: v })))} />
+          <MultiRow label="Pet Amenities" values={draft.petAmenities} onPress={() => openMulti("Pet Amenities", PET_AMENITIES, draft.petAmenities, (v) => setDraft((d) => ({ ...d, petAmenities: v })))} />
+          <MultiRow label="Close By" values={draft.closeBy} onPress={() => openMulti("Close By", CLOSE_BY, draft.closeBy, (v) => setDraft((d) => ({ ...d, closeBy: v })))} />
+          <SelectRow label="AC Type" value={draft.acType} onPress={() => openSingle("AC Type", AC_TYPES, draft.acType, (v) => setDraft((d) => ({ ...d, acType: v })))} />
+          <SelectRow label="Laundry" value={draft.laundry} onPress={() => openSingle("Laundry", LAUNDRY, draft.laundry, (v) => setDraft((d) => ({ ...d, laundry: v })))} />
+          <SelectRow label="Parking Type" value={draft.parkingType} onPress={() => openSingle("Parking Type", PARKING, draft.parkingType, (v) => setDraft((d) => ({ ...d, parkingType: v })))} />
         </Section>
 
-        <Section title="Contact + Transportation" open={open.contact} onToggle={() => toggleSection("contact")}>
-          <Field scrollRef={scrollRef} fieldY={fieldY} label="Contact Name" fieldKey="contactName" inputRefs={inputRefs} onNext={focusNext} value={draft.contactName} onChangeText={(t) => setDraft((d) => ({ ...d, contactName: t }))} />
-          <Field scrollRef={scrollRef} fieldY={fieldY} label="Contact Phone" fieldKey="contactPhone" inputRefs={inputRefs} onNext={focusNext} value={draft.contactPhone} onChangeText={(t) => setDraft((d) => ({ ...d, contactPhone: t }))} keyboardType="phone-pad" />
-          <Field scrollRef={scrollRef} fieldY={fieldY} label="Contact Email" fieldKey="contactEmail" inputRefs={inputRefs} onNext={focusNext} value={draft.contactEmail} onChangeText={(t) => setDraft((d) => ({ ...d, contactEmail: t }))} keyboardType="email-address" />
-
-          <Toggle label="No Board Approval" value={draft.noBoardApproval} onValueChange={(v) => setDraft((d) => ({ ...d, noBoardApproval: v }))} />
-          <Toggle label="No Broker Fee" value={draft.noBrokerFee} onValueChange={(v) => setDraft((d) => ({ ...d, noBrokerFee: v }))} />
-
+        {/* ── TRANSPORTATION (NEW) ── */}
+        <Section title="Transportation" open={open.transportation} onToggle={() => toggleSection("transportation")}>
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Commute Time (mins)" fieldKey="commuteTime" inputRefs={inputRefs} onNext={focusNext} value={draft.commuteTime} onChangeText={(t) => setDraft((d) => ({ ...d, commuteTime: t }))} keyboardType="number-pad" />
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Walk Score" fieldKey="walkScore" inputRefs={inputRefs} onNext={focusNext} value={draft.walkScore} onChangeText={(t) => setDraft((d) => ({ ...d, walkScore: t }))} keyboardType="number-pad" />
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Transit Score" fieldKey="transitScore" inputRefs={inputRefs} onNext={focusNext} value={draft.transitScore} onChangeText={(t) => setDraft((d) => ({ ...d, transitScore: t }))} keyboardType="number-pad" />
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Bike Score" fieldKey="bikeScore" inputRefs={inputRefs} onNext={focusNext} value={draft.bikeScore} onChangeText={(t) => setDraft((d) => ({ ...d, bikeScore: t }))} keyboardType="number-pad" />
         </Section>
 
+        {/* ── SCHOOLS ── */}
+        <Section title="Schools" open={open.schools} onToggle={() => toggleSection("schools")}>
+          <Text style={{ color: colors.textPrimary, fontWeight: "900", marginBottom: 6 }}>Elementary</Text>
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Name" fieldKey="elementarySchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.elementarySchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, elementarySchoolName: t }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Grades" fieldKey="elementaryGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryGrades} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryGrades: t }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Rating" fieldKey="elementaryRating" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryRating} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryRating: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Distance (miles)" fieldKey="elementaryDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryDistance} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryDistance: t }))} keyboardType="decimal-pad" />
+
+          <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
+
+          <Text style={{ color: colors.textPrimary, fontWeight: "900", marginBottom: 6 }}>Middle</Text>
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Name" fieldKey="middleSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.middleSchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, middleSchoolName: t }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Grades" fieldKey="middleGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.middleGrades} onChangeText={(t) => setDraft((d) => ({ ...d, middleGrades: t }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Rating" fieldKey="middleRating" inputRefs={inputRefs} onNext={focusNext} value={draft.middleRating} onChangeText={(t) => setDraft((d) => ({ ...d, middleRating: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Distance (miles)" fieldKey="middleDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.middleDistance} onChangeText={(t) => setDraft((d) => ({ ...d, middleDistance: t }))} keyboardType="decimal-pad" />
+
+          <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
+
+          <Text style={{ color: colors.textPrimary, fontWeight: "900", marginBottom: 6 }}>High</Text>
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Name" fieldKey="highSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.highSchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, highSchoolName: t }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Grades" fieldKey="highGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.highGrades} onChangeText={(t) => setDraft((d) => ({ ...d, highGrades: t }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Rating" fieldKey="highRating" inputRefs={inputRefs} onNext={focusNext} value={draft.highRating} onChangeText={(t) => setDraft((d) => ({ ...d, highRating: t }))} keyboardType="number-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Distance (miles)" fieldKey="highDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.highDistance} onChangeText={(t) => setDraft((d) => ({ ...d, highDistance: t }))} keyboardType="decimal-pad" />
+        </Section>
+
+        {/* ── LISTING (renamed from Contact + Transportation) ── */}
+        <Section title="Listing" open={open.listing} onToggle={() => toggleSection("listing")}>
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Listing Site" fieldKey="listingSite" inputRefs={inputRefs} onNext={focusNext} value={draft.listingSite} onChangeText={(t) => setDraft((d) => ({ ...d, listingSite: t }))} placeholder="Streeteasy, Zillow, etc." />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Listing URL" fieldKey="listingUrl" inputRefs={inputRefs} onNext={focusNext} value={draft.listingUrl} onChangeText={(t) => setDraft((d) => ({ ...d, listingUrl: t }))} placeholder="https://..." />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Photo URL" fieldKey="photoUrl" inputRefs={inputRefs} onNext={focusNext} value={draft.photoUrl} onChangeText={(t) => setDraft((d) => ({ ...d, photoUrl: t }))} placeholder="https://..." />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Contact Name" fieldKey="contactName" inputRefs={inputRefs} onNext={focusNext} value={draft.contactName} onChangeText={(t) => setDraft((d) => ({ ...d, contactName: t }))} />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Contact Phone" fieldKey="contactPhone" inputRefs={inputRefs} onNext={focusNext} value={draft.contactPhone} onChangeText={(t) => setDraft((d) => ({ ...d, contactPhone: t }))} keyboardType="phone-pad" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Contact Email" fieldKey="contactEmail" inputRefs={inputRefs} onNext={focusNext} value={draft.contactEmail} onChangeText={(t) => setDraft((d) => ({ ...d, contactEmail: t }))} keyboardType="email-address" />
+          <Field scrollRef={scrollRef} fieldY={fieldY} label="Lease Length" fieldKey="leaseLength" inputRefs={inputRefs} onNext={focusNext} value={draft.leaseLength} onChangeText={(t) => setDraft((d) => ({ ...d, leaseLength: t }))} placeholder="e.g. 12 months" />
+          <Toggle label="No Board Approval" value={draft.noBoardApproval} onValueChange={(v) => setDraft((d) => ({ ...d, noBoardApproval: v }))} />
+          <Toggle label="No Broker Fee" value={draft.noBrokerFee} onValueChange={(v) => setDraft((d) => ({ ...d, noBrokerFee: v }))} />
+        </Section>
+
+        {/* ── TIMELINE ── */}
         <Section title="Timeline" open={open.timeline} onToggle={() => toggleSection("timeline")}>
+          <SelectRow label="Date Available" value={draft.dateAvailable} emptyLabel="Select" onPress={() => openDate("Date Available", draft.dateAvailable || todayYYYYMMDD(), (v) => setDraft((d) => ({ ...d, dateAvailable: v })))} />
           <SelectRow label="Contacted Date" value={draft.contactedDate} emptyLabel="Select" onPress={() => openDate("Contacted Date", draft.contactedDate || todayYYYYMMDD(), (v) => setDraft((d) => ({ ...d, contactedDate: v })))} />
           <SelectRow label="Viewing Date" value={draft.viewingDate} emptyLabel="Select" onPress={() => openDate("Viewing Date", draft.viewingDate || todayYYYYMMDD(), (v) => setDraft((d) => ({ ...d, viewingDate: v })))} />
           <SelectRow label="Viewing Time" value={draft.viewingTime} emptyLabel="Select" onPress={() => openTime(draft.viewingTime, (v) => setDraft((d) => ({ ...d, viewingTime: v })))} />
           <SelectRow label="Applied Date" value={draft.appliedDate} emptyLabel="Select" onPress={() => openDate("Applied Date", draft.appliedDate || todayYYYYMMDD(), (v) => setDraft((d) => ({ ...d, appliedDate: v })))} />
         </Section>
 
-        {toggles.children ? (
-          <Section title="Schools" open={open.schools} onToggle={() => toggleSection("schools")}>
-            <Text style={{ color: colors.textPrimary, fontWeight: "900", marginBottom: 6 }}>Elementary</Text>
-            <Field scrollRef={scrollRef} fieldY={fieldY} label="Name" value={draft.elementarySchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, elementarySchoolName: t }))} />
-            <Field scrollRef={scrollRef} fieldY={fieldY} label="Rating" value={draft.elementaryRating} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryRating: t }))} keyboardType="number-pad" />
-            <Field scrollRef={scrollRef} fieldY={fieldY} label="Grades" value={draft.elementaryGrades} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryGrades: t }))} />
-            <Field scrollRef={scrollRef} fieldY={fieldY} label="Distance" value={draft.elementaryDistance} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryDistance: t }))} keyboardType="decimal-pad" />
-
-            <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
-
-            <Text style={{ color: colors.textPrimary, fontWeight: "900", marginBottom: 6 }}>Middle</Text>
-            <Field scrollRef={scrollRef} fieldY={fieldY} label="Name" value={draft.middleSchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, middleSchoolName: t }))} />
-            <Field scrollRef={scrollRef} fieldY={fieldY} label="Rating" value={draft.middleRating} onChangeText={(t) => setDraft((d) => ({ ...d, middleRating: t }))} keyboardType="number-pad" />
-            <Field scrollRef={scrollRef} fieldY={fieldY} label="Grades" value={draft.middleGrades} onChangeText={(t) => setDraft((d) => ({ ...d, middleGrades: t }))} />
-            <Field scrollRef={scrollRef} fieldY={fieldY} label="Distance" value={draft.middleDistance} onChangeText={(t) => setDraft((d) => ({ ...d, middleDistance: t }))} keyboardType="decimal-pad" />
-
-            <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8 }} />
-
-            <Text style={{ color: colors.textPrimary, fontWeight: "900", marginBottom: 6 }}>High</Text>
-            <Field scrollRef={scrollRef} fieldY={fieldY} label="Name" value={draft.highSchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, highSchoolName: t }))} />
-            <Field scrollRef={scrollRef} fieldY={fieldY} label="Rating" value={draft.highRating} onChangeText={(t) => setDraft((d) => ({ ...d, highRating: t }))} keyboardType="number-pad" />
-            <Field scrollRef={scrollRef} fieldY={fieldY} label="Grades" value={draft.highGrades} onChangeText={(t) => setDraft((d) => ({ ...d, highGrades: t }))} />
-            <Field scrollRef={scrollRef} fieldY={fieldY} label="Distance" value={draft.highDistance} onChangeText={(t) => setDraft((d) => ({ ...d, highDistance: t }))} keyboardType="decimal-pad" />
-          </Section>
-        ) : null}
-
+        {/* ── NOTES ── */}
         <Section title="Notes" open={open.notes} onToggle={() => toggleSection("notes")}>
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Pros" fieldKey="pros" inputRefs={inputRefs} onNext={focusNext} value={draft.pros} onChangeText={(t) => setDraft((d) => ({ ...d, pros: t }))} multiline />
           <Field scrollRef={scrollRef} fieldY={fieldY} label="Cons" fieldKey="cons" inputRefs={inputRefs} onNext={focusNext} value={draft.cons} onChangeText={(t) => setDraft((d) => ({ ...d, cons: t }))} multiline />
         </Section>
 
         <Pressable
-          onPress={saveDraft}
+          onPress={handleSave}
+          disabled={saving}
           style={({ pressed }) => ({
             marginTop: 6,
             borderRadius: 18,
             backgroundColor: colors.primaryBlue,
             paddingVertical: 14,
             alignItems: "center",
-            opacity: pressed ? 0.8 : 1,
+            opacity: pressed || saving ? 0.8 : 1,
+            flexDirection: "row",
+            justifyContent: "center",
+            gap: 8,
           })}
         >
-          <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 16 }}>Save</Text>
+          {saving ? <ActivityIndicator size="small" color="#fff" /> : null}
+          <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 16 }}>
+            {saving ? "Saving..." : "Save"}
+          </Text>
         </Pressable>
       </ScrollView>
 

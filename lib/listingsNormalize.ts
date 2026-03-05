@@ -14,11 +14,16 @@ function num(v: any): number | null {
 function normalizeStatus(v: any): ListingStatus {
   const s = str(v).toLowerCase();
   if (!s) return "Unknown";
-  if (s.includes("avail")) return "Available";
-  if (s.includes("inquir")) return "Inquired";
-  if (s.includes("visit")) return "Visited";
+  if (s.includes("new")) return "New";
+  if (s.includes("contact")) return "Contacted";
+  if (s.includes("schedul")) return "Scheduled";
+  if (s.includes("viewed") || s.includes("visit")) return "Viewed";
+  if (s.includes("shortlist")) return "Shortlisted";
   if (s.includes("appl")) return "Applied";
+  if (s.includes("approv")) return "Approved";
+  if (s.includes("sign")) return "Signed";
   if (s.includes("reject")) return "Rejected";
+  if (s.includes("archiv")) return "Archived";
   return "Unknown";
 }
 
