@@ -22,58 +22,40 @@ function normalizeStatus(v: any): ListingStatus {
   return "Unknown";
 }
 
-// Tries multiple likely keys since sheet headers can vary between prototypes.
-function pick(raw: any, keys: string[]): any {
-  for (const k of keys) {
-    if (raw && Object.prototype.hasOwnProperty.call(raw, k)) return raw[k];
-  }
-  return undefined;
-}
-
 export function normalizeListing(raw: any): ListingUI {
   // --- Location ---
-  const buildingName =
-    str(pick(raw, ["buildingName", "building_name", "Building Name", "building", "Building"])) || "Unknown Building";
+  const buildingName = str(raw.buildingName) || "Unknown Building";
+  const street = str(raw.streetAddress) || "";
+  const city = str(raw.city) || "";
+  const state = str(raw.state) || "";
+  const zip = str(raw.zipCode) || "";
+  const unit = str(raw.unitNumber) || "";
 
-  const street =
-    str(pick(raw, ["streetAddress", "street_address", "Street Address", "address", "Address"])) || "";
-
-  const city = str(pick(raw, ["city", "City"])) || "";
-  const state = str(pick(raw, ["state", "State"])) || "";
-  const zip = str(pick(raw, ["zipCode", "zip_code", "Zip Code", "zip"])) || "";
-  const unit = str(pick(raw, ["unitNumber", "unit_number", "Unit #", "unit", "apt"])) || "";
-
-  // Card address format requirement:
-  // Street, City, State, Zip, Unit
   const addressParts: string[] = [];
   if (street) addressParts.push(street);
   const cityStateZip = [city, state, zip].filter(Boolean).join(", ").replace(/,\s*,/g, ", ");
   if (cityStateZip) addressParts.push(cityStateZip);
   if (unit) addressParts.push(unit);
-
   const addressLine = addressParts.length ? addressParts.join(", ") : "—";
 
-  // --- Unit details (always show beds/baths/sqft; use dash when missing) ---
-  const unitType = str(pick(raw, ["unitType", "unit_type", "Unit Type"])) || "Unit";
-
-  const beds = num(pick(raw, ["bedrooms", "Bedrooms", "beds", "Beds"]));
-  const baths = num(pick(raw, ["bathrooms", "Bathrooms", "baths", "Baths"]));
-  const sqft = num(pick(raw, ["squareFootage", "square_footage", "Square Footage", "sqft", "Sqft", "square_feet"]));
+  // --- Unit details ---
+  const unitType = str(raw.unitType) || "Unit";
+  const beds = num(raw.bedrooms);
+  const baths = num(raw.bathrooms);
+  const sqft = num(raw.squareFootage);
 
   const bdText = beds !== null ? `${beds} bd` : "— bd";
   const baText = baths !== null ? `${baths} ba` : "— ba";
   const sqftText = sqft !== null ? `${sqft} sqft` : "— sqft";
-
   const unitSummary = [unitType, bdText, baText, sqftText].join(" · ");
 
   // --- Costs ---
-  const baseRent = num(pick(raw, ["baseRent", "base_rent", "Base Rent", "base rent", "Monthly Rent (Base Rent)", "Monthly Rent", "monthly_rent", "monthlyRent", "monthly rent", "Rent", "rent", "rent_monthly", "Monthly Base Rent", "MonthlyBaseRent", "BaseRentMonthly", "monthlyRentBase", "monthly_rent_base", "baseRentMonthly"]));
-
-  const parkingFee = num(pick(raw, ["parkingFee","parking_fee","Parking Fee","Parking Monthly","parking monthly","Monthly Parking","Monthly Parking Fee","parkingMonthlyFee","monthlyParkingFee","parking_fee_monthly"])) ?? 0;
-  const amenityFee = num(pick(raw, ["amenityFee","amenity_fee","Amenity Fee","Amenities Fee","amenities_fee","Monthly Amenity Fee","amenityMonthlyFee","monthlyAmenityFee"])) ?? 0;
-  const adminFee = num(pick(raw, ["adminFee","admin_fee","Admin Fee","Application/Admin Fee","application_admin_fee","Monthly Admin Fee","adminMonthlyFee","monthlyAdminFee"])) ?? 0;
-  const utilityFee = num(pick(raw, ["utilityFee","utility_fee","Utility Fee","Utilities Fee","utilities_fee","Monthly Utility Fee","utilityMonthlyFee","monthlyUtilityFee"])) ?? 0;
-  const otherFee = num(pick(raw, ["otherFee","other_fee","Other Fee","Other Monthly Fee","other_monthly_fee","Monthly Other Fee","otherMonthlyFee","monthlyOtherFee"])) ?? 0;
+  const baseRent = num(raw.baseRent);
+  const parkingFee = num(raw.parkingFee) ?? 0;
+  const amenityFee = num(raw.amenityFee) ?? 0;
+  const adminFee = num(raw.adminFee) ?? 0;
+  const utilityFee = num(raw.utilityFee) ?? 0;
+  const otherFee = num(raw.otherFee) ?? 0;
 
   const fees = parkingFee + amenityFee + adminFee + utilityFee + otherFee;
   const hasFees = fees > 0;
@@ -84,23 +66,20 @@ export function normalizeListing(raw: any): ListingUI {
       : "—";
 
   // --- Status / Preferred ---
-  const status = normalizeStatus(pick(raw, ["status", "Status"]));
+  const status = normalizeStatus(raw.status);
 
-  const preferredRaw = pick(raw, ["preferred", "Preferred", "isPreferred", "is_preferred"]);
+  const preferredRaw = raw.preferred;
   const preferred =
     preferredRaw === true ||
     str(preferredRaw).toLowerCase() === "true" ||
     str(preferredRaw).toLowerCase() === "yes";
 
-  const photoUrl = str(pick(raw, ["photoUrl", "photo_url", "imageUrl", "image_url", "Photo"])) || null;
+  const photoUrl = str(raw.photoUrl) || null;
 
-  // Stable ID (sheet id preferred, fallback to composite)
-  const id =
-    str(pick(raw, ["id", "ID", "listingId", "listing_id", "rowId", "row_id"])) ||
-    [buildingName, addressLine].filter(Boolean).join("|");
+  // Stable ID
+  const id = str(raw.id) || [buildingName, addressLine].filter(Boolean).join("|");
 
-  // For muted provenance (not shown on card per latest direction, but kept for future)
-  const sourceLabel = str(pick(raw, ["listingSite", "listing_site", "source", "Source", "listingSource"])) || "—";
+  const sourceLabel = str(raw.listingSite) || "—";
 
   return {
     id,

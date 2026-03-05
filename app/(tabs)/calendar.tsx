@@ -23,16 +23,8 @@ function str(v: any): string {
   return String(v).trim();
 }
 
-function pick(raw: any, keys: string[]): any {
-  for (const k of keys) {
-    if (raw && Object.prototype.hasOwnProperty.call(raw, k)) return raw[k];
-  }
-  return undefined;
-}
-
-function parseDateTime(rawDate: string, rawTime?: string): { date: string; time?: string } | null {
+function parseDateTime(rawDate: string): { date: string; time?: string } | null {
   const d = str(rawDate);
-  const t = str(rawTime);
 
   if (d.includes("T")) {
     const iso = new Date(d);
@@ -52,15 +44,12 @@ function parseDateTime(rawDate: string, rawTime?: string): { date: string; time?
   const dateOnly = d.match(/^\d{4}-\d{2}-\d{2}$/);
   if (!dateOnly) return null;
 
-  const timeOnly = t.match(/^\d{1,2}:\d{2}$/) ? t : undefined;
-  return { date: d, time: timeOnly };
+  return { date: d };
 }
 
 function formatTime(t?: string): string {
   if (!t) return "";
-  // Already AM/PM format
   if (/AM|PM/i.test(t)) return t.toUpperCase();
-  // Convert HH:MM 24hr to AM/PM
   const match = t.match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return t;
   const h = parseInt(match[1], 10);
@@ -71,7 +60,6 @@ function formatTime(t?: string): string {
 }
 
 function formatDate(d: string): string {
-  // YYYY-MM-DD → "Mar 03"
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const match = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return d;
@@ -92,17 +80,9 @@ export default function CalendarScreen() {
 
     for (const l of listings) {
       const raw = l.raw ?? {};
-
-      // Single source of truth: "Viewing Appointment" column in ISO 8601 format
-      // e.g. "2026-03-07T12:00:00" or "2026-03-07"
-      const viewingAppt = str(
-        pick(raw, ["viewingAppointment", "Viewing Appointment", "viewing_appointment", "viewing_datetime"])
-      );
-
+      const viewingAppt = str(raw.viewingAppointment);
       const parsed = parseDateTime(viewingAppt);
       if (!parsed) continue;
-
-      const contact = str(pick(raw, ["contactName", "contact_name", "Contact Name"])) || "";
 
       out.push({
         id: l.id,
@@ -110,7 +90,7 @@ export default function CalendarScreen() {
         time: parsed.time,
         building: l.buildingName,
         address: l.addressLine,
-        contact,
+        contact: str(raw.contactName) || undefined,
       });
     }
 
@@ -156,7 +136,6 @@ export default function CalendarScreen() {
         contentContainerStyle={{ paddingBottom: 28 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Calendar — single month, not a list, so it does not scroll internally */}
         <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
           <Calendar
             hideExtraDays
@@ -176,12 +155,10 @@ export default function CalendarScreen() {
           />
         </View>
 
-        {/* Appointments heading */}
         <View style={{ paddingHorizontal: 16, paddingTop: 22, paddingBottom: 12 }}>
           <Text style={headingLabel}>Appointments</Text>
         </View>
 
-        {/* Appointment cards */}
         {loading ? (
           <View style={{ paddingHorizontal: 16 }}>
             <ActivityIndicator />
@@ -212,17 +189,12 @@ export default function CalendarScreen() {
                     backgroundColor: colors.card,
                   }}
                 >
-                  {/* Row 1: Building Name — Date & Time */}
                   <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "900" }} numberOfLines={1}>
                     {safeText(item.building)} — {dateTime}
                   </Text>
-
-                  {/* Row 2: Full address */}
                   <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 13 }} numberOfLines={2}>
                     {safeText(item.address)}
                   </Text>
-
-                  {/* Row 3: Contact name */}
                   <Text style={{ color: colors.textSecondary, marginTop: 4, fontSize: 13 }} numberOfLines={1}>
                     {safeText(item.contact)}
                   </Text>
