@@ -13,14 +13,19 @@ export const colors = {
   textPrimary: "#F8FAFC",
   textSecondary: "#94A3B8",
 
-  // Status colors
+  // Status colors — all 10 statuses
   status: {
-    Available: "#10B981",
-    Inquired: "#F59E0B",
-    Visited: "#8B5CF6",
-    Applied: "#2563EB",
-    Rejected: "#EF4444",
-    Unknown: "#475569",
+    New: "#2563EB",        // blue
+    Contacted: "#2563EB",  // blue
+    Scheduled: "#2563EB",  // blue
+    Viewed: "#2563EB",     // blue
+    Shortlisted: "#D97706", // amber
+    Applied: "#2563EB",    // blue
+    Approved: "#10B981",   // green
+    Signed: "#0D9488",     // teal
+    Rejected: "#EF4444",   // red
+    Archived: "#475569",   // grey
+    Unknown: "#475569",    // grey
   },
 
   // Legacy aliases (older files/components)

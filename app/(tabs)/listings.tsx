@@ -10,6 +10,7 @@ import { MenuSheet } from "../../components/MenuSheet";
 import { useListings } from "../../lib/useListings";
 import { applyOrder } from "../../lib/orderApply";
 import { loadOrder } from "../../lib/orderStorage";
+import { deleteListing as deleteListingApi } from "../../lib/api";
 import type { ListingUI } from "../../lib/types";
 
 type Section = { title: string; data: ListingUI[] };
@@ -51,8 +52,6 @@ export default function ListingsScreen() {
   );
 
   function togglePreferred(id: string) {
-    const flip = (arr: ListingUI[]) => arr.map((l) => (l.id === id ? { ...l, preferred: !l.preferred } : l));
-    // If item is in preferred section and turned off, move it to other; and vice versa.
     const inPreferred = preferred.some((l) => l.id === id);
     const inOther = other.some((l) => l.id === id);
 
@@ -73,10 +72,6 @@ export default function ListingsScreen() {
       setPreferred((p) => [updated, ...p]);
       return;
     }
-
-    // fallback
-    setPreferred(flip);
-    setOther(flip);
   }
 
   function toggleCompare(id: string) {
@@ -84,7 +79,6 @@ export default function ListingsScreen() {
       const next = new Set(s);
       if (next.has(id)) next.delete(id);
       else {
-        // cap at 4 per plan
         if (next.size >= 4) return next;
         next.add(id);
       }
@@ -92,23 +86,42 @@ export default function ListingsScreen() {
     });
   }
 
+  function removeLocally(id: string) {
+    setPreferred((p) => p.filter((l) => l.id !== id));
+    setOther((o) => o.filter((l) => l.id !== id));
+    setCompareIds((s) => {
+      const next = new Set(s);
+      next.delete(id);
+      return next;
+    });
+  }
+
   function deleteListing(id: string) {
-    Alert.alert("Delete listing?", "This only removes it locally for now (no backend delete in 3.1.05).", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          setPreferred((p) => p.filter((l) => l.id !== id));
-          setOther((o) => o.filter((l) => l.id !== id));
-          setCompareIds((s) => {
-            const next = new Set(s);
-            next.delete(id);
-            return next;
-          });
+    Alert.alert(
+      "Delete listing?",
+      "This will permanently remove the listing.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            // Remove from screen immediately for a fast response
+            removeLocally(id);
+            try {
+              await deleteListingApi(id);
+            } catch (err: any) {
+              // If the API call fails, restore by refreshing
+              Alert.alert(
+                "Delete Failed",
+                err?.message ?? "The listing was removed from the screen but could not be deleted from the server. Pull to refresh to restore it.",
+                [{ text: "OK", onPress: refresh }]
+              );
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   }
 
   return (
@@ -133,7 +146,7 @@ export default function ListingsScreen() {
         <View style={{ padding: 18, gap: 12 }}>
           <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "900" }}>Filters</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
-            Filter logic is staged for 3.1.07. This panel is the stable UI shell.
+            Filter logic is staged for a future build. This panel is the stable UI shell.
           </Text>
 
           <View style={{ height: 1, backgroundColor: colors.border, marginTop: 6 }} />
@@ -167,8 +180,8 @@ export default function ListingsScreen() {
                 compareSelected={compareIds.has(item.id)}
                 onTogglePreferred={() => togglePreferred(item.id)}
                 onToggleCompare={() => toggleCompare(item.id)}
-                onView={() => Alert.alert("View", "Detail sheet is staged for 3.1.09.")}
-                onEdit={() => Alert.alert("Edit", "Edit flow is staged (will route to Add/Edit later).")}
+                onView={() => Alert.alert("View", "Detail sheet is staged for a future build.")}
+                onEdit={() => Alert.alert("Edit", "Edit flow is staged for a future build.")}
                 onDelete={() => deleteListing(item.id)}
               />
             </View>

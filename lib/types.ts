@@ -1,9 +1,14 @@
 export type ListingStatus =
-  | "Available"
-  | "Inquired"
-  | "Visited"
+  | "New"
+  | "Contacted"
+  | "Scheduled"
+  | "Viewed"
+  | "Shortlisted"
   | "Applied"
+  | "Approved"
+  | "Signed"
   | "Rejected"
+  | "Archived"
   | "Unknown";
 
 // UI-facing listing model (not the full 66-column sheet schema).

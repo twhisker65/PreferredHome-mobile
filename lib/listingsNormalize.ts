@@ -19,8 +19,8 @@ function normalizeStatus(v: any): ListingStatus {
   if (s.includes("schedul")) return "Scheduled";
   if (s.includes("viewed") || s.includes("visit")) return "Viewed";
   if (s.includes("shortlist")) return "Shortlisted";
-  if (s.includes("appl")) return "Applied";
   if (s.includes("approv")) return "Approved";
+  if (s.includes("appl")) return "Applied";
   if (s.includes("sign")) return "Signed";
   if (s.includes("reject")) return "Rejected";
   if (s.includes("archiv")) return "Archived";

@@ -3,8 +3,21 @@ import { View, Text } from "react-native";
 import { colors } from "../styles/colors";
 import type { ListingStatus } from "../lib/types";
 
-function bgFor(status: ListingStatus) {
-  return (colors.status as any)[status] ?? colors.status.Unknown;
+function bgFor(status: ListingStatus): string {
+  const map: Record<string, string> = {
+    New: "#2563EB",
+    Contacted: "#2563EB",
+    Scheduled: "#2563EB",
+    Viewed: "#2563EB",
+    Shortlisted: "#D97706",
+    Applied: "#2563EB",
+    Approved: "#10B981",
+    Signed: "#0D9488",
+    Rejected: "#EF4444",
+    Archived: "#475569",
+    Unknown: "#475569",
+  };
+  return map[status] ?? "#475569";
 }
 
 export function StatusPill({ status, fullWidth }: { status?: ListingStatus; fullWidth?: boolean }) {

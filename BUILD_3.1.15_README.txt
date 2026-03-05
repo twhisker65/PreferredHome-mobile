@@ -1,0 +1,80 @@
+BUILD_3.1.15_README.txt
+======================
+PreferredHome — Build 3.1.15
+Generated: March 2026
+
+CHANGED FILES (in folder order)
+--------------------------------
+app/(tabs)/add.tsx
+app/(tabs)/listings.tsx
+components/StatusPill.tsx
+lib/api.ts
+lib/listingsNormalize.ts
+lib/types.ts
+styles/colors.ts
+
+WHAT CHANGED IN THIS BUILD
+---------------------------
+
+1. app/(tabs)/add.tsx
+   - Keyboard fix: Replaced keyboardDismissMode="interactive" with KeyboardAvoidingView
+     (behavior="padding" on iOS, "height" on Android). This keeps the active input
+     visible above the keyboard and stops the screen jumping to the top of the section.
+   - Keyboard dismiss: Changed to keyboardDismissMode="on-drag" so dragging the scroll
+     view dismisses the keyboard naturally.
+   - Property section now opens by default so the screen is ready to use immediately.
+   - School Rating fields: Label updated to "Rating (0–10)". A clampRating() function
+     caps any entered value at 10 on change. The save payload also enforces Math.min(value, 10).
+   - Date clear button: All four date fields (Date Available, Contacted Date, Viewing Date,
+     Applied Date) now use a new DateRow component. When a date is set, a × (close-circle)
+     icon appears to the right — tapping it clears the date back to empty.
+   - Removed scrollRef/fieldY refs (replaced by KeyboardAvoidingView approach).
+
+2. app/(tabs)/listings.tsx
+   - onDelete now calls deleteListing() from lib/api.ts (previously local-only).
+   - Delete confirmation message updated: "This will permanently remove the listing."
+     (old message referenced "locally for now" which was confusing).
+   - On API delete failure: an alert explains the error and offers to pull-to-refresh
+     so the listing is restored from the server.
+   - removeLocally() helper extracts the local state cleanup logic for clarity.
+
+3. components/StatusPill.tsx
+   - Updated to reflect all 10 status colors:
+     New/Contacted/Scheduled/Viewed/Applied = blue (#2563EB)
+     Shortlisted = amber (#D97706)
+     Approved = green (#10B981)
+     Signed = teal (#0D9488)
+     Rejected = red (#EF4444)
+     Archived/Unknown = grey (#475569)
+
+4. lib/api.ts
+   - Added postListing(payload) — POST /listings
+   - Added deleteListing(id) — DELETE /listings/:id
+
+5. lib/listingsNormalize.ts
+   - normalizeStatus() fix: "approv" check now runs before "appl" check to prevent
+     "Approved" from matching as "Applied".
+   - All 10 statuses confirmed present.
+
+6. lib/types.ts
+   - ListingStatus updated to include all 10 valid values plus "Unknown".
+   - Removed old legacy status names (Available, Inquired, Visited).
+
+7. styles/colors.ts
+   - colors.status updated to reflect all 10 statuses with correct colors.
+   - Removed old legacy status keys (Available, Inquired, Visited).
+
+GOOGLE SHEET — ACTION REQUIRED BEFORE TESTING
+----------------------------------------------
+Existing rows still show status = 'Available'. This is no longer a valid status value.
+Before end-to-end Add/Delete testing, manually update all rows in the Google Sheet
+to one of the 10 valid values:
+New | Contacted | Scheduled | Viewed | Shortlisted | Applied | Approved | Signed | Rejected | Archived
+
+SUGGESTED COMMIT MESSAGE
+------------------------
+Build 3.1.15 — Delete wired to API, StatusPill colors updated for all 10 statuses, keyboard fix on Add screen, school rating capped at 10, date clear buttons added
+
+CD + EXPO RESTART COMMAND
+--------------------------
+cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel
