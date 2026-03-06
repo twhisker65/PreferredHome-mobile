@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, ActivityIndicator, RefreshControl, SectionList, Pressable, Alert } from "react-native";
-import { router } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { View, Text, ActivityIndicator, RefreshControl, SectionList, Alert } from "react-native";
+import { router, useFocusEffect } from "expo-router";
 import { colors } from "../../styles/colors";
 import { headingLabel } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
@@ -33,6 +33,14 @@ export default function ListingsScreen() {
 
   // local-only selections (no persistence in 3.1.05)
   const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
+
+  // Build 3.2.2 — auto-refresh listings whenever this screen comes into focus
+  // This ensures the list updates automatically after a new listing is saved
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [])
+  );
 
   useEffect(() => {
     (async () => {
@@ -180,8 +188,8 @@ export default function ListingsScreen() {
                 compareSelected={compareIds.has(item.id)}
                 onTogglePreferred={() => togglePreferred(item.id)}
                 onToggleCompare={() => toggleCompare(item.id)}
-                onView={() => Alert.alert("View", "Detail sheet is staged for a future build.")}
-                onEdit={() => Alert.alert("Edit", "Edit flow is staged for a future build.")}
+                onView={() => Alert.alert("View", "Detail screen is staged for Build 3.2.3.")}
+                onEdit={() => Alert.alert("Edit", "Edit flow is staged for Build 3.2.4.")}
                 onDelete={() => deleteListing(item.id)}
               />
             </View>

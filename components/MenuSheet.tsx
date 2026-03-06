@@ -19,6 +19,7 @@ export function MenuSheet({ onGoProfile, onGoSettings, onClose }: Props) {
       <MenuBtn label="Settings" onPress={onGoSettings} />
 
       <View style={{ flex: 1 }} />
+
       <Pressable
         onPress={onClose}
         style={{
@@ -32,6 +33,19 @@ export function MenuSheet({ onGoProfile, onGoSettings, onClose }: Props) {
       >
         <Text style={[typography.body, { fontWeight: "800" }]}>Close</Text>
       </Pressable>
+
+      {/* Build version label — muted, small, bottom of menu */}
+      <Text
+        style={{
+          color: colors.textSecondary,
+          fontSize: 11,
+          textAlign: "center",
+          opacity: 0.6,
+          marginTop: 4,
+        }}
+      >
+        PreferredHome v3.2.2
+      </Text>
     </View>
   );
 }

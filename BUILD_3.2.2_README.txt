@@ -1,0 +1,106 @@
+BUILD_3.2.2_README.txt
+======================
+PreferredHome — Build 3.2.2
+Mobile repo only. No API changes. No Render deploy required.
+Generated: March 2026
+
+CHANGED FILES (in folder order)
+---------------------------------
+app/(tabs)/add.tsx          — manual targeted change (see instructions below)
+app/(tabs)/listings.tsx     — auto-refresh on focus after save
+components/MenuSheet.tsx    — build version label added
+components/StatusPill.tsx   — all 10 status pill colors updated
+styles/colors.ts            — colors.status updated for all 10 statuses
+
+WHAT CHANGED IN THIS BUILD
+----------------------------
+
+1. app/(tabs)/add.tsx  — MANUAL TARGETED CHANGE REQUIRED
+   - All sections open by default on the Add screen.
+   - Find the useState block that controls section open/closed state.
+   - Change every false value to true so all sections open immediately.
+   - EXACT CHANGE: in the useState initializer, set every section key to true.
+     property: true, unit: true, costs: true, features: true,
+     transportation: true, schools: true, listing: true, timeline: true, notes: true
+   - See ADD_TSX_CHANGE_INSTRUCTIONS.ts for the exact find/replace.
+   - Do not change any other line in this file.
+
+2. app/(tabs)/listings.tsx
+   - Added useFocusEffect (from expo-router) + useCallback (from react).
+   - Listings screen now calls refresh() automatically every time the screen
+     comes into focus — this includes returning from the Add screen after a save.
+   - No other logic changed. All existing delete, compare, and preferred
+     toggle behaviour is preserved.
+
+3. components/MenuSheet.tsx
+   - Added "PreferredHome v3.2.2" label at the very bottom of the menu.
+   - Label is small (11px), muted (textSecondary at 0.6 opacity), centered.
+   - No other changes to menu layout or buttons.
+
+4. components/StatusPill.tsx
+   - Updated bgFor() with all 10 new status colors per Build 3.2.2 spec.
+   - Added textFor() to return dark text (#111827) for New (white background)
+     and white text (#FFFFFF) for all other statuses.
+   - Added a thin grey border on New pill so it is visible against dark cards.
+   - Old color map (where New/Contacted/Scheduled/Viewed/Applied were all blue)
+     is fully replaced.
+
+5. styles/colors.ts
+   - colors.status map updated to match new 10-status palette:
+     New: #FFFFFF  |  Contacted: #EAB308  |  Scheduled: #F97316
+     Viewed: #7C3AED  |  Shortlisted: #2563EB  |  Applied: #0D9488
+     Approved: #10B981  |  Signed: #D97706  |  Rejected: #EF4444
+     Archived: #475569  |  Unknown: #475569
+   - All other color tokens unchanged.
+
+DEPLOY STEPS
+------------
+Mobile repo only. No API or Render changes needed.
+
+1. Open your local PreferredHome-mobile folder
+2. Copy the 4 complete files from this ZIP into their matching locations
+   (overwrite existing files):
+     app/(tabs)/listings.tsx
+     components/MenuSheet.tsx
+     components/StatusPill.tsx
+     styles/colors.ts
+3. Apply the ONE manual change to app/(tabs)/add.tsx:
+   Open add.tsx in any text editor.
+   Find the useState open/closed section block.
+   Change all false values to true (see ADD_TSX_CHANGE_INSTRUCTIONS.ts).
+   Save the file.
+4. Restart Expo using the command below
+5. Test on your physical phone
+6. Confirm all four items pass (see TEST CHECKLIST below)
+7. Commit via GitHub Desktop using the commit message below
+8. Push to GitHub
+
+EXPO RESTART COMMAND
+---------------------
+```
+cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel
+```
+
+TEST CHECKLIST
+--------------
+[ ] 1. Open Add screen — all sections are expanded and visible immediately
+[ ] 2. Save a listing — Listings page updates automatically without pull-to-refresh
+[ ] 3. Open hamburger menu — "PreferredHome v3.2.2" appears at the bottom, small and muted
+[ ] 4. Status pills on listing cards show correct new colors:
+        New = white pill with grey border and dark text
+        Contacted = yellow  |  Scheduled = orange  |  Viewed = purple
+        Shortlisted = blue  |  Applied = teal
+        Approved = green    |  Signed = amber
+        Rejected = red      |  Archived = grey
+
+COMMIT MESSAGE
+--------------
+```
+Build 3.2.2 — Status pill colors updated (10 statuses), Add screen sections open by default, Listings auto-refresh on focus after save, build version label in hamburger menu
+```
+
+KNOWN ISSUES CARRIED FORWARD TO 3.2.3
+---------------------------------------
+- View Listing detail screen (onView stub still shows placeholder alert) — scope of 3.2.3
+- Edit Listing screen (onEdit stub still shows placeholder alert) — scope of 3.2.4
+- Filter side panel is a UI shell only — scope of 3.2.5

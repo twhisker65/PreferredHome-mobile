@@ -13,19 +13,19 @@ export const colors = {
   textPrimary: "#F8FAFC",
   textSecondary: "#94A3B8",
 
-  // Status colors — all 10 statuses
+  // Status colors — Build 3.2.2 updated palette
   status: {
-    New: "#2563EB",        // blue
-    Contacted: "#2563EB",  // blue
-    Scheduled: "#2563EB",  // blue
-    Viewed: "#2563EB",     // blue
-    Shortlisted: "#D97706", // amber
-    Applied: "#2563EB",    // blue
-    Approved: "#10B981",   // green
-    Signed: "#0D9488",     // teal
-    Rejected: "#EF4444",   // red
-    Archived: "#475569",   // grey
-    Unknown: "#475569",    // grey
+    New:         "#FFFFFF",   // white
+    Contacted:   "#EAB308",   // yellow
+    Scheduled:   "#F97316",   // orange
+    Viewed:      "#7C3AED",   // purple
+    Shortlisted: "#2563EB",   // blue
+    Applied:     "#0D9488",   // teal
+    Approved:    "#10B981",   // green
+    Signed:      "#D97706",   // amber
+    Rejected:    "#EF4444",   // red
+    Archived:    "#475569",   // grey
+    Unknown:     "#475569",   // grey
   },
 
   // Legacy aliases (older files/components)

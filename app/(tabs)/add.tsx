@@ -386,13 +386,13 @@ export default function AddScreen() {
 
   const [open, setOpen] = useState<Record<SectionKey, boolean>>({
     property: true,
-    costs: false,
-    features: false,
-    transportation: false,
-    schools: false,
-    listing: false,
-    timeline: false,
-    notes: false,
+    costs: true,
+    features: true,
+    transportation: true,
+    schools: true,
+    listing: true,
+    timeline: true,
+    notes: true,
   });
 
   const inputRefs = useRef<Record<string, TextInput | null>>({});
