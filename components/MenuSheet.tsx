@@ -44,7 +44,7 @@ export function MenuSheet({ onGoProfile, onGoSettings, onClose }: Props) {
           marginTop: 4,
         }}
       >
-        PreferredHome v3.2.2
+        PreferredHome v3.2.2.1
       </Text>
     </View>
   );
