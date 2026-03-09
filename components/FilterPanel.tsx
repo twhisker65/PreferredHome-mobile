@@ -1,6 +1,7 @@
-// components/FilterPanel.tsx — Build 3.2.04
-// New component: drop-down filter panel anchored below TopBar on right side.
-// Width = half screen. Slides down from filter icon. Apply + Clear buttons.
+// components/FilterPanel.tsx — Build 3.2.04 (rev 2)
+// Revised: all filter controls use compact dropdown menus instead of chips.
+// Multi-select dropdowns stay open while selecting; single-select closes on pick.
+// Only one dropdown open at a time. Chevron rotates when open.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -12,6 +13,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/colors";
 import { headingLabel } from "../styles/typography";
 import type { ListingUI, ListingStatus } from "../lib/types";
@@ -19,12 +21,12 @@ import type { ListingUI, ListingStatus } from "../lib/types";
 // ── Filter state types ────────────────────────────────────────────
 
 export type FilterState = {
-  statuses: ListingStatus[];   // empty array = no filter (show all)
-  unitTypes: string[];          // empty array = no filter (show all)
+  statuses: ListingStatus[];
+  unitTypes: string[];
   brokerFee: "both" | "with" | "without";
   preferred: "both" | "yes";
-  maxRent: string;              // "" = no limit
-  zipCodes: string[];           // empty array = no filter (show all)
+  maxRent: string;
+  zipCodes: string[];
 };
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -35,8 +37,6 @@ export const DEFAULT_FILTERS: FilterState = {
   maxRent: "",
   zipCodes: [],
 };
-
-// ── Constants ─────────────────────────────────────────────────────
 
 export const ALL_STATUSES: ListingStatus[] = [
   "New",
@@ -54,8 +54,6 @@ export const ALL_STATUSES: ListingStatus[] = [
 const UNIT_TYPES = ["Rental", "Condo", "Co-op", "Townhouse", "House"];
 
 // ── isFiltersActive ───────────────────────────────────────────────
-// Returns true only when filters actually restrict results.
-// Selecting all statuses or all unit types = no restriction = not active.
 
 export function isFiltersActive(f: FilterState): boolean {
   const statusActive =
@@ -75,15 +73,15 @@ export function isFiltersActive(f: FilterState): boolean {
 // ── Props ─────────────────────────────────────────────────────────
 
 type Props = {
-  topOffset: number;            // pixels from top of screen to position panel
-  listings: ListingUI[];        // used to derive unique zip codes
-  appliedFilters: FilterState;  // current live filters (used to init draft on mount)
+  topOffset: number;
+  listings: ListingUI[];
+  appliedFilters: FilterState;
   onApply: (f: FilterState) => void;
   onClear: () => void;
   onClose: () => void;
 };
 
-// ── Main component ────────────────────────────────────────────────
+// ── FilterPanel ───────────────────────────────────────────────────
 
 export function FilterPanel({
   topOffset,
@@ -96,9 +94,14 @@ export function FilterPanel({
   const screenW = Dimensions.get("window").width;
   const panelW = Math.floor(screenW / 2);
 
-  // Draft state — local pending filters before Apply is tapped.
-  // Initialized from appliedFilters on every mount (panel opens fresh each time).
   const [draft, setDraft] = useState<FilterState>({ ...appliedFilters });
+
+  // Which dropdown is currently open — identified by key string
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  function toggleDropdown(key: string) {
+    setOpenDropdown((prev) => (prev === key ? null : key));
+  }
 
   // ── Animation ──────────────────────────────────────────────────
   const opacity = useRef(new Animated.Value(0)).current;
@@ -106,20 +109,12 @@ export function FilterPanel({
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: true,
-      }),
+      Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 180, useNativeDriver: true }),
     ]).start();
   }, []);
 
-  // ── Unique zip codes from current listings data ─────────────────
+  // ── Unique zip codes ────────────────────────────────────────────
   const uniqueZips = useMemo(() => {
     const s = new Set<string>();
     listings.forEach((l) => {
@@ -158,19 +153,47 @@ export function FilterPanel({
     }));
   }
 
+  // ── Summary labels for dropdown buttons ────────────────────────
+
+  function statusLabel(): string {
+    if (draft.statuses.length === 0) return "All";
+    if (draft.statuses.length === ALL_STATUSES.length) return "All";
+    if (draft.statuses.length === 1) return draft.statuses[0];
+    return `${draft.statuses.length} selected`;
+  }
+
+  function unitTypeLabel(): string {
+    if (draft.unitTypes.length === 0) return "All";
+    if (draft.unitTypes.length === UNIT_TYPES.length) return "All";
+    if (draft.unitTypes.length === 1) return draft.unitTypes[0];
+    return `${draft.unitTypes.length} selected`;
+  }
+
+  function zipLabel(): string {
+    if (draft.zipCodes.length === 0) return "All";
+    if (draft.zipCodes.length === 1) return draft.zipCodes[0];
+    return `${draft.zipCodes.length} selected`;
+  }
+
+  const brokerLabel =
+    draft.brokerFee === "both"
+      ? "Both"
+      : draft.brokerFee === "without"
+      ? "No Fee"
+      : "With Fee";
+
+  const preferredLabel = draft.preferred === "both" ? "Both" : "Yes";
+
   // ── Render ─────────────────────────────────────────────────────
 
   return (
     <>
-      {/* Backdrop — closes panel when tapping outside */}
+      {/* Backdrop */}
       <Pressable
         onPress={onClose}
         style={{
           position: "absolute",
-          top: 0,
-          bottom: 0,
-          left: 0,
-          right: 0,
+          top: 0, bottom: 0, left: 0, right: 0,
           zIndex: 90,
         }}
       />
@@ -201,93 +224,133 @@ export function FilterPanel({
         <ScrollView
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ padding: 14, gap: 16 }}
+          contentContainerStyle={{ padding: 14, gap: 10 }}
         >
+
           {/* ── STATUS ── */}
-          <FilterSection label="STATUS">
-            <View style={{ flexDirection: "row", gap: 6, marginBottom: 4 }}>
-              <MiniButton
-                label="Select All"
-                onPress={() =>
-                  setDraft((d) => ({ ...d, statuses: [...ALL_STATUSES] }))
-                }
-              />
-              <MiniButton
-                label="Clear"
-                onPress={() => setDraft((d) => ({ ...d, statuses: [] }))}
-              />
-            </View>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5 }}>
-              {ALL_STATUSES.map((s) => (
-                <Chip
-                  key={s}
-                  label={s}
-                  selected={draft.statuses.includes(s)}
-                  onPress={() => toggleStatus(s)}
+          <FilterRow label="STATUS">
+            <DropdownButton
+              label={statusLabel()}
+              open={openDropdown === "status"}
+              onPress={() => toggleDropdown("status")}
+            />
+            {openDropdown === "status" && (
+              <DropdownList>
+                <MultiSelectItem
+                  label="Select All"
+                  selected={draft.statuses.length === ALL_STATUSES.length}
+                  onPress={() =>
+                    setDraft((d) => ({ ...d, statuses: [...ALL_STATUSES] }))
+                  }
+                  isBold
                 />
-              ))}
-            </View>
-          </FilterSection>
+                <MultiSelectItem
+                  label="Clear All"
+                  selected={false}
+                  onPress={() => setDraft((d) => ({ ...d, statuses: [] }))}
+                  isBold
+                />
+                <ListDivider />
+                {ALL_STATUSES.map((s) => (
+                  <MultiSelectItem
+                    key={s}
+                    label={s}
+                    selected={draft.statuses.includes(s)}
+                    onPress={() => toggleStatus(s)}
+                  />
+                ))}
+              </DropdownList>
+            )}
+          </FilterRow>
 
           {/* ── UNIT TYPE ── */}
-          <FilterSection label="UNIT TYPE">
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5 }}>
-              {UNIT_TYPES.map((t) => (
-                <Chip
-                  key={t}
-                  label={t}
-                  selected={draft.unitTypes.includes(t)}
-                  onPress={() => toggleUnitType(t)}
-                />
-              ))}
-            </View>
-          </FilterSection>
+          <FilterRow label="UNIT TYPE">
+            <DropdownButton
+              label={unitTypeLabel()}
+              open={openDropdown === "unitType"}
+              onPress={() => toggleDropdown("unitType")}
+            />
+            {openDropdown === "unitType" && (
+              <DropdownList>
+                {UNIT_TYPES.map((t) => (
+                  <MultiSelectItem
+                    key={t}
+                    label={t}
+                    selected={draft.unitTypes.includes(t)}
+                    onPress={() => toggleUnitType(t)}
+                  />
+                ))}
+              </DropdownList>
+            )}
+          </FilterRow>
 
           {/* ── BROKER FEE ── */}
-          <FilterSection label="BROKER FEE">
-            <OptionRow
-              options={[
-                { label: "Both", value: "both" },
-                { label: "No Fee", value: "without" },
-                { label: "With Fee", value: "with" },
-              ]}
-              selected={draft.brokerFee}
-              onSelect={(v) =>
-                setDraft((d) => ({
-                  ...d,
-                  brokerFee: v as FilterState["brokerFee"],
-                }))
-              }
+          <FilterRow label="BROKER FEE">
+            <DropdownButton
+              label={brokerLabel}
+              open={openDropdown === "brokerFee"}
+              onPress={() => toggleDropdown("brokerFee")}
             />
-          </FilterSection>
+            {openDropdown === "brokerFee" && (
+              <DropdownList>
+                {(
+                  [
+                    { label: "Both", value: "both" },
+                    { label: "No Fee", value: "without" },
+                    { label: "With Fee", value: "with" },
+                  ] as { label: string; value: FilterState["brokerFee"] }[]
+                ).map((o) => (
+                  <SingleSelectItem
+                    key={o.value}
+                    label={o.label}
+                    selected={draft.brokerFee === o.value}
+                    onPress={() => {
+                      setDraft((d) => ({ ...d, brokerFee: o.value }));
+                      setOpenDropdown(null);
+                    }}
+                  />
+                ))}
+              </DropdownList>
+            )}
+          </FilterRow>
 
           {/* ── PREFERRED ── */}
-          <FilterSection label="PREFERRED">
-            <OptionRow
-              options={[
-                { label: "Both", value: "both" },
-                { label: "Yes", value: "yes" },
-              ]}
-              selected={draft.preferred}
-              onSelect={(v) =>
-                setDraft((d) => ({
-                  ...d,
-                  preferred: v as FilterState["preferred"],
-                }))
-              }
+          <FilterRow label="PREFERRED">
+            <DropdownButton
+              label={preferredLabel}
+              open={openDropdown === "preferred"}
+              onPress={() => toggleDropdown("preferred")}
             />
-          </FilterSection>
+            {openDropdown === "preferred" && (
+              <DropdownList>
+                {(
+                  [
+                    { label: "Both", value: "both" },
+                    { label: "Yes", value: "yes" },
+                  ] as { label: string; value: FilterState["preferred"] }[]
+                ).map((o) => (
+                  <SingleSelectItem
+                    key={o.value}
+                    label={o.label}
+                    selected={draft.preferred === o.value}
+                    onPress={() => {
+                      setDraft((d) => ({ ...d, preferred: o.value }));
+                      setOpenDropdown(null);
+                    }}
+                  />
+                ))}
+              </DropdownList>
+            )}
+          </FilterRow>
 
           {/* ── MAX RENT ── */}
-          <FilterSection label="MAX RENT">
+          <FilterRow label="MAX RENT">
             <TextInput
               value={draft.maxRent}
               onChangeText={(t) =>
-                setDraft((d) => ({
-                  ...d,
-                  maxRent: t.replace(/[^0-9]/g, ""),
-                }))
+                setDraft((d) => ({ ...d, maxRent: t.replace(/[^0-9]/g, "") }))
               }
+              onFocus={() => setOpenDropdown(null)}
               keyboardType="number-pad"
               placeholder="No limit"
               placeholderTextColor={colors.textSecondary}
@@ -299,35 +362,38 @@ export function FilterPanel({
                 paddingHorizontal: 10,
                 paddingVertical: 8,
                 color: colors.textPrimary,
-                fontSize: 13,
+                fontSize: 12,
               }}
             />
-          </FilterSection>
+          </FilterRow>
 
-          {/* ── ZIP CODE ── only shown when listings have zip data */}
+          {/* ── ZIP CODE ── */}
           {uniqueZips.length > 0 && (
-            <FilterSection label="ZIP CODE">
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5 }}>
-                {uniqueZips.map((z) => (
-                  <Chip
-                    key={z}
-                    label={z}
-                    selected={draft.zipCodes.includes(z)}
-                    onPress={() => toggleZip(z)}
-                  />
-                ))}
-              </View>
-            </FilterSection>
+            <FilterRow label="ZIP CODE">
+              <DropdownButton
+                label={zipLabel()}
+                open={openDropdown === "zip"}
+                onPress={() => toggleDropdown("zip")}
+              />
+              {openDropdown === "zip" && (
+                <DropdownList>
+                  {uniqueZips.map((z) => (
+                    <MultiSelectItem
+                      key={z}
+                      label={z}
+                      selected={draft.zipCodes.includes(z)}
+                      onPress={() => toggleZip(z)}
+                    />
+                  ))}
+                </DropdownList>
+              )}
+            </FilterRow>
           )}
 
           {/* ── BUTTONS ── */}
-          <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
-            {/* Clear */}
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
             <Pressable
-              onPress={() => {
-                onClear();
-                onClose();
-              }}
+              onPress={() => { onClear(); onClose(); }}
               style={({ pressed }) => ({
                 flex: 1,
                 paddingVertical: 11,
@@ -339,23 +405,12 @@ export function FilterPanel({
                 opacity: pressed ? 0.7 : 1,
               })}
             >
-              <Text
-                style={{
-                  color: colors.textPrimary,
-                  fontWeight: "700",
-                  fontSize: 13,
-                }}
-              >
+              <Text style={{ color: colors.textPrimary, fontWeight: "700", fontSize: 13 }}>
                 Clear
               </Text>
             </Pressable>
-
-            {/* Apply */}
             <Pressable
-              onPress={() => {
-                onApply(draft);
-                onClose();
-              }}
+              onPress={() => { onApply(draft); onClose(); }}
               style={({ pressed }) => ({
                 flex: 1,
                 paddingVertical: 11,
@@ -365,13 +420,12 @@ export function FilterPanel({
                 opacity: pressed ? 0.75 : 1,
               })}
             >
-              <Text
-                style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}
-              >
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
                 Apply
               </Text>
             </Pressable>
           </View>
+
         </ScrollView>
       </Animated.View>
     </>
@@ -380,7 +434,7 @@ export function FilterPanel({
 
 // ── Sub-components ────────────────────────────────────────────────
 
-function FilterSection({
+function FilterRow({
   label,
   children,
 }: {
@@ -388,14 +442,132 @@ function FilterSection({
   children: React.ReactNode;
 }) {
   return (
-    <View style={{ gap: 8 }}>
-      <Text style={[headingLabel, { fontSize: 11 }]}>{label}</Text>
+    <View style={{ gap: 5 }}>
+      <Text style={[headingLabel, { fontSize: 10 }]}>{label}</Text>
       {children}
     </View>
   );
 }
 
-function Chip({
+function DropdownButton({
+  label,
+  open,
+  onPress,
+}: {
+  label: string;
+  open: boolean;
+  onPress: () => void;
+}) {
+  const rot = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(rot, {
+      toValue: open ? 1 : 0,
+      duration: 140,
+      useNativeDriver: true,
+    }).start();
+  }, [open]);
+
+  const rotate = rot.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: open ? colors.primaryBlue : colors.border,
+        backgroundColor: open ? `${colors.primaryBlue}15` : colors.cardHover,
+        opacity: pressed ? 0.8 : 1,
+      })}
+    >
+      <Text
+        style={{
+          color: open ? colors.primaryBlue : colors.textPrimary,
+          fontSize: 12,
+          fontWeight: open ? "700" : "400",
+          flex: 1,
+        }}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+      <Animated.View style={{ transform: [{ rotate }] }}>
+        <Ionicons
+          name="chevron-down"
+          size={14}
+          color={open ? colors.primaryBlue : colors.textSecondary}
+        />
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function DropdownList({ children }: { children: React.ReactNode }) {
+  return (
+    <View
+      style={{
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 8,
+        backgroundColor: colors.background,
+        overflow: "hidden",
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
+function MultiSelectItem({
+  label,
+  selected,
+  onPress,
+  isBold,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  isBold?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 10,
+        paddingVertical: 9,
+        backgroundColor: pressed ? colors.cardHover : "transparent",
+      })}
+    >
+      <Text
+        style={{
+          color: selected ? colors.primaryBlue : colors.textPrimary,
+          fontSize: 12,
+          fontWeight: isBold || selected ? "700" : "400",
+          flex: 1,
+        }}
+      >
+        {label}
+      </Text>
+      {selected && (
+        <Ionicons name="checkmark" size={14} color={colors.primaryBlue} />
+      )}
+    </Pressable>
+  );
+}
+
+function SingleSelectItem({
   label,
   selected,
   onPress,
@@ -408,101 +580,33 @@ function Chip({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        paddingHorizontal: 9,
-        paddingVertical: 5,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: selected ? colors.primaryBlue : colors.border,
-        backgroundColor: selected
-          ? `${colors.primaryBlue}25`
-          : colors.cardHover,
-        opacity: pressed ? 0.75 : 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 10,
+        paddingVertical: 9,
+        backgroundColor: pressed ? colors.cardHover : "transparent",
       })}
     >
       <Text
         style={{
-          color: selected ? colors.primaryBlue : colors.textSecondary,
-          fontSize: 11,
+          color: selected ? colors.primaryBlue : colors.textPrimary,
+          fontSize: 12,
           fontWeight: selected ? "700" : "400",
+          flex: 1,
         }}
       >
         {label}
       </Text>
+      {selected && (
+        <Ionicons name="checkmark" size={14} color={colors.primaryBlue} />
+      )}
     </Pressable>
   );
 }
 
-function OptionRow({
-  options,
-  selected,
-  onSelect,
-}: {
-  options: { label: string; value: string }[];
-  selected: string;
-  onSelect: (v: string) => void;
-}) {
+function ListDivider() {
   return (
-    <View style={{ flexDirection: "row", gap: 5 }}>
-      {options.map((o) => (
-        <Pressable
-          key={o.value}
-          onPress={() => onSelect(o.value)}
-          style={({ pressed }) => ({
-            flex: 1,
-            paddingVertical: 7,
-            borderRadius: 8,
-            borderWidth: 1,
-            borderColor:
-              selected === o.value ? colors.primaryBlue : colors.border,
-            backgroundColor:
-              selected === o.value
-                ? `${colors.primaryBlue}25`
-                : colors.cardHover,
-            alignItems: "center",
-            opacity: pressed ? 0.75 : 1,
-          })}
-        >
-          <Text
-            style={{
-              color:
-                selected === o.value
-                  ? colors.primaryBlue
-                  : colors.textSecondary,
-              fontSize: 11,
-              fontWeight: selected === o.value ? "700" : "400",
-            }}
-          >
-            {o.label}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
-function MiniButton({
-  label,
-  onPress,
-}: {
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => ({
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.cardHover,
-        opacity: pressed ? 0.7 : 1,
-      })}
-    >
-      <Text style={{ color: colors.textSecondary, fontSize: 11 }}>
-        {label}
-      </Text>
-    </Pressable>
+    <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 8 }} />
   );
 }

@@ -70,3 +70,15 @@ EXPO RESTART COMMAND
 ════════════════════════════════════════════
 
 cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel
+
+════════════════════════════════════════════
+REVISION — FilterPanel dropdown controls
+════════════════════════════════════════════
+FilterPanel.tsx revised: all filter controls converted from chip grids to compact
+dropdown menus. Each filter shows a single-row button with current selection
+summary and animated chevron. Tapping opens an inline list below the button.
+Multi-select items (Status, Unit Type, Zip) stay open while selecting.
+Single-select items (Broker Fee, Preferred) close on pick.
+Only one dropdown is open at a time.
+Status dropdown includes Select All and Clear All convenience items at top.
+All other logic, button behavior, and active filter indicators unchanged.
