@@ -1,6 +1,8 @@
-// app/(tabs)/add.tsx — Build 3.2.03 HOTFIX
-// Fixes: (1) boolean fields now sent as "TRUE"/"FALSE" strings in payload
-//         (2) restored separate UNIT section (removed in 3.2.03 without authorization)
+// app/(tabs)/add.tsx — Build 3.2.03 HOTFIX 2
+// Fixes: restored original PROPERTY section field order (no Unit section ever existed)
+// Fields bedrooms/bathrooms/sqft/topFloor/cornerUnit/furnished belong at end of PROPERTY.
+// Boolean fields sent as "TRUE"/"FALSE" strings.
+// ZIP auto-fill and clear-after-save preserved.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -37,12 +39,12 @@ type Draft = {
   neighborhood: string;
   unitNumber: string;
   floorNumber: string;
-  topFloor: boolean;
-  cornerUnit: boolean;
-  unitType: string;
   bedrooms: string;
   bathrooms: string;
   squareFootage: string;
+  topFloor: boolean;
+  cornerUnit: boolean;
+  unitType: string;
   furnished: boolean;
   baseRent: string;
   amenityFee: string;
@@ -105,12 +107,12 @@ const BLANK_DRAFT: Draft = {
   neighborhood: "",
   unitNumber: "",
   floorNumber: "",
-  topFloor: false,
-  cornerUnit: false,
-  unitType: "Rental",
   bedrooms: "",
   bathrooms: "",
   squareFootage: "",
+  topFloor: false,
+  cornerUnit: false,
+  unitType: "Rental",
   furnished: false,
   baseRent: "",
   amenityFee: "",
@@ -177,7 +179,8 @@ const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1));
 const MINUTES = ["00", "15", "30", "45"];
 const PERIODS = ["AM", "PM"];
 
-type SectionKey = "property" | "unit" | "costs" | "features" | "transportation" | "schools" | "listing" | "timeline" | "notes";
+// 8 sections — no "unit" section
+type SectionKey = "property" | "costs" | "features" | "transportation" | "schools" | "listing" | "timeline" | "notes";
 
 function todayYYYYMMDD() {
   return new Date().toISOString().slice(0, 10);
@@ -308,7 +311,7 @@ export default function AddScreen() {
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<Draft>({ ...BLANK_DRAFT });
   const [open, setOpen] = useState<Record<SectionKey, boolean>>({
-    property: true, unit: true, costs: true, features: true,
+    property: true, costs: true, features: true,
     transportation: true, schools: true, listing: true, timeline: true, notes: true,
   });
 
@@ -404,12 +407,12 @@ export default function AddScreen() {
         neighborhood: draft.neighborhood,
         unitNumber: draft.unitNumber,
         floorNumber: draft.floorNumber ? Number(draft.floorNumber) : null,
-        topFloor: boolStr(draft.topFloor),
-        cornerUnit: boolStr(draft.cornerUnit),
-        unitType: draft.unitType,
         bedrooms: draft.bedrooms ? Number(draft.bedrooms) : null,
         bathrooms: draft.bathrooms ? Number(draft.bathrooms) : null,
         squareFootage: draft.squareFootage ? Number(draft.squareFootage) : null,
+        topFloor: boolStr(draft.topFloor),
+        cornerUnit: boolStr(draft.cornerUnit),
+        unitType: draft.unitType,
         furnished: boolStr(draft.furnished),
         baseRent: draft.baseRent ? Number(draft.baseRent) : null,
         amenityFee: draft.amenityFee ? Number(draft.amenityFee) : null,
@@ -498,10 +501,6 @@ export default function AddScreen() {
             <Field label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={(t) => setDraft((d) => ({ ...d, neighborhood: t }))} />
             <Field label="Apartment / Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={(t) => setDraft((d) => ({ ...d, unitNumber: t }))} />
             <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="number-pad" />
-          </Section>
-
-          {/* ── UNIT ── */}
-          <Section title="Unit" open={open.unit} onToggle={() => toggleSection("unit")}>
             <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bedrooms: t }))} keyboardType="number-pad" />
             <Field label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bathrooms: t }))} keyboardType="decimal-pad" />
             <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={(t) => setDraft((d) => ({ ...d, squareFootage: t }))} keyboardType="number-pad" />

@@ -1,6 +1,6 @@
-// app/edit.tsx — Build 3.2.03 HOTFIX
-// Fixes: (1) boolean fields now sent as "TRUE"/"FALSE" strings in payload
-//         (2) restored separate UNIT section (removed in 3.2.03 without authorization)
+// app/edit.tsx — Build 3.2.03 HOTFIX 2
+// Fixes: no Unit section (fields in PROPERTY), City and State appear BEFORE Zip Code,
+//         boolean fields sent as "TRUE"/"FALSE" strings.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -38,12 +38,12 @@ type Draft = {
   neighborhood: string;
   unitNumber: string;
   floorNumber: string;
-  topFloor: boolean;
-  cornerUnit: boolean;
-  unitType: string;
   bedrooms: string;
   bathrooms: string;
   squareFootage: string;
+  topFloor: boolean;
+  cornerUnit: boolean;
+  unitType: string;
   furnished: boolean;
   baseRent: string;
   amenityFee: string;
@@ -110,7 +110,8 @@ const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1));
 const MINUTES = ["00", "15", "30", "45"];
 const PERIODS = ["AM", "PM"];
 
-type SectionKey = "property" | "unit" | "costs" | "features" | "transportation" | "schools" | "listing" | "timeline" | "notes";
+// 8 sections — no "unit" section
+type SectionKey = "property" | "costs" | "features" | "transportation" | "schools" | "listing" | "timeline" | "notes";
 
 function todayYYYYMMDD() {
   return new Date().toISOString().slice(0, 10);
@@ -128,7 +129,10 @@ function boolStr(v: boolean): string {
 
 function str(v: unknown): string {
   if (v == null) return "";
-  return String(v).trim();
+  const s = String(v).trim();
+  // convert literal "nan", "null", "none" from corrupted sheet data
+  if (s.toLowerCase() === "nan" || s.toLowerCase() === "null" || s.toLowerCase() === "none") return "";
+  return s;
 }
 
 function boolVal(v: unknown): boolean {
@@ -156,12 +160,12 @@ function rawToDraft(raw: any): Draft {
     neighborhood: str(raw?.neighborhood),
     unitNumber: str(raw?.unitNumber),
     floorNumber: str(raw?.floorNumber),
-    topFloor: boolVal(raw?.topFloor),
-    cornerUnit: boolVal(raw?.cornerUnit),
-    unitType: str(raw?.unitType) || "Rental",
     bedrooms: str(raw?.bedrooms),
     bathrooms: str(raw?.bathrooms),
     squareFootage: str(raw?.squareFootage),
+    topFloor: boolVal(raw?.topFloor),
+    cornerUnit: boolVal(raw?.cornerUnit),
+    unitType: str(raw?.unitType) || "Rental",
     furnished: boolVal(raw?.furnished),
     baseRent: str(raw?.baseRent),
     amenityFee: str(raw?.amenityFee),
@@ -332,7 +336,7 @@ export default function EditScreen() {
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [open, setOpen] = useState<Record<SectionKey, boolean>>({
-    property: true, unit: true, costs: true, features: true,
+    property: true, costs: true, features: true,
     transportation: true, schools: true, listing: true, timeline: true, notes: true,
   });
 
@@ -345,7 +349,7 @@ export default function EditScreen() {
   }, [id, listings]);
 
   const inputOrder = [
-    "buildingName", "streetAddress", "zipCode", "city", "state", "neighborhood", "unitNumber", "floorNumber",
+    "buildingName", "streetAddress", "city", "state", "zipCode", "neighborhood", "unitNumber", "floorNumber",
     "bedrooms", "bathrooms", "squareFootage",
     "baseRent", "amenityFee", "adminFee", "utilityFee", "parkingFee", "otherFee", "securityDeposit", "applicationFee",
     "commuteTime", "walkScore", "transitScore", "bikeScore",
@@ -423,12 +427,12 @@ export default function EditScreen() {
         neighborhood: draft.neighborhood,
         unitNumber: draft.unitNumber,
         floorNumber: draft.floorNumber ? Number(draft.floorNumber) : null,
-        topFloor: boolStr(draft.topFloor),
-        cornerUnit: boolStr(draft.cornerUnit),
-        unitType: draft.unitType,
         bedrooms: draft.bedrooms ? Number(draft.bedrooms) : null,
         bathrooms: draft.bathrooms ? Number(draft.bathrooms) : null,
         squareFootage: draft.squareFootage ? Number(draft.squareFootage) : null,
+        topFloor: boolStr(draft.topFloor),
+        cornerUnit: boolStr(draft.cornerUnit),
+        unitType: draft.unitType,
         furnished: boolStr(draft.furnished),
         baseRent: draft.baseRent ? Number(draft.baseRent) : null,
         amenityFee: draft.amenityFee ? Number(draft.amenityFee) : null,
@@ -511,23 +515,19 @@ export default function EditScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}>
         <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 40 }}>
 
-          {/* ── PROPERTY ── */}
+          {/* ── PROPERTY ── City and State appear BEFORE Zip Code on Edit ── */}
           <Section title="Property" open={open.property} onToggle={() => toggleSection("property")}>
             <SelectRow label="Status" value={draft.status} onPress={() => openSingle("Status", STATUS, draft.status, set("status"))} />
             <SelectRow label="Unit Type" value={draft.unitType} onPress={() => openSingle("Unit Type", UNIT_TYPES, draft.unitType, set("unitType"))} />
             <Toggle label="Preferred" value={draft.preferred} onValueChange={set("preferred")} />
             <Field label="Building Name" fieldKey="buildingName" inputRefs={inputRefs} onNext={focusNext} value={draft.buildingName} onChangeText={set("buildingName")} />
             <Field label="Street Address" fieldKey="streetAddress" inputRefs={inputRefs} onNext={focusNext} value={draft.streetAddress} onChangeText={set("streetAddress")} placeholder="Street only" />
-            <Field label="Zip Code" fieldKey="zipCode" inputRefs={inputRefs} onNext={focusNext} value={draft.zipCode} onChangeText={set("zipCode")} keyboardType="number-pad" />
             <Field label="City" fieldKey="city" inputRefs={inputRefs} onNext={focusNext} value={draft.city} onChangeText={set("city")} />
             <Field label="State" fieldKey="state" inputRefs={inputRefs} onNext={focusNext} value={draft.state} onChangeText={set("state")} placeholder="e.g. NY" />
+            <Field label="Zip Code" fieldKey="zipCode" inputRefs={inputRefs} onNext={focusNext} value={draft.zipCode} onChangeText={set("zipCode")} keyboardType="number-pad" />
             <Field label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={set("neighborhood")} />
             <Field label="Apartment / Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={set("unitNumber")} />
             <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={set("floorNumber")} keyboardType="number-pad" />
-          </Section>
-
-          {/* ── UNIT ── */}
-          <Section title="Unit" open={open.unit} onToggle={() => toggleSection("unit")}>
             <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={set("bedrooms")} keyboardType="number-pad" />
             <Field label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={set("bathrooms")} keyboardType="decimal-pad" />
             <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={set("squareFootage")} keyboardType="number-pad" />

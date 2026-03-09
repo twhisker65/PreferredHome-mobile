@@ -20,6 +20,19 @@ export function MenuSheet({ onGoProfile, onGoSettings, onClose }: Props) {
 
       <View style={{ flex: 1 }} />
 
+      {/* Build version label — above Close so it is never cut off */}
+      <Text
+        style={{
+          color: colors.textSecondary,
+          fontSize: 11,
+          textAlign: "center",
+          opacity: 0.6,
+          marginBottom: 4,
+        }}
+      >
+        PreferredHome v3.2.03
+      </Text>
+
       <Pressable
         onPress={onClose}
         style={{
@@ -33,19 +46,6 @@ export function MenuSheet({ onGoProfile, onGoSettings, onClose }: Props) {
       >
         <Text style={[typography.body, { fontWeight: "800" }]}>Close</Text>
       </Pressable>
-
-      {/* Build version label — muted, small, bottom of menu */}
-      <Text
-        style={{
-          color: colors.textSecondary,
-          fontSize: 11,
-          textAlign: "center",
-          opacity: 0.6,
-          marginTop: 4,
-        }}
-      >
-        PreferredHome v3.2.03
-      </Text>
     </View>
   );
 }
