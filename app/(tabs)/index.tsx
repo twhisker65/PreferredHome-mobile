@@ -1,6 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+// app/(tabs)/index.tsx — Build 3.2.03
+// Change: added useFocusEffect so Home screen refreshes data whenever it comes into focus
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, ActivityIndicator, RefreshControl, ScrollView } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { colors } from "../../styles/colors";
 import { headingLabel } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
@@ -31,6 +34,13 @@ export default function HomeScreen() {
   const [preferredTop, setPreferredTop] = useState<ListingUI[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Refresh whenever this screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [])
+  );
+
   useEffect(() => {
     (async () => {
       const saved = await loadOrder();
@@ -54,14 +64,8 @@ export default function HomeScreen() {
 
       <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
         <MenuSheet
-          onGoProfile={() => {
-            setMenuOpen(false);
-            router.push("/profile");
-          }}
-          onGoSettings={() => {
-            setMenuOpen(false);
-            router.push("/settings");
-          }}
+          onGoProfile={() => { setMenuOpen(false); router.push("/profile"); }}
+          onGoSettings={() => { setMenuOpen(false); router.push("/settings"); }}
           onClose={() => setMenuOpen(false)}
         />
       </SidePanel>
@@ -82,7 +86,7 @@ export default function HomeScreen() {
           contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
         >
-<View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
             <StatPill label="Avg Base Rent" value={stats.avg !== null ? fmtMoney(stats.avg) : "—"} />
             <StatPill label="Min Base Rent" value={stats.min !== null ? fmtMoney(stats.min) : "—"} />
           </View>
@@ -94,7 +98,7 @@ export default function HomeScreen() {
 
           <View style={{ marginTop: 18 }}>
             <Text style={headingLabel}>Top 3</Text>
-<View style={{ marginTop: 12, gap: 12 }}>
+            <View style={{ marginTop: 12, gap: 12 }}>
               {preferredTop.map((l) => (
                 <ListingCard key={l.id} listing={l} hideActions />
               ))}

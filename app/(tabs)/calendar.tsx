@@ -1,6 +1,9 @@
-import React, { useMemo, useState } from "react";
-import { View, Text, ScrollView, ActivityIndicator } from "react-native";
-import { router } from "expo-router";
+// app/(tabs)/calendar.tsx — Build 3.2.03
+// Changes: added useFocusEffect for on-focus refresh, added RefreshControl for pull-to-refresh
+
+import React, { useCallback, useMemo, useState } from "react";
+import { View, Text, ActivityIndicator, ScrollView, RefreshControl } from "react-native";
+import { router, useFocusEffect } from "expo-router";
 import { Calendar } from "react-native-calendars";
 import { colors } from "../../styles/colors";
 import { headingLabel } from "../../styles/typography";
@@ -11,59 +14,39 @@ import { useListings } from "../../lib/useListings";
 
 type Appt = {
   id: string;
-  date: string; // YYYY-MM-DD
-  time?: string; // HH:MM (24hr internal)
-  building?: string;
-  address?: string;
+  date: string;
+  time?: string;
+  building: string;
+  address: string;
   contact?: string;
 };
 
-function str(v: any): string {
-  if (v === null || v === undefined) return "";
+function str(v: unknown): string {
+  if (v == null) return "";
   return String(v).trim();
 }
 
-function parseDateTime(rawDate: string): { date: string; time?: string } | null {
-  const d = str(rawDate);
-
-  if (d.includes("T")) {
-    const iso = new Date(d);
-    if (!Number.isNaN(iso.getTime())) {
-      const yyyy = iso.getFullYear();
-      const mm = String(iso.getMonth() + 1).padStart(2, "0");
-      const dd = String(iso.getDate()).padStart(2, "0");
-      const hh = String(iso.getHours()).padStart(2, "0");
-      const mi = String(iso.getMinutes()).padStart(2, "0");
-      return { date: `${yyyy}-${mm}-${dd}`, time: `${hh}:${mi}` };
-    }
-  }
-
-  const combo = d.match(/^(\d{4}-\d{2}-\d{2})[\sT](\d{1,2}:\d{2})/);
-  if (combo) return { date: combo[1], time: combo[2] };
-
-  const dateOnly = d.match(/^\d{4}-\d{2}-\d{2}$/);
-  if (!dateOnly) return null;
-
-  return { date: d };
+function parseDateTime(raw: string): { date: string; time?: string } | null {
+  if (!raw) return null;
+  // ISO: 2026-03-07T14:00:00 or 2026-03-07 14:00:00 or 2026-03-07
+  const match = raw.match(/^(\d{4}-\d{2}-\d{2})[T ]?(\d{2}:\d{2})?/);
+  if (!match) return null;
+  const date = match[1];
+  if (!match[2]) return { date };
+  // Convert 24h to AM/PM
+  const [hStr, mStr] = match[2].split(":");
+  let h = parseInt(hStr, 10);
+  const period = h >= 12 ? "PM" : "AM";
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  return { date, time: `${h}:${mStr} ${period}` };
 }
 
-function formatTime(t?: string): string {
-  if (!t) return "";
-  if (/AM|PM/i.test(t)) return t.toUpperCase();
-  const match = t.match(/^(\d{1,2}):(\d{2})$/);
-  if (!match) return t;
-  const h = parseInt(match[1], 10);
-  const m = match[2];
-  const period = h < 12 ? "AM" : "PM";
-  const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${display}:${m} ${period}`;
-}
-
-function formatDate(d: string): string {
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const match = d.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return d;
-  const month = months[parseInt(match[2], 10) - 1] ?? match[2];
+function formatDisplayDate(dateStr: string): string {
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return dateStr;
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const month = months[parseInt(match[2], 10) - 1];
   return `${month} ${match[3]}`;
 }
 
@@ -73,7 +56,14 @@ function safeText(v?: string) {
 
 export default function CalendarScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { listings, loading, error } = useListings();
+  const { listings, loading, refreshing, error, refresh } = useListings();
+
+  // Refresh whenever this screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [])
+  );
 
   const appts: Appt[] = useMemo(() => {
     const out: Appt[] = [];
@@ -105,10 +95,7 @@ export default function CalendarScreen() {
   const markedDates = useMemo(() => {
     const m: Record<string, any> = {};
     for (const a of appts) {
-      m[a.date] = {
-        selected: true,
-        selectedColor: colors.primaryBlue,
-      };
+      m[a.date] = { selected: true, selectedColor: colors.primaryBlue };
     }
     return m;
   }, [appts]);
@@ -119,14 +106,8 @@ export default function CalendarScreen() {
 
       <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
         <MenuSheet
-          onGoProfile={() => {
-            setMenuOpen(false);
-            router.push("/profile");
-          }}
-          onGoSettings={() => {
-            setMenuOpen(false);
-            router.push("/settings");
-          }}
+          onGoProfile={() => { setMenuOpen(false); router.push("/profile"); }}
+          onGoSettings={() => { setMenuOpen(false); router.push("/settings"); }}
           onClose={() => setMenuOpen(false)}
         />
       </SidePanel>
@@ -135,6 +116,7 @@ export default function CalendarScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 28 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
       >
         <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
           <Calendar
@@ -165,42 +147,37 @@ export default function CalendarScreen() {
           </View>
         ) : error ? (
           <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ color: colors.textSecondary }}>{error}</Text>
+            <Text style={{ color: colors.red, fontSize: 13 }}>{error}</Text>
           </View>
         ) : appts.length === 0 ? (
           <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ color: colors.textSecondary }}>No appointments scheduled.</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>No viewing appointments scheduled.</Text>
           </View>
         ) : (
-          <View style={{ paddingHorizontal: 16, gap: 12 }}>
-            {appts.map((item) => {
-              const dateStr = formatDate(item.date);
-              const timeStr = formatTime(item.time);
-              const dateTime = timeStr ? `${dateStr} - ${timeStr}` : dateStr;
-
-              return (
-                <View
-                  key={item.id + "|" + item.date + "|" + (item.time ?? "")}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    borderRadius: 18,
-                    padding: 14,
-                    backgroundColor: colors.card,
-                  }}
-                >
-                  <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "900" }} numberOfLines={1}>
-                    {safeText(item.building)} — {dateTime}
+          <View style={{ paddingHorizontal: 16, gap: 10 }}>
+            {appts.map((a) => (
+              <View
+                key={`${a.id}-${a.date}`}
+                style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 14 }}
+              >
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 15, flex: 1 }} numberOfLines={1}>
+                    {safeText(a.building)}
                   </Text>
-                  <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 13 }} numberOfLines={2}>
-                    {safeText(item.address)}
-                  </Text>
-                  <Text style={{ color: colors.textSecondary, marginTop: 4, fontSize: 13 }} numberOfLines={1}>
-                    {safeText(item.contact)}
+                  <Text style={{ color: colors.primaryBlue, fontWeight: "700", fontSize: 13, marginLeft: 8 }}>
+                    {formatDisplayDate(a.date)}{a.time ? ` · ${a.time}` : ""}
                   </Text>
                 </View>
-              );
-            })}
+                <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4 }} numberOfLines={2}>
+                  {safeText(a.address)}
+                </Text>
+                {a.contact ? (
+                  <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4 }}>
+                    {a.contact}
+                  </Text>
+                ) : null}
+              </View>
+            ))}
           </View>
         )}
       </ScrollView>

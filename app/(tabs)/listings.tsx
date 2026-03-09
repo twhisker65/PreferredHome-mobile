@@ -1,3 +1,6 @@
+// app/(tabs)/listings.tsx — Build 3.2.03
+// Change: onEdit now navigates to /edit with the listing id instead of showing a placeholder alert
+
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, ActivityIndicator, RefreshControl, SectionList, Alert } from "react-native";
 import { router, useFocusEffect } from "expo-router";
@@ -30,12 +33,9 @@ export default function ListingsScreen() {
   const [other, setOther] = useState<ListingUI[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
-
-  // local-only selections (no persistence in 3.1.05)
   const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
 
-  // Build 3.2.2 — auto-refresh listings whenever this screen comes into focus
-  // This ensures the list updates automatically after a new listing is saved
+  // Auto-refresh whenever this screen comes into focus
   useFocusEffect(
     useCallback(() => {
       refresh();
@@ -114,12 +114,10 @@ export default function ListingsScreen() {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            // Remove from screen immediately for a fast response
             removeLocally(id);
             try {
               await deleteListingApi(id);
             } catch (err: any) {
-              // If the API call fails, restore by refreshing
               Alert.alert(
                 "Delete Failed",
                 err?.message ?? "The listing was removed from the screen but could not be deleted from the server. Pull to refresh to restore it.",
@@ -138,14 +136,8 @@ export default function ListingsScreen() {
 
       <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
         <MenuSheet
-          onGoProfile={() => {
-            setMenuOpen(false);
-            router.push("/profile");
-          }}
-          onGoSettings={() => {
-            setMenuOpen(false);
-            router.push("/settings");
-          }}
+          onGoProfile={() => { setMenuOpen(false); router.push("/profile"); }}
+          onGoSettings={() => { setMenuOpen(false); router.push("/settings"); }}
           onClose={() => setMenuOpen(false)}
         />
       </SidePanel>
@@ -156,7 +148,6 @@ export default function ListingsScreen() {
           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
             Filter logic is staged for a future build. This panel is the stable UI shell.
           </Text>
-
           <View style={{ height: 1, backgroundColor: colors.border, marginTop: 6 }} />
           <Text style={{ color: colors.textSecondary, fontSize: 12, letterSpacing: 0.8 }}>PLACEHOLDERS</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>• Status</Text>
@@ -188,8 +179,8 @@ export default function ListingsScreen() {
                 compareSelected={compareIds.has(item.id)}
                 onTogglePreferred={() => togglePreferred(item.id)}
                 onToggleCompare={() => toggleCompare(item.id)}
-                onView={() => Alert.alert("View", "Detail screen is staged for Build 3.2.3.")}
-                onEdit={() => Alert.alert("Edit", "Edit flow is staged for Build 3.2.4.")}
+                onView={() => Alert.alert("View", "Detail screen is staged for Build 3.2.04.")}
+                onEdit={() => router.push({ pathname: "/edit", params: { id: item.id } })}
                 onDelete={() => deleteListing(item.id)}
               />
             </View>
