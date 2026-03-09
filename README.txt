@@ -1,80 +1,72 @@
-HOTFIX 2 — Build 3.2.03
-========================
-PreferredHome | Mobile repo only | No API changes for these 3 files.
-NOTE: The Save Failed (zipCode int64) issue requires an API fix — see below.
+BUILD 3.2.04 — Filter Panel (Listings Screen)
+Mobile repo only. No API changes.
 
-ISSUES FIXED IN THIS HOTFIX
------------------------------
-1. No Unit section (unauthorized section removed)
-   The Data Architecture defines all property-level fields in a single PROPERTY
-   section. No "Unit" section exists or was ever instructed. Bedrooms, Bathrooms,
-   Square Footage, Top Floor, Corner Unit, and Furnished now appear at the end of
-   the PROPERTY section on both Add and Edit screens.
+════════════════════════════════════════════
+FILES CHANGED (3) — in repository folder order
+════════════════════════════════════════════
 
-2. Version label not showing in hamburger menu
-   Root cause: label was placed after the Close button and getting cut off by the
-   device's bottom safe area. Fixed: label now appears above the Close button.
+app/(tabs)/listings.tsx
+  - Replaced filter SidePanel placeholder shell with FilterPanel component
+  - Added FilterState type and appliedFilters state
+  - applyFilters() function filters both Preferred and Candidates sections
+  - Filter icon in TopBar turns blue when any filter is active
+  - FILTERS ACTIVE blue banner rendered below header when active
+  - FilterPanel conditionally mounted on filterOpen; unmounts on close
+  - useSafeAreaInsets added to calculate exact topOffset for panel position
 
-3. City and State appear before Zip Code on Edit screen
-   As instructed: Edit screen shows City and State as editable fields before the
-   Zip Code field. (Add screen auto-fills from ZIP so order is different there.)
+components/TopBar.tsx
+  - Added optional rightIconColor prop (string)
+  - Right icon now uses rightIconColor if provided, else defaults to textPrimary
+  - No other changes
 
-REMAINING ISSUE — API FIX REQUIRED
-------------------------------------
-Save Failed: "Invalid value '10601' for dtype 'int64'"
+components/FilterPanel.tsx  [NEW FILE]
+  - Drop-down panel: slides down from below TopBar, right-aligned
+  - Width = half screen width
+  - Height = auto (grows with content, capped at 85% screen height)
+  - Animated open: opacity 0→1 + translateY -14→0 over 180ms
+  - Backdrop: full-screen transparent Pressable behind panel to close on tap outside
+  - Manages own draft state; only commits to parent on Apply
 
-Root cause: The Google Sheet is storing the zipCode column as a number (integer),
-not as text. When the API reads the sheet, pandas assigns that column dtype int64.
-When the mobile sends zipCode as the string "10601" during an Edit save (PUT),
-pandas rejects it because int64 cannot accept a string value.
+  Filters included:
+    STATUS       — multi-select chips; Select All / Clear convenience buttons
+    UNIT TYPE    — multi-select chips (Rental, Condo, Co-op, Townhouse, House)
+    BROKER FEE   — single-select row: Both / No Fee / With Fee (default: Both)
+    PREFERRED    — single-select row: Both / Yes (default: Both)
+    MAX RENT     — numeric text input (shows all listings at or under amount)
+    ZIP CODE     — multi-select chips from unique zip codes in current listings data
+                   (section hidden if no zip data exists in listings)
 
-Per the Data Architecture V4, zipCode is defined as type TEXT, not a number.
-This is a bug in config_constants.py — zipCode must be removed from NUMERIC_FIELDS.
+  Buttons:
+    Clear  — resets all filters to defaults, closes panel
+    Apply  — commits draft filters to listings screen, closes panel (blue fill)
 
-To fix this, a separate API change is needed:
-  File: preferredhome_api/config/config_constants.py
-  Change: Remove "zipCode" from the NUMERIC_FIELDS list (or equivalent).
-  Then: Redeploy to Render and verify /health shows the correct version.
+  isFiltersActive logic:
+    - Status: active only if some (not all, not none) statuses are selected
+    - Unit Type: active only if some (not all, not none) types are selected
+    - Broker Fee: active if not "both"
+    - Preferred: active if not "both"
+    - Max Rent: active if field is not empty
+    - Zip Code: active if any zip codes are selected
 
-This API fix is out of scope for this hotfix ZIP. It requires a separate
-authorized API build. Do NOT attempt this change without a full build session.
+════════════════════════════════════════════
+FILES CONFIRMED UNCHANGED
+════════════════════════════════════════════
+components/SidePanel.tsx
+components/MenuSheet.tsx
+app/(tabs)/add.tsx
+app/(tabs)/index.tsx
+app/(tabs)/calendar.tsx
+app/edit.tsx
+All API repo files
 
-CHANGED FILES (in folder order)
----------------------------------
-app/(tabs)/add.tsx     — Unit section removed; all fields now in PROPERTY
-app/edit.tsx           — Unit section removed; City and State before Zip
-components/MenuSheet.tsx — version label moved above Close button
+════════════════════════════════════════════
+COMMIT MESSAGE
+════════════════════════════════════════════
 
-DEPLOY STEPS
-------------
-1. Copy all 3 files from this ZIP into your local PreferredHome-mobile repo,
-   overwriting existing files.
+Build 3.2.04 — Filter panel: drop-down from header, Status/UnitType/BrokerFee/Preferred/MaxRent/ZipCode filters, Apply + Clear buttons, active filter banner and blue icon indicator
 
-2. Run the Expo restart command:
+════════════════════════════════════════════
+EXPO RESTART COMMAND
+════════════════════════════════════════════
 
 cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel
-
-3. Test on phone using the checklist below.
-
-4. Commit via GitHub Desktop using the commit message below.
-
-5. Push to GitHub.
-
-6. Claude Project → GitHub connection → Sync now (mobile repo).
-
-TEST CHECKLIST
---------------
-[ ] 1. Hamburger menu — version label "PreferredHome v3.2.03" appears ABOVE the Close button
-[ ] 2. Add screen — PROPERTY section contains Bedrooms, Bathrooms, Square Footage,
-        Top Floor, Corner Unit, Furnished at the bottom of the section
-[ ] 3. Add screen — NO separate "Unit" section header visible
-[ ] 4. Edit screen — PROPERTY section shows City and State BEFORE Zip Code
-[ ] 5. Edit screen — NO separate "Unit" section header visible
-[ ] 6. Edit screen — Bedrooms, Bathrooms, Square Footage, Top Floor, Corner Unit,
-        Furnished all appear at the bottom of the PROPERTY section
-[ ] 7. Edit screen save — if zipCode is unchanged, confirm whether save now works
-        (it may still fail until the API fix is applied)
-
-COMMIT MESSAGE
---------------
-Hotfix 2 — 3.2.03: remove Unit section (fields in PROPERTY), City/State before ZIP on Edit, version label above Close

@@ -1,3 +1,7 @@
+// components/TopBar.tsx — Build 3.2.04
+// Change: added rightIconColor prop so callers can tint the right icon
+// (used by Listings to turn filter icon blue when filters are active)
+
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,10 +13,17 @@ type Props = {
   onPressMenu?: () => void;
 
   rightIconName?: React.ComponentProps<typeof Ionicons>["name"];
+  rightIconColor?: string;
   onPressRight?: () => void;
 };
 
-export function TopBar({ title = "PreferredHome", onPressMenu, rightIconName, onPressRight }: Props) {
+export function TopBar({
+  title = "PreferredHome",
+  onPressMenu,
+  rightIconName,
+  rightIconColor,
+  onPressRight,
+}: Props) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -22,7 +33,10 @@ export function TopBar({ title = "PreferredHome", onPressMenu, rightIconName, on
           onPress={onPressMenu}
           disabled={!onPressMenu}
           hitSlop={12}
-          style={({ pressed }) => [styles.iconBtn, pressed && onPressMenu ? { opacity: 0.75 } : null]}
+          style={({ pressed }) => [
+            styles.iconBtn,
+            pressed && onPressMenu ? { opacity: 0.75 } : null,
+          ]}
         >
           {/* Hamburger +1.25x */}
           <Ionicons name="menu" size={30} color={colors.textPrimary} />
@@ -43,9 +57,18 @@ export function TopBar({ title = "PreferredHome", onPressMenu, rightIconName, on
           onPress={onPressRight}
           disabled={!onPressRight || !rightIconName}
           hitSlop={12}
-          style={({ pressed }) => [styles.iconBtn, pressed && onPressRight ? { opacity: 0.75 } : null]}
+          style={({ pressed }) => [
+            styles.iconBtn,
+            pressed && onPressRight ? { opacity: 0.75 } : null,
+          ]}
         >
-          {rightIconName ? <Ionicons name={rightIconName} size={26} color={colors.textPrimary} /> : null}
+          {rightIconName ? (
+            <Ionicons
+              name={rightIconName}
+              size={26}
+              color={rightIconColor ?? colors.textPrimary}
+            />
+          ) : null}
         </Pressable>
       </View>
       <View style={styles.divider} />

@@ -1,22 +1,89 @@
-// app/(tabs)/listings.tsx — Build 3.2.03
-// Change: onEdit now navigates to /edit with the listing id instead of showing a placeholder alert
+// app/(tabs)/listings.tsx — Build 3.2.04
+// Changes:
+// - Replace filter SidePanel shell with real FilterPanel component
+// - Add filter state, filter logic, and Apply/Clear wiring
+// - Filter icon turns blue when filters are active
+// - FILTERS ACTIVE blue banner shown below header when filters are active
+// - Listings sections (Preferred + Candidates) are filtered in real time after Apply
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, ActivityIndicator, RefreshControl, SectionList, Alert } from "react-native";
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  RefreshControl,
+  SectionList,
+  Alert,
+  Pressable,
+} from "react-native";
 import { router, useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../styles/colors";
 import { headingLabel } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
 import { ListingCard } from "../../components/ListingCard";
 import { SidePanel } from "../../components/SidePanel";
 import { MenuSheet } from "../../components/MenuSheet";
+import {
+  FilterPanel,
+  FilterState,
+  DEFAULT_FILTERS,
+  isFiltersActive,
+} from "../../components/FilterPanel";
 import { useListings } from "../../lib/useListings";
 import { applyOrder } from "../../lib/orderApply";
 import { loadOrder } from "../../lib/orderStorage";
 import { deleteListing as deleteListingApi } from "../../lib/api";
-import type { ListingUI } from "../../lib/types";
+import type { ListingUI, ListingStatus } from "../../lib/types";
 
 type Section = { title: string; data: ListingUI[] };
+
+// ── Filter logic ──────────────────────────────────────────────────
+// Applied after applyOrder so sort order is preserved within each section.
+
+function applyFilters(items: ListingUI[], f: FilterState): ListingUI[] {
+  return items.filter((item) => {
+    // Status: if specific statuses are selected, filter to those only
+    if (f.statuses.length > 0 && !f.statuses.includes(item.status)) {
+      return false;
+    }
+    // Unit type: filter to selected types only
+    if (
+      f.unitTypes.length > 0 &&
+      !f.unitTypes.includes(item.raw?.unitType || "")
+    ) {
+      return false;
+    }
+    // Broker fee: noBrokerFee === "TRUE" means no fee exists
+    if (f.brokerFee === "without" && item.raw?.noBrokerFee !== "TRUE") {
+      return false;
+    }
+    if (f.brokerFee === "with" && item.raw?.noBrokerFee !== "FALSE") {
+      return false;
+    }
+    // Preferred: only show heart-flagged listings
+    if (f.preferred === "yes" && !item.preferred) {
+      return false;
+    }
+    // Max rent: show listings at or under the entered amount
+    if (f.maxRent !== "") {
+      const max = parseFloat(f.maxRent);
+      if (!isNaN(max) && item.baseRent != null && item.baseRent > max) {
+        return false;
+      }
+    }
+    // Zip code: filter to selected zip codes only
+    if (
+      f.zipCodes.length > 0 &&
+      !f.zipCodes.includes(String(item.raw?.zipCode || "").trim())
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
+// ── Section header ────────────────────────────────────────────────
 
 function SectionHeader({ title }: { title: string }) {
   return (
@@ -26,14 +93,26 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
+// ── Main screen ───────────────────────────────────────────────────
+
 export default function ListingsScreen() {
   const { listings, loading, refreshing, error, refresh } = useListings();
+  const insets = useSafeAreaInsets();
 
   const [preferred, setPreferred] = useState<ListingUI[]>([]);
   const [other, setOther] = useState<ListingUI[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
+
+  // Applied filters — committed when user taps Apply in the panel
+  const [appliedFilters, setAppliedFilters] =
+    useState<FilterState>(DEFAULT_FILTERS);
+
+  // TopBar height: safe area inset + 52px row + 1px divider
+  const topBarHeight = insets.top + 53;
+
+  const filtersActive = isFiltersActive(appliedFilters);
 
   // Auto-refresh whenever this screen comes into focus
   useFocusEffect(
@@ -51,13 +130,16 @@ export default function ListingsScreen() {
     })();
   }, [listings]);
 
+  // Build sections with filters applied
   const sections: Section[] = useMemo(
     () => [
-      { title: "Preferred", data: preferred },
-      { title: "Candidates", data: other },
+      { title: "Preferred", data: applyFilters(preferred, appliedFilters) },
+      { title: "Candidates", data: applyFilters(other, appliedFilters) },
     ],
-    [preferred, other]
+    [preferred, other, appliedFilters]
   );
+
+  // ── Listing interaction handlers ────────────────────────────────
 
   function togglePreferred(id: string) {
     const inPreferred = preferred.some((l) => l.id === id);
@@ -120,7 +202,8 @@ export default function ListingsScreen() {
             } catch (err: any) {
               Alert.alert(
                 "Delete Failed",
-                err?.message ?? "The listing was removed from the screen but could not be deleted from the server. Pull to refresh to restore it.",
+                err?.message ??
+                  "The listing was removed from the screen but could not be deleted from the server. Pull to refresh to restore it.",
                 [{ text: "OK", onPress: refresh }]
               );
             }
@@ -130,48 +213,86 @@ export default function ListingsScreen() {
     );
   }
 
+  // ── Render ─────────────────────────────────────────────────────
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <TopBar title="PreferredHome" onPressMenu={() => setMenuOpen(true)} rightIconName="filter" onPressRight={() => setFilterOpen(true)} />
+      {/* Top bar — filter icon turns blue when filters are active */}
+      <TopBar
+        title="PreferredHome"
+        onPressMenu={() => setMenuOpen(true)}
+        rightIconName="filter"
+        rightIconColor={filtersActive ? colors.primaryBlue : colors.textPrimary}
+        onPressRight={() => setFilterOpen(true)}
+      />
 
-      <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
+      {/* FILTERS ACTIVE banner — blue, shown below header when active */}
+      {filtersActive && (
+        <View
+          style={{
+            backgroundColor: `${colors.primaryBlue}20`,
+            borderBottomWidth: 1,
+            borderBottomColor: `${colors.primaryBlue}66`,
+            paddingVertical: 7,
+            alignItems: "center",
+          }}
+        >
+          <Text
+            style={{
+              color: colors.primaryBlue,
+              fontSize: 11,
+              fontWeight: "700",
+              letterSpacing: 0.9,
+            }}
+          >
+            FILTERS ACTIVE
+          </Text>
+        </View>
+      )}
+
+      {/* Hamburger left panel */}
+      <SidePanel
+        visible={menuOpen}
+        side="left"
+        onClose={() => setMenuOpen(false)}
+      >
         <MenuSheet
-          onGoProfile={() => { setMenuOpen(false); router.push("/profile"); }}
-          onGoSettings={() => { setMenuOpen(false); router.push("/settings"); }}
+          onGoProfile={() => {
+            setMenuOpen(false);
+            router.push("/profile");
+          }}
+          onGoSettings={() => {
+            setMenuOpen(false);
+            router.push("/settings");
+          }}
           onClose={() => setMenuOpen(false)}
         />
       </SidePanel>
 
-      <SidePanel visible={filterOpen} side="right" onClose={() => setFilterOpen(false)}>
-        <View style={{ padding: 18, gap: 12 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 18, fontWeight: "900" }}>Filters</Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
-            Filter logic is staged for a future build. This panel is the stable UI shell.
-          </Text>
-          <View style={{ height: 1, backgroundColor: colors.border, marginTop: 6 }} />
-          <Text style={{ color: colors.textSecondary, fontSize: 12, letterSpacing: 0.8 }}>PLACEHOLDERS</Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>• Status</Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>• Max rent</Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>• Bedrooms</Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>• Neighborhood</Text>
-        </View>
-      </SidePanel>
-
+      {/* Main listings content */}
       {loading ? (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
           <ActivityIndicator />
-          <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Loading listings...</Text>
+          <Text style={{ color: colors.textSecondary, marginTop: 10 }}>
+            Loading listings...
+          </Text>
         </View>
       ) : error ? (
         <View style={{ flex: 1, padding: 16 }}>
-          <Text style={{ color: colors.red, fontSize: 14, marginBottom: 8 }}>Load failed</Text>
+          <Text style={{ color: colors.red, fontSize: 14, marginBottom: 8 }}>
+            Load failed
+          </Text>
           <Text style={{ color: colors.textSecondary }}>{error}</Text>
         </View>
       ) : (
         <SectionList
           sections={sections}
           keyExtractor={(item) => item.id}
-          renderSectionHeader={({ section }) => <SectionHeader title={section.title} />}
+          renderSectionHeader={({ section }) => (
+            <SectionHeader title={section.title} />
+          )}
           renderItem={({ item }) => (
             <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
               <ListingCard
@@ -179,15 +300,36 @@ export default function ListingsScreen() {
                 compareSelected={compareIds.has(item.id)}
                 onTogglePreferred={() => togglePreferred(item.id)}
                 onToggleCompare={() => toggleCompare(item.id)}
-                onView={() => Alert.alert("View", "Detail screen is staged for Build 3.2.04.")}
-                onEdit={() => router.push({ pathname: "/edit", params: { id: item.id } })}
+                onView={() =>
+                  Alert.alert(
+                    "View",
+                    "Detail screen is staged for Build 3.2.04."
+                  )
+                }
+                onEdit={() =>
+                  router.push({ pathname: "/edit", params: { id: item.id } })
+                }
                 onDelete={() => deleteListing(item.id)}
               />
             </View>
           )}
           contentContainerStyle={{ paddingBottom: 24 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={refresh} />
+          }
           stickySectionHeadersEnabled={false}
+        />
+      )}
+
+      {/* Filter drop-down panel — conditionally mounted when open */}
+      {filterOpen && (
+        <FilterPanel
+          topOffset={topBarHeight}
+          listings={listings}
+          appliedFilters={appliedFilters}
+          onApply={(f) => setAppliedFilters(f)}
+          onClear={() => setAppliedFilters(DEFAULT_FILTERS)}
+          onClose={() => setFilterOpen(false)}
         />
       )}
     </View>
