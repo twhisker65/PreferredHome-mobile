@@ -1,10 +1,9 @@
-// app/(tabs)/listings.tsx — Build 3.2.04
+// app/(tabs)/listings.tsx — Build 3.2.05
 // Changes:
-// - Replace filter SidePanel shell with real FilterPanel component
-// - Add filter state, filter logic, and Apply/Clear wiring
-// - Filter icon turns blue when filters are active
-// - FILTERS ACTIVE blue banner shown below header when filters are active
-// - Listings sections (Preferred + Candidates) are filtered in real time after Apply
+// - Replace placeholder Alert on onView with ViewPanel slide-out panel
+// - Added viewPanelListing state (ListingUI | null)
+// - ViewPanel rendered with topOffset so panel starts below header bar
+// - All filter and listing logic unchanged
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -24,6 +23,7 @@ import { TopBar } from "../../components/TopBar";
 import { ListingCard } from "../../components/ListingCard";
 import { SidePanel } from "../../components/SidePanel";
 import { MenuSheet } from "../../components/MenuSheet";
+import { ViewPanel } from "../../components/ViewPanel";
 import {
   FilterPanel,
   FilterState,
@@ -104,6 +104,7 @@ export default function ListingsScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
+  const [viewPanelListing, setViewPanelListing] = useState<ListingUI | null>(null);
 
   // Applied filters — committed when user taps Apply in the panel
   const [appliedFilters, setAppliedFilters] =
@@ -300,12 +301,7 @@ export default function ListingsScreen() {
                 compareSelected={compareIds.has(item.id)}
                 onTogglePreferred={() => togglePreferred(item.id)}
                 onToggleCompare={() => toggleCompare(item.id)}
-                onView={() =>
-                  Alert.alert(
-                    "View",
-                    "Detail screen is staged for Build 3.2.04."
-                  )
-                }
+                onView={() => setViewPanelListing(item)}
                 onEdit={() =>
                   router.push({ pathname: "/edit", params: { id: item.id } })
                 }
@@ -332,6 +328,14 @@ export default function ListingsScreen() {
           onClose={() => setFilterOpen(false)}
         />
       )}
+
+      {/* View listing detail panel — slides in from right */}
+      <ViewPanel
+        visible={viewPanelListing !== null}
+        listing={viewPanelListing}
+        topOffset={topBarHeight}
+        onClose={() => setViewPanelListing(null)}
+      />
     </View>
   );
 }
