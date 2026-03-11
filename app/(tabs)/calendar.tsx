@@ -1,15 +1,20 @@
-// app/(tabs)/calendar.tsx — Build 3.2.03
-// Changes: added useFocusEffect for on-focus refresh, added RefreshControl for pull-to-refresh
+// app/(tabs)/calendar.tsx — Build 3.2.06
+// Change: replaced SidePanel+MenuSheet with MenuPanel+sub-panel system.
+// Added useSafeAreaInsets + topBarHeight. Added activeSubPanel state.
+// All other logic unchanged.
 
 import React, { useCallback, useMemo, useState } from "react";
 import { View, Text, ActivityIndicator, ScrollView, RefreshControl } from "react-native";
-import { router, useFocusEffect } from "expo-router";
+import { useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
 import { colors } from "../../styles/colors";
 import { headingLabel } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
-import { SidePanel } from "../../components/SidePanel";
-import { MenuSheet } from "../../components/MenuSheet";
+import { MenuPanel, type SubPanelKey } from "../../components/MenuPanel";
+import { ProfilePanel } from "../../components/ProfilePanel";
+import { CriteriaPanel } from "../../components/CriteriaPanel";
+import { SettingsPanel } from "../../components/SettingsPanel";
 import { useListings } from "../../lib/useListings";
 
 type Appt = {
@@ -28,12 +33,10 @@ function str(v: unknown): string {
 
 function parseDateTime(raw: string): { date: string; time?: string } | null {
   if (!raw) return null;
-  // ISO: 2026-03-07T14:00:00 or 2026-03-07 14:00:00 or 2026-03-07
   const match = raw.match(/^(\d{4}-\d{2}-\d{2})[T ]?(\d{2}:\d{2})?/);
   if (!match) return null;
   const date = match[1];
   if (!match[2]) return { date };
-  // Convert 24h to AM/PM
   const [hStr, mStr] = match[2].split(":");
   let h = parseInt(hStr, 10);
   const period = h >= 12 ? "PM" : "AM";
@@ -55,7 +58,11 @@ function safeText(v?: string) {
 }
 
 export default function CalendarScreen() {
+  const insets = useSafeAreaInsets();
+  const topBarHeight = insets.top + 53;
+
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
   const { listings, loading, refreshing, error, refresh } = useListings();
 
   // Refresh whenever this screen comes into focus
@@ -67,13 +74,11 @@ export default function CalendarScreen() {
 
   const appts: Appt[] = useMemo(() => {
     const out: Appt[] = [];
-
     for (const l of listings) {
       const raw = l.raw ?? {};
       const viewingAppt = str(raw.viewingAppointment);
       const parsed = parseDateTime(viewingAppt);
       if (!parsed) continue;
-
       out.push({
         id: l.id,
         date: parsed.date,
@@ -83,12 +88,10 @@ export default function CalendarScreen() {
         contact: str(raw.contactName) || undefined,
       });
     }
-
     out.sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return (a.time ?? "").localeCompare(b.time ?? "");
     });
-
     return out;
   }, [listings]);
 
@@ -103,14 +106,6 @@ export default function CalendarScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <TopBar title="PreferredHome" onPressMenu={() => setMenuOpen(true)} />
-
-      <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
-        <MenuSheet
-          onGoProfile={() => { setMenuOpen(false); router.push("/profile"); }}
-          onGoSettings={() => { setMenuOpen(false); router.push("/settings"); }}
-          onClose={() => setMenuOpen(false)}
-        />
-      </SidePanel>
 
       <ScrollView
         style={{ flex: 1 }}
@@ -151,36 +146,54 @@ export default function CalendarScreen() {
           </View>
         ) : appts.length === 0 ? (
           <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>No viewing appointments scheduled.</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>No appointments scheduled.</Text>
           </View>
         ) : (
           <View style={{ paddingHorizontal: 16, gap: 10 }}>
             {appts.map((a) => (
               <View
-                key={`${a.id}-${a.date}`}
-                style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 14 }}
+                key={a.id}
+                style={{
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.card,
+                  borderRadius: 14,
+                  padding: 14,
+                  gap: 3,
+                }}
               >
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 15, flex: 1 }} numberOfLines={1}>
-                    {safeText(a.building)}
-                  </Text>
-                  <Text style={{ color: colors.primaryBlue, fontWeight: "700", fontSize: 13, marginLeft: 8 }}>
-                    {formatDisplayDate(a.date)}{a.time ? ` · ${a.time}` : ""}
-                  </Text>
-                </View>
-                <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4 }} numberOfLines={2}>
-                  {safeText(a.address)}
+                <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 14 }}>
+                  {safeText(a.building)} — {formatDisplayDate(a.date)}{a.time ? ` — ${a.time}` : ""}
                 </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{safeText(a.address)}</Text>
                 {a.contact ? (
-                  <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4 }}>
-                    {a.contact}
-                  </Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{a.contact}</Text>
                 ) : null}
               </View>
             ))}
           </View>
         )}
       </ScrollView>
+
+      {/* Menu dropdown */}
+      {menuOpen && (
+        <MenuPanel
+          topOffset={topBarHeight}
+          onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }}
+          onClose={() => setMenuOpen(false)}
+        />
+      )}
+
+      {/* Sub-panels */}
+      {activeSubPanel === "profile" && (
+        <ProfilePanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
+      {activeSubPanel === "criteria" && (
+        <CriteriaPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
+      {activeSubPanel === "settings" && (
+        <SettingsPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
     </View>
   );
 }

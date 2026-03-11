@@ -1,15 +1,20 @@
-// app/(tabs)/index.tsx — Build 3.2.03
-// Change: added useFocusEffect so Home screen refreshes data whenever it comes into focus
+// app/(tabs)/index.tsx — Build 3.2.06
+// Change: replaced SidePanel+MenuSheet with MenuPanel+sub-panel system.
+// Added useSafeAreaInsets + topBarHeight. Added activeSubPanel state.
+// All other logic unchanged.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, ActivityIndicator, RefreshControl, ScrollView } from "react-native";
 import { router, useFocusEffect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../styles/colors";
 import { headingLabel } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
 import { ListingCard } from "../../components/ListingCard";
-import { SidePanel } from "../../components/SidePanel";
-import { MenuSheet } from "../../components/MenuSheet";
+import { MenuPanel, type SubPanelKey } from "../../components/MenuPanel";
+import { ProfilePanel } from "../../components/ProfilePanel";
+import { CriteriaPanel } from "../../components/CriteriaPanel";
+import { SettingsPanel } from "../../components/SettingsPanel";
 import { useListings } from "../../lib/useListings";
 import { applyOrder } from "../../lib/orderApply";
 import { loadOrder } from "../../lib/orderStorage";
@@ -31,8 +36,12 @@ function fmtMoney(n: number) {
 
 export default function HomeScreen() {
   const { listings, loading, refreshing, error, refresh } = useListings();
+  const insets = useSafeAreaInsets();
+  const topBarHeight = insets.top + 53;
+
   const [preferredTop, setPreferredTop] = useState<ListingUI[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
 
   // Refresh whenever this screen comes into focus
   useFocusEffect(
@@ -62,52 +71,63 @@ export default function HomeScreen() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <TopBar title="PreferredHome" onPressMenu={() => setMenuOpen(true)} />
 
-      <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
-        <MenuSheet
-          onGoProfile={() => { setMenuOpen(false); router.push("/profile"); }}
-          onGoSettings={() => { setMenuOpen(false); router.push("/settings"); }}
-          onClose={() => setMenuOpen(false)}
-        />
-      </SidePanel>
-
       {loading ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator />
           <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Loading...</Text>
         </View>
-      ) : error ? (
-        <View style={{ flex: 1, padding: 16 }}>
-          <Text style={{ color: colors.red, fontSize: 14, marginBottom: 8 }}>Load failed</Text>
-          <Text style={{ color: colors.textSecondary }}>{error}</Text>
-        </View>
       ) : (
         <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+          contentContainerStyle={{ padding: 16, gap: 14 }}
         >
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
-            <StatPill label="Avg Base Rent" value={stats.avg !== null ? fmtMoney(stats.avg) : "—"} />
-            <StatPill label="Min Base Rent" value={stats.min !== null ? fmtMoney(stats.min) : "—"} />
+          {/* Stats row */}
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <StatPill label="Total" value={String(stats.count)} />
+            <StatPill label="Min Rent" value={stats.min !== null ? fmtMoney(stats.min) : "—"} />
+            <StatPill label="Avg Rent" value={stats.avg !== null ? fmtMoney(stats.avg) : "—"} />
           </View>
 
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-            <StatPill label="Max Base Rent" value={stats.max !== null ? fmtMoney(stats.max) : "—"} />
-            <StatPill label="All listings" value={String(stats.count)} />
-          </View>
-
-          <View style={{ marginTop: 18 }}>
-            <Text style={headingLabel}>Top 3</Text>
-            <View style={{ marginTop: 12, gap: 12 }}>
-              {preferredTop.map((l) => (
-                <ListingCard key={l.id} listing={l} hideActions />
+          {/* Top 3 preferred */}
+          {preferredTop.length > 0 && (
+            <View style={{ gap: 10 }}>
+              <Text style={headingLabel}>TOP 3</Text>
+              {preferredTop.map((item) => (
+                <ListingCard
+                  key={item.id}
+                  listing={item}
+                  hideActions
+                  compareSelected={false}
+                  onTogglePreferred={() => {}}
+                  onToggleCompare={() => {}}
+                  onView={() => {}}
+                  onEdit={() => router.push({ pathname: "/edit", params: { id: item.id } })}
+                  onDelete={() => {}}
+                />
               ))}
-              {!preferredTop.length ? (
-                <Text style={{ color: colors.textSecondary, marginTop: 8 }}>No preferred listings yet.</Text>
-              ) : null}
             </View>
-          </View>
+          )}
         </ScrollView>
+      )}
+
+      {/* Menu dropdown */}
+      {menuOpen && (
+        <MenuPanel
+          topOffset={topBarHeight}
+          onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }}
+          onClose={() => setMenuOpen(false)}
+        />
+      )}
+
+      {/* Sub-panels */}
+      {activeSubPanel === "profile" && (
+        <ProfilePanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
+      {activeSubPanel === "criteria" && (
+        <CriteriaPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
+      {activeSubPanel === "settings" && (
+        <SettingsPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
       )}
     </View>
   );

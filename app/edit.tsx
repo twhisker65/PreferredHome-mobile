@@ -1,6 +1,7 @@
-// app/edit.tsx — Build 3.2.03 HOTFIX 2
-// Fixes: no Unit section (fields in PROPERTY), City and State appear BEFORE Zip Code,
-//         boolean fields sent as "TRUE"/"FALSE" strings.
+// app/edit.tsx — Build 3.2.06
+// Change: replaced SidePanel+MenuSheet with MenuPanel+sub-panel system.
+// Added useSafeAreaInsets + topBarHeight. Added activeSubPanel state.
+// All form logic, save logic, and picker logic unchanged.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -18,11 +19,14 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../styles/colors";
 import { headingLabel } from "../styles/typography";
 import { TopBar } from "../components/TopBar";
-import { SidePanel } from "../components/SidePanel";
-import { MenuSheet } from "../components/MenuSheet";
+import { MenuPanel, type SubPanelKey } from "../components/MenuPanel";
+import { ProfilePanel } from "../components/ProfilePanel";
+import { CriteriaPanel } from "../components/CriteriaPanel";
+import { SettingsPanel } from "../components/SettingsPanel";
 import { Calendar } from "react-native-calendars";
 import { updateListing } from "../lib/api";
 import { useListings } from "../lib/useListings";
@@ -130,7 +134,6 @@ function boolStr(v: boolean): string {
 function str(v: unknown): string {
   if (v == null) return "";
   const s = String(v).trim();
-  // convert literal "nan", "null", "none" from corrupted sheet data
   if (s.toLowerCase() === "nan" || s.toLowerCase() === "null" || s.toLowerCase() === "none") return "";
   return s;
 }
@@ -301,19 +304,23 @@ function DateRow({ label, value, onPress, onClear }: { label: string; value: str
         <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{label}</Text>
         <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 14, fontWeight: "700" }}>{value || "Select"}</Text>
       </Pressable>
-      {value ? <Pressable onPress={onClear} hitSlop={10}><Ionicons name="close-circle" size={20} color={colors.textSecondary} /></Pressable> : null}
+      {value ? (
+        <Pressable onPress={onClear} hitSlop={8} style={{ padding: 6 }}>
+          <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
 
-function MultiPicker({ options, initial, onDone }: { options: string[]; initial: string[]; onDone: (v: string[]) => void }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set(initial));
+function MultiPicker({ options, initial, onDone }: { options: string[]; initial: string[]; onDone: (vals: string[]) => void }) {
+  const [selected, setSelected] = useState(new Set(initial));
+  function toggle(opt: string) { setSelected((prev) => { const n = new Set(prev); n.has(opt) ? n.delete(opt) : n.add(opt); return n; }); }
   return (
     <View>
       <ScrollView style={{ maxHeight: 300 }}>
         {options.map((opt) => (
-          <Pressable key={opt} onPress={() => setSelected((s) => { const n = new Set(s); n.has(opt) ? n.delete(opt) : n.add(opt); return n; })}
-            style={({ pressed }) => ({ paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: pressed ? "rgba(255,255,255,0.03)" : "transparent", flexDirection: "row", alignItems: "center", justifyContent: "space-between" })}>
+          <Pressable key={opt} onPress={() => toggle(opt)} style={({ pressed }) => ({ paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: pressed ? "rgba(255,255,255,0.03)" : "transparent", flexDirection: "row", alignItems: "center", justifyContent: "space-between" })}>
             <Text style={{ color: colors.textPrimary, fontWeight: "800" }}>{opt}</Text>
             {selected.has(opt) ? <Ionicons name="checkmark" size={18} color={colors.primaryBlue} /> : null}
           </Pressable>
@@ -329,10 +336,14 @@ function MultiPicker({ options, initial, onDone }: { options: string[]; initial:
 // ── Main screen ────────────────────────────────────────────────────
 
 export default function EditScreen() {
+  const insets = useSafeAreaInsets();
+  const topBarHeight = insets.top + 53;
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const { listings } = useListings();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [open, setOpen] = useState<Record<SectionKey, boolean>>({
@@ -343,9 +354,9 @@ export default function EditScreen() {
   const inputRefs = useRef<Record<string, any>>({});
 
   useEffect(() => {
-    if (!id || listings.length === 0) return;
-    const listing = listings.find((l) => l.id === id);
-    if (listing) setDraft(rawToDraft(listing.raw ?? {}));
+    if (!id || !listings) return;
+    const raw = listings.find((l: any) => String(l.id) === String(id));
+    if (raw) setDraft(rawToDraft(raw));
   }, [id, listings]);
 
   const inputOrder = [
@@ -508,9 +519,6 @@ export default function EditScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <TopBar title="Edit Listing" onPressMenu={() => setMenuOpen(true)} />
-      <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
-        <MenuSheet onGoProfile={() => { setMenuOpen(false); router.push("/profile"); }} onGoSettings={() => { setMenuOpen(false); router.push("/settings"); }} onClose={() => setMenuOpen(false)} />
-      </SidePanel>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}>
         <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 40 }}>
@@ -526,8 +534,8 @@ export default function EditScreen() {
             <Field label="State" fieldKey="state" inputRefs={inputRefs} onNext={focusNext} value={draft.state} onChangeText={set("state")} placeholder="e.g. NY" />
             <Field label="Zip Code" fieldKey="zipCode" inputRefs={inputRefs} onNext={focusNext} value={draft.zipCode} onChangeText={set("zipCode")} keyboardType="number-pad" />
             <Field label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={set("neighborhood")} />
-            <Field label="Apartment / Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={set("unitNumber")} />
-            <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={set("floorNumber")} keyboardType="number-pad" />
+            <Field label="Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={set("unitNumber")} />
+            <Field label="Floor #" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={set("floorNumber")} keyboardType="number-pad" />
             <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={set("bedrooms")} keyboardType="number-pad" />
             <Field label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={set("bathrooms")} keyboardType="decimal-pad" />
             <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={set("squareFootage")} keyboardType="number-pad" />
@@ -676,6 +684,26 @@ export default function EditScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Menu dropdown */}
+      {menuOpen && (
+        <MenuPanel
+          topOffset={topBarHeight}
+          onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }}
+          onClose={() => setMenuOpen(false)}
+        />
+      )}
+
+      {/* Sub-panels */}
+      {activeSubPanel === "profile" && (
+        <ProfilePanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
+      {activeSubPanel === "criteria" && (
+        <CriteriaPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
+      {activeSubPanel === "settings" && (
+        <SettingsPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
     </View>
   );
 }

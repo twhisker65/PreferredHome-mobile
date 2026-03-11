@@ -1,3 +1,8 @@
+// components/MenuSheet.tsx — Build 3.2.06
+// Change: version label updated to v3.2.06.
+// Note: MenuSheet is no longer rendered by main screens in 3.2.06 (replaced by MenuPanel).
+// File retained in codebase for reference.
+
 import React from "react";
 import { View, Text, Pressable } from "react-native";
 import { colors } from "../styles/colors";
@@ -30,7 +35,7 @@ export function MenuSheet({ onGoProfile, onGoSettings, onClose }: Props) {
           marginBottom: 4,
         }}
       >
-        PreferredHome v3.2.03
+        PreferredHome v3.2.06
       </Text>
 
       <Pressable

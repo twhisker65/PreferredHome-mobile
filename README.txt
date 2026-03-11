@@ -1,93 +1,83 @@
-BUILD 3.2.05 — View Listing Detail Panel
-Mobile repo only. No API changes.
+BUILD 3.2.06 — Menu System Redesign
+=====================================
 
-════════════════════════════════════════════
-FILES CHANGED (2) — in repository folder order
-════════════════════════════════════════════
+WHAT CHANGED
+------------
+Replaced the old SidePanel + MenuSheet hamburger system across all screens
+with a new dropdown MenuPanel and three sub-panels: Profile, Criteria, Settings.
 
+New behavior:
+- Tap the hamburger icon → a dropdown panel appears below the header (left-aligned,
+  half-screen width, same drop-in animation as the Filter panel).
+- Four rows: Profile | Criteria | Settings | Help (Help is dimmed — coming soon).
+- Tap a row → the dropdown closes and the selected sub-panel slides in from the left.
+- Tap the overlay behind a sub-panel → everything closes.
+
+ProfilePanel: name, email, search mode (Buy/Rent), work address, commute method,
+departure time, and lifestyle toggles (Children, Pets, Car). Auto-saves on change.
+
+CriteriaPanel: min square footage, max base rent, max total monthly, max commute
+time, and a "Features — Coming soon" placeholder. Auto-saves on change.
+
+SettingsPanel: Export and Import data buttons (both "Coming soon"), Appearance
+section (Theme and Notifications — both future build), version label at bottom.
+
+Version label in the menu footer updated to v3.2.06.
+
+FILES CHANGED
+-------------
+app/(tabs)/index.tsx
 app/(tabs)/listings.tsx
-  - Added viewPanelListing state (ListingUI | null)
-  - Replaced placeholder Alert on onView with setViewPanelListing(item)
-  - ViewPanel rendered at bottom of screen tree with topOffset and onClose
-  - All filter logic, section logic, and all other handlers unchanged
+app/(tabs)/calendar.tsx
+app/(tabs)/add.tsx
+app/(tabs)/compare.tsx
+app/edit.tsx
+components/MenuPanel.tsx         (NEW)
+components/ProfilePanel.tsx      (NEW)
+components/CriteriaPanel.tsx     (NEW)
+components/SettingsPanel.tsx     (NEW)
+components/MenuSheet.tsx         (version label update only)
+lib/profileStorage.ts            (added ProfileData and CriteriaData types + storage)
 
-components/ViewPanel.tsx  [NEW FILE]
-  - Slide-out read-only detail panel triggered by Eye icon on listing card
-  - Panel left edge = 102px from screen left (aligns buildingName with listing card text)
-  - Panel top = bottom of header bar (topOffset prop)
-  - Full-height ScrollView with all listing sections
-  - Sections: PROPERTY / COSTS / FEATURES / TRANSPORTATION / SCHOOLS / LISTING / TIMELINE / NOTES
-  - Animated slide from right: 180ms, useNativeDriver
-  - Dim overlay on left portion closes panel on tap
-  - Section headings: headingLabel style (uppercase, bold, with rule beneath)
-  - buildingName: fontSize 17, fontWeight 900 (matches listing card)
-  - Field labels: fontSize 12, bold, textPrimary
-  - Field values: fontSize 12, textSecondary (matches listing card address)
-  - Boolean badges (Preferred heart, Top Floor, Corner Unit, Furnished): blue ✓ if TRUE
-  - Total Monthly: label left, amount right-aligned in blue
-  - Total Startup: securityDeposit + applicationFee, shown in blue
-  - Transport scores: blue circles, score only (no /100), label beneath
-  - Schools: dark blue circle, score only (no /10), name bold white, Grades/Distance labels bold
-  - Sections with no data are omitted (Schools hidden if no school names; Scores hidden if no data; Notes hidden if empty)
+NO API CHANGES — API repo is unchanged.
 
-════════════════════════════════════════════
-DEPLOY STEPS
-════════════════════════════════════════════
-1. Copy both files from this ZIP into your local mobile repo (overwrite existing)
-2. Run Expo restart command below
-3. Test on device using checklist below
-4. Commit via GitHub Desktop using the commit message below
-5. Push to GitHub
-6. Sync GitHub in Claude Project — mobile repo only
+DEPLOYMENT STEPS
+----------------
+MOBILE REPO (PreferredHome-mobile):
 
-════════════════════════════════════════════
-EXPO RESTART COMMAND
-════════════════════════════════════════════
+1. Open GitHub Desktop.
+2. Confirm you are on the main branch.
+3. Copy all files from this ZIP into your local repo, preserving the folder structure.
+   Local path: C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile
+4. In GitHub Desktop, review the changed files. They should match the list above.
+5. Enter the commit message below, then click "Commit to main".
+6. Click "Push origin".
+7. In your terminal, run the Expo restart command below.
+8. Open Expo Go on your phone and test the hamburger menu on every screen.
 
+COMMIT MESSAGE (copy exactly):
+-------------------------------
+Build 3.2.06 -- Menu system redesign: hamburger opens dropdown MenuPanel with Profile/Criteria/Settings sub-panels; auto-save profile and criteria data; ProfilePanel (identity/search/commute/lifestyle), CriteriaPanel (property/costs/transportation/features placeholder), SettingsPanel (data management placeholders)
+
+EXPO RESTART COMMAND (copy exactly):
+-------------------------------------
 cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel
 
-════════════════════════════════════════════
-TEST CHECKLIST
-════════════════════════════════════════════
-
-View Panel — Open / Close
-[ ] Tap Eye icon on any listing card — panel slides in from the right
-[ ] Panel left edge aligns with the building name and address text on the card
-[ ] Panel top starts at the bottom of the header bar
-[ ] Tap anywhere on the dimmed left area — panel closes
-[ ] Panel slides back out to the right on close
-
-View Panel — Content
-[ ] Building name appears large and bold (matches listing card style)
-[ ] Full address shown below building name
-[ ] Unit summary line shown (type · beds · baths · sqft · neighborhood)
-[ ] Preferred heart is blue if listing is preferred
-[ ] Top Floor / Corner Unit / Furnished show blue ✓ if TRUE, — if FALSE
-[ ] All 8 cost fields displayed correctly
-[ ] Total Startup = Security Deposit + Application Fee
-[ ] Total Monthly label is on the left, dollar amount is right-aligned in blue
-[ ] Features comma fields wrap correctly
-[ ] AC Type / Laundry / Parking shown inline
-[ ] Walk / Transit / Bike score circles appear in blue with score only (no /100)
-[ ] Score labels appear below each circle
-[ ] School rows show: dark blue circle with rating only, bold white name, bold Grades/Distance labels
-[ ] Schools section hidden if no school data exists on listing
-[ ] Listing section shows site, URL (in blue), contact, phone, email, lease
-[ ] No Board Approval / No Broker Fee show blue ✓ or — correctly
-[ ] Timeline shows all 4 dates in readable format
-[ ] Notes section shows pros and cons with line breaks
-[ ] Notes section hidden if both pros and cons are empty
-
-Regression
-[ ] Hamburger menu still opens from left
-[ ] Filter panel still works and filters correctly
-[ ] Edit listing still works
-[ ] Add listing still works
-[ ] Delete listing still works
-[ ] Pull to refresh works
-
-════════════════════════════════════════════
-COMMIT MESSAGE
-════════════════════════════════════════════
-
-Build 3.2.05 -- View listing detail panel: slide-out from right, full read-only display of all listing fields across 8 sections (Property, Costs, Features, Transportation, Schools, Listing, Timeline, Notes)
+TESTING CHECKLIST
+-----------------
+[ ] Hamburger opens dropdown on Home screen
+[ ] Hamburger opens dropdown on Listings screen
+[ ] Hamburger opens dropdown on Calendar screen
+[ ] Hamburger opens dropdown on Add screen
+[ ] Hamburger opens dropdown on Compare screen
+[ ] Hamburger opens dropdown on Edit Listing screen
+[ ] Profile row opens ProfilePanel (slides from left)
+[ ] Criteria row opens CriteriaPanel (slides from left)
+[ ] Settings row opens SettingsPanel (slides from left)
+[ ] Help row is dimmed and does not open anything
+[ ] Tapping overlay closes sub-panel
+[ ] Profile fields auto-save (re-open panel to confirm)
+[ ] Criteria fields auto-save (re-open panel to confirm)
+[ ] Edit Listing save still works and navigates to Listings
+[ ] Add Listing save still works and navigates to Listings
+[ ] Filters panel still works on Listings screen

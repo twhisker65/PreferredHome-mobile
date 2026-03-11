@@ -1,27 +1,38 @@
+// app/(tabs)/compare.tsx — Build 3.2.06
+// Change: replaced SidePanel+MenuSheet with MenuPanel+sub-panel system.
+// Added useSafeAreaInsets + topBarHeight. Added activeSubPanel state.
+// All other logic unchanged.
+
 import React, { useState } from "react";
 import { SafeAreaView, View, Text, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../styles/colors";
 import { spacing } from "../../styles/spacing";
 import { typography } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
-import { SidePanel } from "../../components/SidePanel";
-import { MenuSheet } from "../../components/MenuSheet";
+import { MenuPanel, type SubPanelKey } from "../../components/MenuPanel";
+import { ProfilePanel } from "../../components/ProfilePanel";
+import { CriteriaPanel } from "../../components/CriteriaPanel";
+import { SettingsPanel } from "../../components/SettingsPanel";
 
 export default function CompareTab() {
+  const insets = useSafeAreaInsets();
+  const topBarHeight = insets.top + 53;
+
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
   const [mode, setMode] = useState<"cards" | "table">("cards");
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <TopBar onPressMenu={() => setMenuOpen(true)} />
 
       <View style={{ padding: spacing.lg, gap: 12, flex: 1 }}>
-<View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 18, marginTop: 6, marginBottom: 10 }}>
-            <IconToggle icon="grid-outline" active={mode === "cards"} onPress={() => setMode("cards")} />
-            <IconToggle icon="list-outline" active={mode === "table"} onPress={() => setMode("table")} />
-          </View>
+        <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 18, marginTop: 6, marginBottom: 10 }}>
+          <IconToggle icon="grid-outline" active={mode === "cards"} onPress={() => setMode("cards")} />
+          <IconToggle icon="list-outline" active={mode === "table"} onPress={() => setMode("table")} />
+        </View>
 
         <View style={{ borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, borderRadius: 14, padding: spacing.lg, gap: 8 }}>
           <Text style={typography.body}>First pass: UI shell.</Text>
@@ -29,23 +40,28 @@ export default function CompareTab() {
         </View>
       </View>
 
-      <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
-        <MenuSheet
-          onGoProfile={() => {
-            setMenuOpen(false);
-            router.push("/profile");
-          }}
-          onGoSettings={() => {
-            setMenuOpen(false);
-            router.push("/settings");
-          }}
+      {/* Menu dropdown */}
+      {menuOpen && (
+        <MenuPanel
+          topOffset={topBarHeight}
+          onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }}
           onClose={() => setMenuOpen(false)}
         />
-      </SidePanel>
-    </SafeAreaView>
+      )}
+
+      {/* Sub-panels */}
+      {activeSubPanel === "profile" && (
+        <ProfilePanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
+      {activeSubPanel === "criteria" && (
+        <CriteriaPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
+      {activeSubPanel === "settings" && (
+        <SettingsPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
+    </View>
   );
 }
-
 
 function IconToggle({
   icon,

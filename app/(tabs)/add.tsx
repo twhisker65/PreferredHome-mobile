@@ -1,8 +1,7 @@
-// app/(tabs)/add.tsx — Build 3.2.03 HOTFIX 2
-// Fixes: restored original PROPERTY section field order (no Unit section ever existed)
-// Fields bedrooms/bathrooms/sqft/topFloor/cornerUnit/furnished belong at end of PROPERTY.
-// Boolean fields sent as "TRUE"/"FALSE" strings.
-// ZIP auto-fill and clear-after-save preserved.
+// app/(tabs)/add.tsx — Build 3.2.06
+// Change: replaced SidePanel+MenuSheet with MenuPanel+sub-panel system.
+// Added useSafeAreaInsets + topBarHeight. Added activeSubPanel state.
+// All form logic, save logic, ZIP auto-fill, and picker logic unchanged.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -20,11 +19,14 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../styles/colors";
 import { headingLabel } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
-import { SidePanel } from "../../components/SidePanel";
-import { MenuSheet } from "../../components/MenuSheet";
+import { MenuPanel, type SubPanelKey } from "../../components/MenuPanel";
+import { ProfilePanel } from "../../components/ProfilePanel";
+import { CriteriaPanel } from "../../components/CriteriaPanel";
+import { SettingsPanel } from "../../components/SettingsPanel";
 import { Calendar } from "react-native-calendars";
 import { postListing, lookupZip } from "../../lib/api";
 
@@ -279,14 +281,18 @@ function DateRow({ label, value, onPress, onClear }: { label: string; value: str
         <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{label}</Text>
         <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 14, fontWeight: "700" }}>{value || "Select"}</Text>
       </Pressable>
-      {value ? <Pressable onPress={onClear} hitSlop={10}><Ionicons name="close-circle" size={20} color={colors.textSecondary} /></Pressable> : null}
+      {value ? (
+        <Pressable onPress={onClear} hitSlop={8} style={{ padding: 6 }}>
+          <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
 
-function MultiPicker({ options, initial, onDone }: { options: string[]; initial: string[]; onDone: (v: string[]) => void }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set(initial));
-  function toggle(opt: string) { setSelected((s) => { const n = new Set(s); n.has(opt) ? n.delete(opt) : n.add(opt); return n; }); }
+function MultiPicker({ options, initial, onDone }: { options: string[]; initial: string[]; onDone: (vals: string[]) => void }) {
+  const [selected, setSelected] = useState(new Set(initial));
+  function toggle(opt: string) { setSelected((prev) => { const n = new Set(prev); n.has(opt) ? n.delete(opt) : n.add(opt); return n; }); }
   return (
     <View>
       <ScrollView style={{ maxHeight: 300 }}>
@@ -307,7 +313,11 @@ function MultiPicker({ options, initial, onDone }: { options: string[]; initial:
 // ── Main screen ────────────────────────────────────────────────────
 
 export default function AddScreen() {
+  const insets = useSafeAreaInsets();
+  const topBarHeight = insets.top + 53;
+
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<Draft>({ ...BLANK_DRAFT });
   const [open, setOpen] = useState<Record<SectionKey, boolean>>({
@@ -477,9 +487,6 @@ export default function AddScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <TopBar title="PreferredHome" onPressMenu={() => setMenuOpen(true)} />
-      <SidePanel visible={menuOpen} side="left" onClose={() => setMenuOpen(false)}>
-        <MenuSheet onGoProfile={() => { setMenuOpen(false); router.push("/profile"); }} onGoSettings={() => { setMenuOpen(false); router.push("/settings"); }} onClose={() => setMenuOpen(false)} />
-      </SidePanel>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}>
         <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 40 }}>
@@ -499,8 +506,8 @@ export default function AddScreen() {
               </View>
             ) : null}
             <Field label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={(t) => setDraft((d) => ({ ...d, neighborhood: t }))} />
-            <Field label="Apartment / Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={(t) => setDraft((d) => ({ ...d, unitNumber: t }))} />
-            <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="number-pad" />
+            <Field label="Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={(t) => setDraft((d) => ({ ...d, unitNumber: t }))} />
+            <Field label="Floor #" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="number-pad" />
             <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bedrooms: t }))} keyboardType="number-pad" />
             <Field label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bathrooms: t }))} keyboardType="decimal-pad" />
             <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={(t) => setDraft((d) => ({ ...d, squareFootage: t }))} keyboardType="number-pad" />
@@ -511,7 +518,7 @@ export default function AddScreen() {
 
           {/* ── COSTS ── */}
           <Section title="Costs" open={open.costs} onToggle={() => toggleSection("costs")}>
-            <Field label="Monthly Rent" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={(t) => setDraft((d) => ({ ...d, baseRent: t }))} keyboardType="number-pad" placeholder="e.g. 3200" />
+            <Field label="Monthly Rent" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={(t) => setDraft((d) => ({ ...d, baseRent: t }))} keyboardType="number-pad" />
             <Field label="Amenity Fee" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={(t) => setDraft((d) => ({ ...d, amenityFee: t }))} keyboardType="number-pad" />
             <Field label="Admin Fee" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={(t) => setDraft((d) => ({ ...d, adminFee: t }))} keyboardType="number-pad" />
             <Field label="Utility Fee" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={(t) => setDraft((d) => ({ ...d, utilityFee: t }))} keyboardType="number-pad" />
@@ -649,6 +656,26 @@ export default function AddScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Menu dropdown */}
+      {menuOpen && (
+        <MenuPanel
+          topOffset={topBarHeight}
+          onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }}
+          onClose={() => setMenuOpen(false)}
+        />
+      )}
+
+      {/* Sub-panels */}
+      {activeSubPanel === "profile" && (
+        <ProfilePanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
+      {activeSubPanel === "criteria" && (
+        <CriteriaPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
+      {activeSubPanel === "settings" && (
+        <SettingsPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
     </View>
   );
 }

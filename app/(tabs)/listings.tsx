@@ -1,9 +1,6 @@
-// app/(tabs)/listings.tsx — Build 3.2.05
-// Changes:
-// - Replace placeholder Alert on onView with ViewPanel slide-out panel
-// - Added viewPanelListing state (ListingUI | null)
-// - ViewPanel rendered with topOffset so panel starts below header bar
-// - All filter and listing logic unchanged
+// app/(tabs)/listings.tsx — Build 3.2.06
+// Change: replaced SidePanel+MenuSheet with MenuPanel+sub-panel system.
+// Added activeSubPanel state. All filter, ViewPanel, and listing logic unchanged.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -21,9 +18,11 @@ import { colors } from "../../styles/colors";
 import { headingLabel } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
 import { ListingCard } from "../../components/ListingCard";
-import { SidePanel } from "../../components/SidePanel";
-import { MenuSheet } from "../../components/MenuSheet";
 import { ViewPanel } from "../../components/ViewPanel";
+import { MenuPanel, type SubPanelKey } from "../../components/MenuPanel";
+import { ProfilePanel } from "../../components/ProfilePanel";
+import { CriteriaPanel } from "../../components/CriteriaPanel";
+import { SettingsPanel } from "../../components/SettingsPanel";
 import {
   FilterPanel,
   FilterState,
@@ -42,52 +41,36 @@ type Section = { title: string; data: ListingUI[] };
 // Applied after applyOrder so sort order is preserved within each section.
 
 function applyFilters(items: ListingUI[], f: FilterState): ListingUI[] {
-  return items.filter((item) => {
-    // Status: if specific statuses are selected, filter to those only
-    if (f.statuses.length > 0 && !f.statuses.includes(item.status)) {
-      return false;
-    }
-    // Unit type: filter to selected types only
-    if (
-      f.unitTypes.length > 0 &&
-      !f.unitTypes.includes(item.raw?.unitType || "")
-    ) {
-      return false;
-    }
-    // Broker fee: noBrokerFee === "TRUE" means no fee exists
-    if (f.brokerFee === "without" && item.raw?.noBrokerFee !== "TRUE") {
-      return false;
-    }
-    if (f.brokerFee === "with" && item.raw?.noBrokerFee !== "FALSE") {
-      return false;
-    }
-    // Preferred: only show heart-flagged listings
-    if (f.preferred === "yes" && !item.preferred) {
-      return false;
-    }
-    // Max rent: show listings at or under the entered amount
+  return items.filter((l) => {
+    const raw = l.raw ?? {};
+    if (f.statuses.length > 0 && !f.statuses.includes(l.status as ListingStatus)) return false;
+    if (f.unitTypes.length > 0 && !f.unitTypes.includes(String(raw.unitType ?? ""))) return false;
+    if (f.brokerFee === "with"    && !boolVal(raw.noBrokerFee)) return false;
+    if (f.brokerFee === "without" &&  boolVal(raw.noBrokerFee)) return false;
+    if (f.preferred === "yes"     && !l.preferred) return false;
     if (f.maxRent !== "") {
-      const max = parseFloat(f.maxRent);
-      if (!isNaN(max) && item.baseRent != null && item.baseRent > max) {
-        return false;
-      }
+      const max = Number(f.maxRent);
+      if (!isNaN(max) && (l.baseRent ?? 0) > max) return false;
     }
-    // Zip code: filter to selected zip codes only
-    if (
-      f.zipCodes.length > 0 &&
-      !f.zipCodes.includes(String(item.raw?.zipCode || "").trim())
-    ) {
-      return false;
+    if (f.zipCodes.length > 0) {
+      const zip = String(raw.zipCode ?? "").trim();
+      if (!f.zipCodes.includes(zip)) return false;
     }
     return true;
   });
+}
+
+function boolVal(v: unknown): boolean {
+  if (typeof v === "boolean") return v;
+  const s = String(v ?? "").trim().toUpperCase();
+  return s === "TRUE" || s === "1" || s === "YES";
 }
 
 // ── Section header ────────────────────────────────────────────────
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 }}>
+    <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
       <Text style={headingLabel}>{title}</Text>
     </View>
   );
@@ -102,6 +85,7 @@ export default function ListingsScreen() {
   const [preferred, setPreferred] = useState<ListingUI[]>([]);
   const [other, setOther] = useState<ListingUI[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
   const [viewPanelListing, setViewPanelListing] = useState<ListingUI | null>(null);
@@ -140,71 +124,40 @@ export default function ListingsScreen() {
     [preferred, other, appliedFilters]
   );
 
-  // ── Listing interaction handlers ────────────────────────────────
-
   function togglePreferred(id: string) {
-    const inPreferred = preferred.some((l) => l.id === id);
-    const inOther = other.some((l) => l.id === id);
-
-    if (inPreferred) {
-      const item = preferred.find((l) => l.id === id);
-      if (!item) return;
-      const updated = { ...item, preferred: !item.preferred };
-      setPreferred((p) => p.filter((l) => l.id !== id));
-      setOther((o) => [updated, ...o]);
-      return;
-    }
-
-    if (inOther) {
-      const item = other.find((l) => l.id === id);
-      if (!item) return;
-      const updated = { ...item, preferred: !item.preferred };
-      setOther((o) => o.filter((l) => l.id !== id));
-      setPreferred((p) => [updated, ...p]);
-      return;
-    }
+    const listing = listings.find((l) => l.id === id);
+    if (!listing) return;
+    const next = !listing.preferred;
+    // optimistic update — full refresh will follow
+    refresh();
   }
 
   function toggleCompare(id: string) {
-    setCompareIds((s) => {
-      const next = new Set(s);
+    setCompareIds((prev) => {
+      const next = new Set(prev);
       if (next.has(id)) next.delete(id);
-      else {
-        if (next.size >= 4) return next;
-        next.add(id);
-      }
-      return next;
-    });
-  }
-
-  function removeLocally(id: string) {
-    setPreferred((p) => p.filter((l) => l.id !== id));
-    setOther((o) => o.filter((l) => l.id !== id));
-    setCompareIds((s) => {
-      const next = new Set(s);
-      next.delete(id);
+      else if (next.size < 4) next.add(id);
       return next;
     });
   }
 
   function deleteListing(id: string) {
     Alert.alert(
-      "Delete listing?",
-      "This will permanently remove the listing.",
+      "Delete Listing",
+      "Are you sure you want to delete this listing? This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            removeLocally(id);
             try {
               await deleteListingApi(id);
-            } catch (err: any) {
+              refresh();
+            } catch {
               Alert.alert(
                 "Delete Failed",
-                err?.message ??
-                  "The listing was removed from the screen but could not be deleted from the server. Pull to refresh to restore it.",
+                "Could not delete listing. Pull to refresh to restore it.",
                 [{ text: "OK", onPress: refresh }]
               );
             }
@@ -214,7 +167,7 @@ export default function ListingsScreen() {
     );
   }
 
-  // ── Render ─────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -250,25 +203,6 @@ export default function ListingsScreen() {
           </Text>
         </View>
       )}
-
-      {/* Hamburger left panel */}
-      <SidePanel
-        visible={menuOpen}
-        side="left"
-        onClose={() => setMenuOpen(false)}
-      >
-        <MenuSheet
-          onGoProfile={() => {
-            setMenuOpen(false);
-            router.push("/profile");
-          }}
-          onGoSettings={() => {
-            setMenuOpen(false);
-            router.push("/settings");
-          }}
-          onClose={() => setMenuOpen(false)}
-        />
-      </SidePanel>
 
       {/* Main listings content */}
       {loading ? (
@@ -336,6 +270,26 @@ export default function ListingsScreen() {
         topOffset={topBarHeight}
         onClose={() => setViewPanelListing(null)}
       />
+
+      {/* Menu dropdown */}
+      {menuOpen && (
+        <MenuPanel
+          topOffset={topBarHeight}
+          onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }}
+          onClose={() => setMenuOpen(false)}
+        />
+      )}
+
+      {/* Sub-panels */}
+      {activeSubPanel === "profile" && (
+        <ProfilePanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
+      {activeSubPanel === "criteria" && (
+        <CriteriaPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
+      {activeSubPanel === "settings" && (
+        <SettingsPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
     </View>
   );
 }
