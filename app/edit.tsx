@@ -356,7 +356,7 @@ export default function EditScreen() {
   useEffect(() => {
     if (!id || !listings) return;
     const raw = listings.find((l: any) => String(l.id) === String(id));
-    if (raw) setDraft(rawToDraft(raw));
+    if (raw) setDraft(rawToDraft((raw as any).raw ?? {}));
   }, [id, listings]);
 
   const inputOrder = [

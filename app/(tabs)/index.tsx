@@ -18,6 +18,7 @@ import { SettingsPanel } from "../../components/SettingsPanel";
 import { useListings } from "../../lib/useListings";
 import { applyOrder } from "../../lib/orderApply";
 import { loadOrder } from "../../lib/orderStorage";
+import { loadCriteriaData, type CriteriaData } from "../../lib/profileStorage";
 import type { ListingUI } from "../../lib/types";
 
 function StatPill({ label, value }: { label: string; value: string }) {
@@ -42,11 +43,18 @@ export default function HomeScreen() {
   const [preferredTop, setPreferredTop] = useState<ListingUI[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
+  const [criteriaData, setCriteriaData] = useState<CriteriaData>({
+    minSqFt: "",
+    maxBaseRent: "",
+    maxTotalMonthly: "",
+    maxCommuteTime: "",
+  });
 
   // Refresh whenever this screen comes into focus
   useFocusEffect(
     useCallback(() => {
       refresh();
+      loadCriteriaData().then(setCriteriaData);
     }, [])
   );
 
@@ -84,8 +92,8 @@ export default function HomeScreen() {
           {/* Stats row */}
           <View style={{ flexDirection: "row", gap: 10 }}>
             <StatPill label="Total" value={String(stats.count)} />
-            <StatPill label="Min Rent" value={stats.min !== null ? fmtMoney(stats.min) : "—"} />
-            <StatPill label="Avg Rent" value={stats.avg !== null ? fmtMoney(stats.avg) : "—"} />
+            <StatPill label="Max Rent" value={stats.max !== null ? fmtMoney(stats.max) : "—"} />
+            <StatPill label="Baseline Rent" value={criteriaData.maxBaseRent ? fmtMoney(Number(criteriaData.maxBaseRent)) : "—"} />
           </View>
 
           {/* Top 3 preferred */}
