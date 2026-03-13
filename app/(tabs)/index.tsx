@@ -18,7 +18,6 @@ import { SettingsPanel } from "../../components/SettingsPanel";
 import { useListings } from "../../lib/useListings";
 import { applyOrder } from "../../lib/orderApply";
 import { loadOrder } from "../../lib/orderStorage";
-import { loadCriteriaData, type CriteriaData } from "../../lib/profileStorage";
 import type { ListingUI } from "../../lib/types";
 
 function StatPill({ label, value }: { label: string; value: string }) {
@@ -43,18 +42,10 @@ export default function HomeScreen() {
   const [preferredTop, setPreferredTop] = useState<ListingUI[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
-  const [criteriaData, setCriteriaData] = useState<CriteriaData>({
-    minSqFt: "",
-    maxBaseRent: "",
-    maxTotalMonthly: "",
-    maxCommuteTime: "",
-  });
-
   // Refresh whenever this screen comes into focus
   useFocusEffect(
     useCallback(() => {
       refresh();
-      loadCriteriaData().then(setCriteriaData);
     }, [])
   );
 
@@ -69,10 +60,14 @@ export default function HomeScreen() {
   const stats = useMemo(() => {
     const rents = listings.map((l) => l.baseRent ?? 0).filter((n) => n > 0);
     const count = listings.length;
-    const min = rents.length ? Math.min(...rents) : null;
-    const max = rents.length ? Math.max(...rents) : null;
-    const avg = rents.length ? rents.reduce((a, b) => a + b, 0) / rents.length : null;
-    return { min, max, avg, count };
+    if (!rents.length) return { count, min: null, max: null, avg: null, median: null };
+    const sorted = [...rents].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    const min = sorted[0];
+    const max = sorted[sorted.length - 1];
+    const avg = rents.reduce((a, b) => a + b, 0) / rents.length;
+    return { count, min, max, avg, median };
   }, [listings]);
 
   return (
@@ -89,11 +84,26 @@ export default function HomeScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
           contentContainerStyle={{ padding: 16, gap: 14 }}
         >
-          {/* Stats row */}
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <StatPill label="Total" value={String(stats.count)} />
-            <StatPill label="Max Rent" value={stats.max !== null ? fmtMoney(stats.max) : "—"} />
-            <StatPill label="Baseline Rent" value={criteriaData.maxBaseRent ? fmtMoney(Number(criteriaData.maxBaseRent)) : "—"} />
+          {/* Stats section */}
+          <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 14 }}>
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: "800" }}>Base Rent Snapshot</Text>
+            {!stats.min ? (
+              <Text style={{ color: colors.textSecondary, marginTop: 8 }}>No rent data yet.</Text>
+            ) : (
+              <>
+                <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 13 }}>
+                  {stats.count} listings with base rent
+                </Text>
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+                  <StatPill label="Lowest" value={fmtMoney(stats.min)} />
+                  <StatPill label="Baseline" value={fmtMoney(stats.median!)} />
+                </View>
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+                  <StatPill label="Average" value={fmtMoney(stats.avg!)} />
+                  <StatPill label="Highest" value={fmtMoney(stats.max!)} />
+                </View>
+              </>
+            )}
           </View>
 
           {/* Top 3 preferred */}
