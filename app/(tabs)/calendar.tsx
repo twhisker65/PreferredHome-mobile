@@ -1,7 +1,10 @@
-// app/(tabs)/calendar.tsx — Build 3.2.06
-// Change: replaced SidePanel+MenuSheet with MenuPanel+sub-panel system.
-// Added useSafeAreaInsets + topBarHeight. Added activeSubPanel state.
-// All other logic unchanged.
+// app/(tabs)/calendar.tsx — Build 3.2.07
+// Changes from 3.2.06:
+// - Added currentMonth state (year + month), defaults to today's month.
+// - Wired onMonthChange on Calendar: updates currentMonth when user taps prev/next arrows.
+// - Appointment list filtered to show only appointments in the currently displayed month.
+// - markedDates logic completely unchanged from Build 3.2.06.
+// All other logic, layout, and menu system unchanged.
 
 import React, { useCallback, useMemo, useState } from "react";
 import { View, Text, ActivityIndicator, ScrollView, RefreshControl } from "react-native";
@@ -65,6 +68,14 @@ export default function CalendarScreen() {
   const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
   const { listings, loading, refreshing, error, refresh } = useListings();
 
+  // Track which month is currently displayed on the calendar.
+  // Defaults to today's month.
+  const today = new Date();
+  const [currentMonth, setCurrentMonth] = useState<{ year: number; month: number }>({
+    year: today.getFullYear(),
+    month: today.getMonth() + 1,
+  });
+
   // Refresh whenever this screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -72,6 +83,7 @@ export default function CalendarScreen() {
     }, [])
   );
 
+  // Build full appointments list from all listings — unchanged from 3.2.06
   const appts: Appt[] = useMemo(() => {
     const out: Appt[] = [];
     for (const l of listings) {
@@ -95,6 +107,7 @@ export default function CalendarScreen() {
     return out;
   }, [listings]);
 
+  // markedDates — completely unchanged from Build 3.2.06
   const markedDates = useMemo(() => {
     const m: Record<string, any> = {};
     for (const a of appts) {
@@ -102,6 +115,12 @@ export default function CalendarScreen() {
     }
     return m;
   }, [appts]);
+
+  // Filter appointment list to only the month currently shown on the calendar
+  const visibleAppts = useMemo(() => {
+    const prefix = `${String(currentMonth.year)}-${String(currentMonth.month).padStart(2, "0")}`;
+    return appts.filter((a) => a.date.startsWith(prefix));
+  }, [appts, currentMonth]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -117,6 +136,9 @@ export default function CalendarScreen() {
           <Calendar
             hideExtraDays
             markedDates={markedDates}
+            onMonthChange={(month) => {
+              setCurrentMonth({ year: month.year, month: month.month });
+            }}
             style={{ borderRadius: 18, overflow: "hidden" }}
             theme={{
               calendarBackground: colors.background,
@@ -144,13 +166,15 @@ export default function CalendarScreen() {
           <View style={{ paddingHorizontal: 16 }}>
             <Text style={{ color: colors.red, fontSize: 13 }}>{error}</Text>
           </View>
-        ) : appts.length === 0 ? (
+        ) : visibleAppts.length === 0 ? (
           <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>No appointments scheduled.</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+              No appointments for this month.
+            </Text>
           </View>
         ) : (
           <View style={{ paddingHorizontal: 16, gap: 10 }}>
-            {appts.map((a) => (
+            {visibleAppts.map((a) => (
               <View
                 key={a.id}
                 style={{
