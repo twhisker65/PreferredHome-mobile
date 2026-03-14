@@ -1,6 +1,6 @@
-// app/(tabs)/listings.tsx — Build 3.2.06
-// Change: replaced SidePanel+MenuSheet with MenuPanel+sub-panel system.
-// Added activeSubPanel state. All filter, ViewPanel, and listing logic unchanged.
+// app/(tabs)/listings.tsx — Build 3.2.08
+// Changes: compareIds now persisted via compareStorage (loaded on focus, saved on toggle).
+// Max compare changed from 4 to 3. All other logic unchanged.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -33,6 +33,7 @@ import { useListings } from "../../lib/useListings";
 import { applyOrder } from "../../lib/orderApply";
 import { loadOrder } from "../../lib/orderStorage";
 import { deleteListing as deleteListingApi } from "../../lib/api";
+import { loadCompareIds, saveCompareIds } from "../../lib/compareStorage";
 import type { ListingUI, ListingStatus } from "../../lib/types";
 
 type Section = { title: string; data: ListingUI[] };
@@ -99,10 +100,11 @@ export default function ListingsScreen() {
 
   const filtersActive = isFiltersActive(appliedFilters);
 
-  // Auto-refresh whenever this screen comes into focus
+  // Auto-refresh and reload compareIds whenever this screen comes into focus
   useFocusEffect(
     useCallback(() => {
       refresh();
+      loadCompareIds().then((ids) => setCompareIds(new Set(ids)));
     }, [])
   );
 
@@ -127,7 +129,6 @@ export default function ListingsScreen() {
   function togglePreferred(id: string) {
     const listing = listings.find((l) => l.id === id);
     if (!listing) return;
-    const next = !listing.preferred;
     // optimistic update — full refresh will follow
     refresh();
   }
@@ -135,8 +136,14 @@ export default function ListingsScreen() {
   function toggleCompare(id: string) {
     setCompareIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else if (next.size < 4) next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else if (next.size < 3) {
+        next.add(id);
+      } else {
+        return prev; // max 3 — no change
+      }
+      saveCompareIds([...next]); // persist to AsyncStorage (fire and forget)
       return next;
     });
   }
@@ -180,7 +187,7 @@ export default function ListingsScreen() {
         onPressRight={() => setFilterOpen(true)}
       />
 
-      {/* FILTERS ACTIVE banner — blue, shown below header when active */}
+      {/* FILTERS ACTIVE banner — shown below header when active */}
       {filtersActive && (
         <View
           style={{
