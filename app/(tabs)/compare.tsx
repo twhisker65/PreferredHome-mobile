@@ -1,11 +1,7 @@
-// app/(tabs)/compare.tsx — Build 3.2.08.1
-// Hotfix: 6 issues fixed from initial 3.2.08 testing.
-// 1. Criteria reload immediately on CriteriaPanel close (not just on tab focus).
-// 2. Top-left corner cell reads "Criteria" in building-name font (white, weight 900).
-// 3. Label column text white (textPrimary). Plain data text grey (textSecondary).
-// 4. Frozen label column + frozen building-name row. Horizontal scroll synced via useRef.
-// 5. Multi-select fields render one item per line (line-break separated, not comma).
-// 6. Column widths reduced to 75%: LABEL_W 134→100, COL_W 158→118.
+// app/(tabs)/compare.tsx — Build 3.2.08.2
+// Hotfix: two issues from 3.2.08.1 testing.
+// 1. Label row heights now match the tallest data cell in each row (onLayout sync).
+// 2. Total Monthly: API value only used when > 0; falls back to baseRent + fees otherwise.
 
 import React, { useCallback, useRef, useState } from "react";
 import {
@@ -29,9 +25,10 @@ import { loadCompareIds } from "../../lib/compareStorage";
 import { loadCriteriaData, type CriteriaData } from "../../lib/profileStorage";
 import type { ListingUI } from "../../lib/types";
 
-// ── Layout constants (75% of original) ───────────────────────────
-const LABEL_W = 100;
-const COL_W   = 118;
+// ── Layout constants ──────────────────────────────────────────────
+const LABEL_W    = 100;
+const COL_W      = 118;
+const MIN_ROW_H  = 40;
 
 // ── Compare colors ────────────────────────────────────────────────
 const CC = {
@@ -57,7 +54,6 @@ function rawStr(v: any): string {
   return String(v ?? "").trim();
 }
 
-// Multi-select: one item per line
 function joinMultiLines(v: any): string {
   if (Array.isArray(v)) return v.filter(Boolean).join("\n") || "—";
   const s = rawStr(v);
@@ -132,11 +128,13 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
       return pill(fmtCurrency(v), lteColor(v, criteria.maxBaseRent));
     }
     case "totalMonthly": {
+      // Use API total only when it is a positive number.
+      // rawNum returns 0 when the API sends "0", which is incorrect — fall through to local calc.
       const apiTotal = rawNum(raw.totalMonthly);
-      const fallback = listing.baseRent !== null
+      const localTotal = listing.baseRent !== null
         ? (listing.baseRent ?? 0) + (listing.fees ?? 0)
         : null;
-      const v = apiTotal ?? fallback;
+      const v = (apiTotal !== null && apiTotal > 0) ? apiTotal : localTotal;
       return pill(fmtCurrency(v), lteColor(v, criteria.maxTotalMonthly));
     }
     case "unitType":
@@ -183,7 +181,7 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
   }
 }
 
-// ── Table + card row definitions ──────────────────────────────────
+// ── Row definitions ───────────────────────────────────────────────
 
 const TABLE_ROWS: Array<{ label: string; key: string }> = [
   { label: "Base Rent",          key: "baseRent" },
@@ -271,10 +269,24 @@ function VDoubleSep() {
   );
 }
 
-// ── Table view — freeze panes ─────────────────────────────────────
+// ── Table view — freeze panes + synced row heights ────────────────
 
 function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria: CriteriaData }) {
   const headerScrollRef = useRef<ScrollView>(null);
+
+  // rowHeights[i] = measured height of data row i (tallest cell across all listing columns)
+  const [rowHeights, setRowHeights] = useState<number[]>(
+    TABLE_ROWS.map(() => MIN_ROW_H)
+  );
+
+  function handleDataRowLayout(idx: number, height: number) {
+    setRowHeights((prev) => {
+      if (prev[idx] === height) return prev;
+      const next = [...prev];
+      next[idx] = height;
+      return next;
+    });
+  }
 
   function syncHeader(e: any) {
     headerScrollRef.current?.scrollTo({
@@ -283,16 +295,6 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
     });
   }
 
-  const CELL_MIN_H = 40;
-
-  const labelCellBase = {
-    width: LABEL_W,
-    paddingHorizontal: 8,
-    paddingVertical: 9,
-    justifyContent: "center" as const,
-    minHeight: CELL_MIN_H,
-  };
-
   const dataCellBase = {
     width: COL_W,
     paddingHorizontal: 8,
@@ -300,7 +302,6 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
     borderRightWidth: 1 as const,
     borderRightColor: colors.border,
     justifyContent: "center" as const,
-    minHeight: CELL_MIN_H,
   };
 
   return (
@@ -308,8 +309,7 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
 
       {/* ── FROZEN BUILDING NAME ROW ── */}
       <View style={{ flexDirection: "row" }}>
-        {/* Top-left "Criteria" label */}
-        <View style={[labelCellBase, { paddingVertical: 11 }]}>
+        <View style={{ width: LABEL_W, paddingHorizontal: 8, paddingVertical: 11, justifyContent: "center" }}>
           <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }}>
             Criteria
           </Text>
@@ -317,7 +317,6 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
 
         <VDoubleSep />
 
-        {/* Building names — position controlled by data scroll ref */}
         <ScrollView
           horizontal
           ref={headerScrollRef}
@@ -339,23 +338,25 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
 
       <HDoubleRule />
 
-      {/* ── SCROLLABLE DATA ROWS (vertical) ── */}
+      {/* ── SCROLLABLE DATA SECTION ── */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         <View style={{ flexDirection: "row" }}>
 
-          {/* FROZEN label column */}
+          {/* FROZEN label column — height of each cell matches measured data row */}
           <View style={{ width: LABEL_W }}>
             {TABLE_ROWS.map((row, idx) => (
               <View
                 key={row.key}
-                style={[
-                  labelCellBase,
-                  {
-                    borderBottomWidth: 1,
-                    borderBottomColor: colors.border,
-                    backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
-                  },
-                ]}
+                style={{
+                  width: LABEL_W,
+                  height: rowHeights[idx],
+                  paddingHorizontal: 8,
+                  paddingVertical: 9,
+                  justifyContent: "center",
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.border,
+                  backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
+                }}
               >
                 <Text style={{ color: colors.textPrimary, fontSize: 11, fontWeight: "700", letterSpacing: 0.2 }}>
                   {row.label}
@@ -366,7 +367,7 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
 
           <VDoubleSep />
 
-          {/* Horizontally scrollable data — drives header sync */}
+          {/* Horizontally scrollable data — measures each row height and drives header sync */}
           <ScrollView
             horizontal
             onScroll={syncHeader}
@@ -377,6 +378,7 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
               {TABLE_ROWS.map((row, idx) => (
                 <View
                   key={row.key}
+                  onLayout={(e) => handleDataRowLayout(idx, e.nativeEvent.layout.height)}
                   style={{
                     flexDirection: "row",
                     borderBottomWidth: 1,
@@ -387,7 +389,7 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
                   {listings.map((l) => {
                     const cell = getCellData(row.key, l, criteria);
                     return (
-                      <View key={l.id} style={dataCellBase}>
+                      <View key={l.id} style={[dataCellBase, { minHeight: MIN_ROW_H }]}>
                         {cell.isBool ? (
                           <BoolCell value={cell.boolValue} small />
                         ) : cell.color ? (
@@ -407,6 +409,7 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
               ))}
             </View>
           </ScrollView>
+
         </View>
       </ScrollView>
     </View>
@@ -521,7 +524,6 @@ export default function CompareTab() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
 
-  // Reload compareIds and criteria every time this tab comes into focus
   useFocusEffect(
     useCallback(() => {
       loadCompareIds().then(setCompareIds);
@@ -596,7 +598,6 @@ export default function CompareTab() {
           ))}
         </ScrollView>
       ) : (
-        /* Table view — CompareTable manages its own freeze-pane scrolling */
         <View style={{ flex: 1, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 16 }}>
           <CompareTable listings={selectedListings} criteria={criteria} />
         </View>
@@ -620,7 +621,6 @@ export default function CompareTab() {
           topOffset={topBarHeight}
           onClose={() => {
             setActiveSubPanel(null);
-            // Reload criteria immediately — banner and pill colors update without needing a tab switch
             loadCriteriaData().then(setCriteria);
           }}
         />
