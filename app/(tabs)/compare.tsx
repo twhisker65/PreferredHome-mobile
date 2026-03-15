@@ -1,13 +1,13 @@
-// app/(tabs)/compare.tsx — Build 3.2.08
-// Full Compare page implementation.
-// - Loads selected listing IDs from compareStorage (persistent, max 3)
-// - Fetches live listing data via useListings
-// - Loads criteria from AsyncStorage via loadCriteriaData
-// - Missing criteria banner opens CriteriaPanel on tap
-// - Card view: one card per listing, color-coded fields, same font style as listing cards
-// - Table view: horizontally + vertically scrollable grid with double-line borders
+// app/(tabs)/compare.tsx — Build 3.2.08.1
+// Hotfix: 6 issues fixed from initial 3.2.08 testing.
+// 1. Criteria reload immediately on CriteriaPanel close (not just on tab focus).
+// 2. Top-left corner cell reads "Criteria" in building-name font (white, weight 900).
+// 3. Label column text white (textPrimary). Plain data text grey (textSecondary).
+// 4. Frozen label column + frozen building-name row. Horizontal scroll synced via useRef.
+// 5. Multi-select fields render one item per line (line-break separated, not comma).
+// 6. Column widths reduced to 75%: LABEL_W 134→100, COL_W 158→118.
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -29,9 +29,9 @@ import { loadCompareIds } from "../../lib/compareStorage";
 import { loadCriteriaData, type CriteriaData } from "../../lib/profileStorage";
 import type { ListingUI } from "../../lib/types";
 
-// ── Layout constants ──────────────────────────────────────────────
-const LABEL_W = 134;
-const COL_W   = 158;
+// ── Layout constants (75% of original) ───────────────────────────
+const LABEL_W = 100;
+const COL_W   = 118;
 
 // ── Compare colors ────────────────────────────────────────────────
 const CC = {
@@ -57,10 +57,12 @@ function rawStr(v: any): string {
   return String(v ?? "").trim();
 }
 
-function joinMulti(v: any): string {
-  if (Array.isArray(v)) return v.filter(Boolean).join(", ") || "—";
+// Multi-select: one item per line
+function joinMultiLines(v: any): string {
+  if (Array.isArray(v)) return v.filter(Boolean).join("\n") || "—";
   const s = rawStr(v);
-  return s || "—";
+  if (!s) return "—";
+  return s.split(",").map((x: string) => x.trim()).filter(Boolean).join("\n") || "—";
 }
 
 function fmtCurrency(v: number | null): string {
@@ -70,7 +72,6 @@ function fmtCurrency(v: number | null): string {
 
 // ── Color logic ───────────────────────────────────────────────────
 
-// Green if value <= limit, red if >, grey if no criteria set
 function lteColor(value: number | null, criteriaStr: string): string {
   if (!criteriaStr) return CC.grey;
   if (value === null) return CC.grey;
@@ -79,7 +80,6 @@ function lteColor(value: number | null, criteriaStr: string): string {
   return value <= limit ? CC.green : CC.red;
 }
 
-// Green if value >= limit, red if <, grey if no criteria set
 function gteColor(value: number | null, criteriaStr: string): string {
   if (!criteriaStr) return CC.grey;
   if (value === null) return CC.grey;
@@ -113,18 +113,23 @@ function parkingColor(v: string): string {
 
 type CellData = {
   text: string;
-  color: string | null; // null = plain text; CC.xxx = colored pill
+  color: string | null;
   isBool: boolean;
   boolValue: boolean;
+  isMulti: boolean;
 };
 
 function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): CellData {
   const raw = listing.raw ?? {};
+  const plain = (text: string): CellData => ({ text, color: null, isBool: false, boolValue: false, isMulti: false });
+  const pill  = (text: string, color: string): CellData => ({ text, color, isBool: false, boolValue: false, isMulti: false });
+  const bool  = (val: boolean): CellData => ({ text: "", color: null, isBool: true, boolValue: val, isMulti: false });
+  const multi = (text: string): CellData => ({ text, color: null, isBool: false, boolValue: false, isMulti: true });
 
   switch (key) {
     case "baseRent": {
       const v = listing.baseRent;
-      return { text: fmtCurrency(v), color: lteColor(v, criteria.maxBaseRent), isBool: false, boolValue: false };
+      return pill(fmtCurrency(v), lteColor(v, criteria.maxBaseRent));
     }
     case "totalMonthly": {
       const apiTotal = rawNum(raw.totalMonthly);
@@ -132,72 +137,53 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
         ? (listing.baseRent ?? 0) + (listing.fees ?? 0)
         : null;
       const v = apiTotal ?? fallback;
-      return { text: fmtCurrency(v), color: lteColor(v, criteria.maxTotalMonthly), isBool: false, boolValue: false };
+      return pill(fmtCurrency(v), lteColor(v, criteria.maxTotalMonthly));
     }
     case "unitType":
-      return { text: rawStr(raw.unitType) || "—", color: null, isBool: false, boolValue: false };
+      return plain(rawStr(raw.unitType) || "—");
     case "bedrooms": {
       const v = rawNum(raw.bedrooms);
-      return { text: v !== null ? String(v) : "—", color: null, isBool: false, boolValue: false };
+      return plain(v !== null ? String(v) : "—");
     }
     case "bathrooms": {
       const v = rawNum(raw.bathrooms);
-      return { text: v !== null ? String(v) : "—", color: null, isBool: false, boolValue: false };
+      return plain(v !== null ? String(v) : "—");
     }
     case "squareFootage": {
       const v = rawNum(raw.squareFootage);
-      return {
-        text: v !== null ? `${Math.round(v).toLocaleString()} sqft` : "—",
-        color: gteColor(v, criteria.minSqFt),
-        isBool: false,
-        boolValue: false,
-      };
+      return pill(v !== null ? `${Math.round(v).toLocaleString()} sqft` : "—", gteColor(v, criteria.minSqFt));
     }
-    case "noBoardApproval":
-      return { text: "", color: null, isBool: true, boolValue: rawBool(raw.noBoardApproval) };
-    case "noBrokerFee":
-      return { text: "", color: null, isBool: true, boolValue: rawBool(raw.noBrokerFee) };
-    case "topFloor":
-      return { text: "", color: null, isBool: true, boolValue: rawBool(raw.topFloor) };
-    case "cornerUnit":
-      return { text: "", color: null, isBool: true, boolValue: rawBool(raw.cornerUnit) };
-    case "furnished":
-      return { text: "", color: null, isBool: true, boolValue: rawBool(raw.furnished) };
+    case "noBoardApproval": return bool(rawBool(raw.noBoardApproval));
+    case "noBrokerFee":     return bool(rawBool(raw.noBrokerFee));
+    case "topFloor":        return bool(rawBool(raw.topFloor));
+    case "cornerUnit":      return bool(rawBool(raw.cornerUnit));
+    case "furnished":       return bool(rawBool(raw.furnished));
     case "acType": {
       const v = rawStr(raw.acType);
-      return { text: v || "—", color: v ? acColor(v) : null, isBool: false, boolValue: false };
+      return v ? pill(v, acColor(v)) : plain("—");
     }
     case "laundry": {
       const v = rawStr(raw.laundry);
-      return { text: v || "—", color: v ? laundryColor(v) : null, isBool: false, boolValue: false };
+      return v ? pill(v, laundryColor(v)) : plain("—");
     }
     case "parkingType": {
       const v = rawStr(raw.parkingType);
-      return { text: v || "—", color: v ? parkingColor(v) : null, isBool: false, boolValue: false };
+      return v ? pill(v, parkingColor(v)) : plain("—");
     }
-    case "utilitiesIncluded":
-      return { text: joinMulti(raw.utilitiesIncluded), color: null, isBool: false, boolValue: false };
-    case "unitFeatures":
-      return { text: joinMulti(raw.unitFeatures), color: null, isBool: false, boolValue: false };
-    case "buildingAmenities":
-      return { text: joinMulti(raw.buildingAmenities), color: null, isBool: false, boolValue: false };
-    case "closeBy":
-      return { text: joinMulti(raw.closeBy), color: null, isBool: false, boolValue: false };
+    case "utilitiesIncluded": return multi(joinMultiLines(raw.utilitiesIncluded));
+    case "unitFeatures":      return multi(joinMultiLines(raw.unitFeatures));
+    case "buildingAmenities": return multi(joinMultiLines(raw.buildingAmenities));
+    case "closeBy":           return multi(joinMultiLines(raw.closeBy));
     case "commuteTime": {
       const v = rawNum(raw.commuteTime);
-      return {
-        text: v !== null ? `${Math.round(v)} min` : "—",
-        color: lteColor(v, criteria.maxCommuteTime),
-        isBool: false,
-        boolValue: false,
-      };
+      return pill(v !== null ? `${Math.round(v)} min` : "—", lteColor(v, criteria.maxCommuteTime));
     }
     default:
-      return { text: "—", color: null, isBool: false, boolValue: false };
+      return plain("—");
   }
 }
 
-// ── Table row definitions ─────────────────────────────────────────
+// ── Table + card row definitions ──────────────────────────────────
 
 const TABLE_ROWS: Array<{ label: string; key: string }> = [
   { label: "Base Rent",          key: "baseRent" },
@@ -221,7 +207,6 @@ const TABLE_ROWS: Array<{ label: string; key: string }> = [
   { label: "Commute Time",       key: "commuteTime" },
 ];
 
-// Card view rows — same as table but without the multi-select fields
 const CARD_ROWS: Array<{ label: string; key: string }> = [
   { label: "Base Rent",          key: "baseRent" },
   { label: "Total Rent",         key: "totalMonthly" },
@@ -240,7 +225,7 @@ const CARD_ROWS: Array<{ label: string; key: string }> = [
   { label: "Commute Time",       key: "commuteTime" },
 ];
 
-// ── Sub-components ────────────────────────────────────────────────
+// ── Shared sub-components ─────────────────────────────────────────
 
 function CPill({ text, color, small = false }: { text: string; color: string; small?: boolean }) {
   return (
@@ -260,19 +245,12 @@ function CPill({ text, color, small = false }: { text: string; color: string; sm
 
 function BoolCell({ value, small = false }: { value: boolean; small?: boolean }) {
   return (
-    <Text
-      style={{
-        color: value ? CC.green : colors.textSecondary,
-        fontSize: small ? 14 : 16,
-        fontWeight: "700",
-      }}
-    >
+    <Text style={{ color: value ? CC.green : colors.textSecondary, fontSize: small ? 14 : 16, fontWeight: "700" }}>
       {value ? "✓" : "—"}
     </Text>
   );
 }
 
-// Double horizontal rule — used under the building name header row in the table
 function HDoubleRule() {
   return (
     <View>
@@ -283,41 +261,71 @@ function HDoubleRule() {
   );
 }
 
-// ── Table view ────────────────────────────────────────────────────
+function VDoubleSep() {
+  return (
+    <View style={{ flexDirection: "row" }}>
+      <View style={{ width: 1, backgroundColor: colors.border }} />
+      <View style={{ width: 2 }} />
+      <View style={{ width: 1, backgroundColor: colors.border }} />
+    </View>
+  );
+}
+
+// ── Table view — freeze panes ─────────────────────────────────────
 
 function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria: CriteriaData }) {
-  const labelCell = {
+  const headerScrollRef = useRef<ScrollView>(null);
+
+  function syncHeader(e: any) {
+    headerScrollRef.current?.scrollTo({
+      x: e.nativeEvent.contentOffset.x,
+      animated: false,
+    });
+  }
+
+  const CELL_MIN_H = 40;
+
+  const labelCellBase = {
     width: LABEL_W,
     paddingHorizontal: 8,
     paddingVertical: 9,
     justifyContent: "center" as const,
-    minHeight: 40,
+    minHeight: CELL_MIN_H,
   };
-  const dataCell = {
+
+  const dataCellBase = {
     width: COL_W,
     paddingHorizontal: 8,
     paddingVertical: 9,
     borderRightWidth: 1 as const,
     borderRightColor: colors.border,
     justifyContent: "center" as const,
-    minHeight: 40,
+    minHeight: CELL_MIN_H,
   };
 
   return (
-    // Outer: horizontal scroll for the whole table
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <View>
-        {/* ── Building name header row ── */}
-        <View style={{ flexDirection: "row" }}>
-          {/* Empty top-left corner cell */}
-          <View style={[labelCell, { paddingVertical: 11 }]} />
-          {/* Double vertical separator */}
-          <View style={{ width: 1, backgroundColor: colors.border }} />
-          <View style={{ width: 2 }} />
-          <View style={{ width: 1, backgroundColor: colors.border }} />
-          {/* Building name cells */}
+    <View style={{ flex: 1 }}>
+
+      {/* ── FROZEN BUILDING NAME ROW ── */}
+      <View style={{ flexDirection: "row" }}>
+        {/* Top-left "Criteria" label */}
+        <View style={[labelCellBase, { paddingVertical: 11 }]}>
+          <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }}>
+            Criteria
+          </Text>
+        </View>
+
+        <VDoubleSep />
+
+        {/* Building names — position controlled by data scroll ref */}
+        <ScrollView
+          horizontal
+          ref={headerScrollRef}
+          scrollEnabled={false}
+          showsHorizontalScrollIndicator={false}
+        >
           {listings.map((l) => (
-            <View key={l.id} style={[dataCell, { paddingVertical: 11 }]}>
+            <View key={l.id} style={[dataCellBase, { paddingVertical: 11 }]}>
               <Text
                 style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }}
                 numberOfLines={2}
@@ -326,65 +334,82 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
               </Text>
             </View>
           ))}
-        </View>
-
-        {/* Double horizontal rule under header */}
-        <HDoubleRule />
-
-        {/* ── Data rows ── */}
-        {TABLE_ROWS.map((row, idx) => (
-          <View
-            key={row.key}
-            style={{
-              flexDirection: "row",
-              backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
-              borderBottomWidth: 1,
-              borderBottomColor: colors.border,
-            }}
-          >
-            {/* Label cell */}
-            <View style={labelCell}>
-              <Text
-                style={{
-                  color: colors.textSecondary,
-                  fontSize: 11,
-                  fontWeight: "700",
-                  letterSpacing: 0.2,
-                }}
-              >
-                {row.label}
-              </Text>
-            </View>
-
-            {/* Double vertical separator */}
-            <View style={{ width: 1, backgroundColor: colors.border }} />
-            <View style={{ width: 2 }} />
-            <View style={{ width: 1, backgroundColor: colors.border }} />
-
-            {/* Data cells */}
-            {listings.map((l) => {
-              const cell = getCellData(row.key, l, criteria);
-              return (
-                <View key={l.id} style={dataCell}>
-                  {cell.isBool ? (
-                    <BoolCell value={cell.boolValue} small />
-                  ) : cell.color ? (
-                    <CPill text={cell.text} color={cell.color} small />
-                  ) : (
-                    <Text
-                      style={{ color: colors.textPrimary, fontSize: 11 }}
-                      numberOfLines={4}
-                    >
-                      {cell.text}
-                    </Text>
-                  )}
-                </View>
-              );
-            })}
-          </View>
-        ))}
+        </ScrollView>
       </View>
-    </ScrollView>
+
+      <HDoubleRule />
+
+      {/* ── SCROLLABLE DATA ROWS (vertical) ── */}
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        <View style={{ flexDirection: "row" }}>
+
+          {/* FROZEN label column */}
+          <View style={{ width: LABEL_W }}>
+            {TABLE_ROWS.map((row, idx) => (
+              <View
+                key={row.key}
+                style={[
+                  labelCellBase,
+                  {
+                    borderBottomWidth: 1,
+                    borderBottomColor: colors.border,
+                    backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
+                  },
+                ]}
+              >
+                <Text style={{ color: colors.textPrimary, fontSize: 11, fontWeight: "700", letterSpacing: 0.2 }}>
+                  {row.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <VDoubleSep />
+
+          {/* Horizontally scrollable data — drives header sync */}
+          <ScrollView
+            horizontal
+            onScroll={syncHeader}
+            scrollEventThrottle={16}
+            showsHorizontalScrollIndicator={false}
+          >
+            <View>
+              {TABLE_ROWS.map((row, idx) => (
+                <View
+                  key={row.key}
+                  style={{
+                    flexDirection: "row",
+                    borderBottomWidth: 1,
+                    borderBottomColor: colors.border,
+                    backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
+                  }}
+                >
+                  {listings.map((l) => {
+                    const cell = getCellData(row.key, l, criteria);
+                    return (
+                      <View key={l.id} style={dataCellBase}>
+                        {cell.isBool ? (
+                          <BoolCell value={cell.boolValue} small />
+                        ) : cell.color ? (
+                          <CPill text={cell.text} color={cell.color} small />
+                        ) : (
+                          <Text
+                            style={{ color: colors.textSecondary, fontSize: 11 }}
+                            numberOfLines={cell.isMulti ? 0 : 4}
+                          >
+                            {cell.text}
+                          </Text>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -402,29 +427,15 @@ function CompareCard({ listing, criteria }: { listing: ListingUI; criteria: Crit
         marginBottom: 14,
       }}
     >
-      {/* Building name header */}
-      <View
-        style={{
-          padding: 14,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-        }}
-      >
-        <Text
-          style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "900" }}
-          numberOfLines={1}
-        >
+      <View style={{ padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "900" }} numberOfLines={1}>
           {listing.buildingName}
         </Text>
-        <Text
-          style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}
-          numberOfLines={1}
-        >
+        <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
           {listing.addressLine}
         </Text>
       </View>
 
-      {/* Field rows */}
       {CARD_ROWS.map((row, idx) => {
         const cell = getCellData(row.key, listing, criteria);
         return (
@@ -438,18 +449,10 @@ function CompareCard({ listing, criteria }: { listing: ListingUI; criteria: Crit
               paddingVertical: 9,
               borderBottomWidth: idx < CARD_ROWS.length - 1 ? 1 : 0,
               borderBottomColor: colors.border,
-              backgroundColor:
-                idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
+              backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
             }}
           >
-            <Text
-              style={{
-                color: colors.textSecondary,
-                fontSize: 12,
-                fontWeight: "600",
-                flex: 1,
-              }}
-            >
+            <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "600", flex: 1 }}>
               {row.label}
             </Text>
             <View style={{ alignItems: "flex-end", maxWidth: "56%" }}>
@@ -458,14 +461,7 @@ function CompareCard({ listing, criteria }: { listing: ListingUI; criteria: Crit
               ) : cell.color ? (
                 <CPill text={cell.text} color={cell.color} />
               ) : (
-                <Text
-                  style={{
-                    color: colors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: "600",
-                    textAlign: "right",
-                  }}
-                >
+                <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "600", textAlign: "right" }}>
                   {cell.text}
                 </Text>
               )}
@@ -477,7 +473,7 @@ function CompareCard({ listing, criteria }: { listing: ListingUI; criteria: Crit
   );
 }
 
-// ── Icon toggle (card / table mode) ──────────────────────────────
+// ── Icon toggle ───────────────────────────────────────────────────
 
 function IconToggle({
   icon,
@@ -501,11 +497,7 @@ function IconToggle({
         backgroundColor: pressed ? "rgba(255,255,255,0.03)" : "transparent",
       })}
     >
-      <Ionicons
-        name={icon}
-        size={24}
-        color={active ? colors.primaryBlue : colors.textSecondary}
-      />
+      <Ionicons name={icon} size={24} color={active ? colors.primaryBlue : colors.textSecondary} />
     </Pressable>
   );
 }
@@ -539,7 +531,6 @@ export default function CompareTab() {
 
   const selectedListings = listings.filter((l) => compareIds.includes(l.id));
 
-  // Determine which criteria values are missing
   const missingCriteria: string[] = [];
   if (!criteria.maxBaseRent)     missingCriteria.push("Max Base Rent");
   if (!criteria.maxTotalMonthly) missingCriteria.push("Max Total Monthly");
@@ -550,14 +541,12 @@ export default function CompareTab() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <TopBar onPressMenu={() => setMenuOpen(true)} />
 
-      {/* ── Missing criteria banner — only shown when listings are selected ── */}
+      {/* Missing criteria banner */}
       {missingCriteria.length > 0 && selectedListings.length > 0 && (
         <Pressable
           onPress={() => setActiveSubPanel("criteria")}
           style={({ pressed }) => ({
-            backgroundColor: pressed
-              ? `${colors.primaryBlue}30`
-              : `${colors.primaryBlue}20`,
+            backgroundColor: pressed ? `${colors.primaryBlue}30` : `${colors.primaryBlue}20`,
             borderBottomWidth: 1,
             borderBottomColor: `${colors.primaryBlue}66`,
             paddingVertical: 8,
@@ -569,13 +558,7 @@ export default function CompareTab() {
         >
           <Ionicons name="alert-circle-outline" size={14} color={colors.primaryBlue} />
           <Text
-            style={{
-              color: colors.primaryBlue,
-              fontSize: 11,
-              fontWeight: "700",
-              letterSpacing: 0.5,
-              flex: 1,
-            }}
+            style={{ color: colors.primaryBlue, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, flex: 1 }}
             numberOfLines={2}
           >
             CRITERIA NOT SET: {missingCriteria.join(", ")} — TAP TO SET
@@ -584,103 +567,63 @@ export default function CompareTab() {
         </Pressable>
       )}
 
-      {/* ── Mode toggle (cards / table) ── */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: 18,
-          paddingTop: 10,
-          paddingBottom: 4,
-        }}
-      >
-        <IconToggle
-          icon="grid-outline"
-          active={mode === "cards"}
-          onPress={() => setMode("cards")}
-        />
-        <IconToggle
-          icon="list-outline"
-          active={mode === "table"}
-          onPress={() => setMode("table")}
-        />
+      {/* Mode toggle */}
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 18, paddingTop: 10, paddingBottom: 4 }}>
+        <IconToggle icon="grid-outline" active={mode === "cards"} onPress={() => setMode("cards")} />
+        <IconToggle icon="list-outline" active={mode === "table"} onPress={() => setMode("table")} />
       </View>
 
-      {/* ── Content ── */}
+      {/* Content */}
       {loading ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator />
-          <Text style={{ color: colors.textSecondary, marginTop: 10 }}>
-            Loading...
-          </Text>
+          <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Loading...</Text>
         </View>
       ) : selectedListings.length === 0 ? (
-        /* Empty state */
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            paddingHorizontal: 36,
-          }}
-        >
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 36 }}>
           <Ionicons name="git-compare-outline" size={48} color={colors.textSecondary} />
-          <Text
-            style={{
-              color: colors.textPrimary,
-              fontSize: 16,
-              fontWeight: "800",
-              marginTop: 16,
-              textAlign: "center",
-            }}
-          >
+          <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "800", marginTop: 16, textAlign: "center" }}>
             No listings selected
           </Text>
-          <Text
-            style={{
-              color: colors.textSecondary,
-              fontSize: 13,
-              marginTop: 8,
-              textAlign: "center",
-              lineHeight: 20,
-            }}
-          >
+          <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 8, textAlign: "center", lineHeight: 20 }}>
             Go to Listings and tap the compare icon on up to 3 listings to compare them here.
           </Text>
         </View>
       ) : mode === "cards" ? (
-        /* Card view */
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
           {selectedListings.map((l) => (
             <CompareCard key={l.id} listing={l} criteria={criteria} />
           ))}
         </ScrollView>
       ) : (
-        /* Table view — vertical scroll wraps the horizontal table */
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+        /* Table view — CompareTable manages its own freeze-pane scrolling */
+        <View style={{ flex: 1, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 16 }}>
           <CompareTable listings={selectedListings} criteria={criteria} />
-        </ScrollView>
+        </View>
       )}
 
-      {/* ── Menu dropdown ── */}
+      {/* Menu */}
       {menuOpen && (
         <MenuPanel
           topOffset={topBarHeight}
-          onSelectPanel={(p) => {
-            setMenuOpen(false);
-            setActiveSubPanel(p);
-          }}
+          onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }}
           onClose={() => setMenuOpen(false)}
         />
       )}
 
-      {/* ── Sub-panels ── */}
+      {/* Sub-panels */}
       {activeSubPanel === "profile" && (
         <ProfilePanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
       )}
       {activeSubPanel === "criteria" && (
-        <CriteriaPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+        <CriteriaPanel
+          topOffset={topBarHeight}
+          onClose={() => {
+            setActiveSubPanel(null);
+            // Reload criteria immediately — banner and pill colors update without needing a tab switch
+            loadCriteriaData().then(setCriteria);
+          }}
+        />
       )}
       {activeSubPanel === "settings" && (
         <SettingsPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
