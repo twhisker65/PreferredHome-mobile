@@ -1,6 +1,11 @@
-// app/edit.tsx — Build 3.2.06
-// Change: replaced SidePanel+MenuSheet with MenuPanel+sub-panel system.
-// Added useSafeAreaInsets + topBarHeight. Added activeSubPanel state.
+// app/edit.tsx — Build 3.2.09
+// Changes from 3.2.06:
+// - Import loadProfileToggles + ProfileToggles from profileStorage.
+// - Added toggles state. Loaded via useEffect on mount.
+// - Schools Section gated by toggles.children.
+// - Pet Amenities MultiRow gated by toggles.pets.
+// - Parking Type SelectRow gated by toggles.car.
+// - Parking Fee Field gated by toggles.car.
 // All form logic, save logic, and picker logic unchanged.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -30,6 +35,7 @@ import { SettingsPanel } from "../components/SettingsPanel";
 import { Calendar } from "react-native-calendars";
 import { updateListing } from "../lib/api";
 import { useListings } from "../lib/useListings";
+import { loadProfileToggles, type ProfileToggles } from "../lib/profileStorage";
 
 type Draft = {
   status: string;
@@ -114,7 +120,6 @@ const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1));
 const MINUTES = ["00", "15", "30", "45"];
 const PERIODS = ["AM", "PM"];
 
-// 8 sections — no "unit" section
 type SectionKey = "property" | "costs" | "features" | "transportation" | "schools" | "listing" | "timeline" | "notes";
 
 function todayYYYYMMDD() {
@@ -131,20 +136,17 @@ function boolStr(v: boolean): string {
   return v ? "TRUE" : "FALSE";
 }
 
-function str(v: unknown): string {
-  if (v == null) return "";
-  const s = String(v).trim();
-  if (s.toLowerCase() === "nan" || s.toLowerCase() === "null" || s.toLowerCase() === "none") return "";
-  return s;
-}
-
-function boolVal(v: unknown): boolean {
+function boolVal(v: any): boolean {
   if (typeof v === "boolean") return v;
-  const s = String(v).trim().toLowerCase();
-  return s === "true" || s === "1" || s === "yes";
+  return String(v ?? "").trim().toUpperCase() === "TRUE";
 }
 
-function multiVal(v: unknown): string[] {
+function str(v: any): string {
+  if (v === null || v === undefined) return "";
+  return String(v).trim();
+}
+
+function multiVal(v: any): string[] {
   if (Array.isArray(v)) return v.map(String).filter(Boolean);
   const s = str(v);
   if (!s) return [];
@@ -278,7 +280,7 @@ function SelectRow({ label, value, onPress, emptyLabel }: { label: string; value
     <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, paddingHorizontal: 12, backgroundColor: pressed ? colors.cardHover : colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 10 })}>
       <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{label}</Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-        <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 14, fontWeight: "700" }}>{value || emptyLabel || "Select"}</Text>
+        <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 14, fontWeight: value ? "700" : "400" }}>{value || emptyLabel || "Select"}</Text>
         <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
       </View>
     </Pressable>
@@ -289,8 +291,10 @@ function MultiRow({ label, values, onPress }: { label: string; values: string[];
   return (
     <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, paddingHorizontal: 12, backgroundColor: pressed ? colors.cardHover : colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 10 })}>
       <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{label}</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-        <Text style={{ color: values.length ? colors.textPrimary : colors.textSecondary, fontSize: 14, fontWeight: "700" }} numberOfLines={1}>{values.length ? values.join(", ") : "Select"}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1, justifyContent: "flex-end" }}>
+        <Text style={{ color: values.length ? colors.textPrimary : colors.textSecondary, fontSize: 13, fontWeight: values.length ? "700" : "400", textAlign: "right", flexShrink: 1 }} numberOfLines={2}>
+          {values.length ? values.join(", ") : "None selected"}
+        </Text>
         <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
       </View>
     </Pressable>
@@ -299,17 +303,17 @@ function MultiRow({ label, values, onPress }: { label: string; values: string[];
 
 function DateRow({ label, value, onPress, onClear }: { label: string; value: string; onPress: () => void; onClear: () => void }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-      <Pressable onPress={onPress} style={({ pressed }) => ({ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, paddingHorizontal: 12, backgroundColor: pressed ? colors.cardHover : colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 10 })}>
-        <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{label}</Text>
-        <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 14, fontWeight: "700" }}>{value || "Select"}</Text>
-      </Pressable>
-      {value ? (
-        <Pressable onPress={onClear} hitSlop={8} style={{ padding: 6 }}>
-          <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-        </Pressable>
-      ) : null}
-    </View>
+    <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, paddingHorizontal: 12, backgroundColor: pressed ? colors.cardHover : colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 10 })}>
+      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{label}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 14, fontWeight: value ? "700" : "400" }}>{value || "Select date"}</Text>
+        {value ? (
+          <Pressable onPress={onClear} hitSlop={8} style={{ padding: 6 }}>
+            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+          </Pressable>
+        ) : null}
+      </View>
+    </Pressable>
   );
 }
 
@@ -350,8 +354,14 @@ export default function EditScreen() {
     property: true, costs: true, features: true,
     transportation: true, schools: true, listing: true, timeline: true, notes: true,
   });
+  const [toggles, setToggles] = useState<ProfileToggles>({ children: false, pets: false, car: false });
 
   const inputRefs = useRef<Record<string, any>>({});
+
+  // Load toggles once on mount
+  useEffect(() => {
+    loadProfileToggles().then(setToggles);
+  }, []);
 
   useEffect(() => {
     if (!id || !listings) return;
@@ -535,7 +545,7 @@ export default function EditScreen() {
             <Field label="Zip Code" fieldKey="zipCode" inputRefs={inputRefs} onNext={focusNext} value={draft.zipCode} onChangeText={set("zipCode")} keyboardType="number-pad" />
             <Field label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={set("neighborhood")} />
             <Field label="Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={set("unitNumber")} />
-            <Field label="Floor #" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={set("floorNumber")} keyboardType="number-pad" />
+            <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={set("floorNumber")} keyboardType="number-pad" />
             <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={set("bedrooms")} keyboardType="number-pad" />
             <Field label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={set("bathrooms")} keyboardType="decimal-pad" />
             <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={set("squareFootage")} keyboardType="number-pad" />
@@ -550,7 +560,9 @@ export default function EditScreen() {
             <Field label="Amenity Fee" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={set("amenityFee")} keyboardType="number-pad" />
             <Field label="Admin Fee" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={set("adminFee")} keyboardType="number-pad" />
             <Field label="Utility Fee" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={set("utilityFee")} keyboardType="number-pad" />
-            <Field label="Parking Fee" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={set("parkingFee")} keyboardType="number-pad" />
+            {toggles.car && (
+              <Field label="Parking Fee" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={set("parkingFee")} keyboardType="number-pad" />
+            )}
             <Field label="Other Fee" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={set("otherFee")} keyboardType="number-pad" />
             <Field label="Security Deposit" fieldKey="securityDeposit" inputRefs={inputRefs} onNext={focusNext} value={draft.securityDeposit} onChangeText={set("securityDeposit")} keyboardType="number-pad" />
             <Field label="Application Fee" fieldKey="applicationFee" inputRefs={inputRefs} onNext={focusNext} value={draft.applicationFee} onChangeText={set("applicationFee")} keyboardType="number-pad" />
@@ -561,11 +573,15 @@ export default function EditScreen() {
             <MultiRow label="Utilities Included" values={draft.utilitiesIncluded} onPress={() => openMulti("Utilities Included", UTILITIES, draft.utilitiesIncluded, set("utilitiesIncluded"))} />
             <MultiRow label="Unit Features" values={draft.unitFeatures} onPress={() => openMulti("Unit Features", UNIT_FEATURES, draft.unitFeatures, set("unitFeatures"))} />
             <MultiRow label="Building Amenities" values={draft.buildingAmenities} onPress={() => openMulti("Building Amenities", BUILDING_AMENITIES, draft.buildingAmenities, set("buildingAmenities"))} />
-            <MultiRow label="Pet Amenities" values={draft.petAmenities} onPress={() => openMulti("Pet Amenities", PET_AMENITIES, draft.petAmenities, set("petAmenities"))} />
+            {toggles.pets && (
+              <MultiRow label="Pet Amenities" values={draft.petAmenities} onPress={() => openMulti("Pet Amenities", PET_AMENITIES, draft.petAmenities, set("petAmenities"))} />
+            )}
             <MultiRow label="Close By" values={draft.closeBy} onPress={() => openMulti("Close By", CLOSE_BY, draft.closeBy, set("closeBy"))} />
             <SelectRow label="AC Type" value={draft.acType} onPress={() => openSingle("AC Type", AC_TYPES, draft.acType, set("acType"))} />
             <SelectRow label="Laundry" value={draft.laundry} onPress={() => openSingle("Laundry", LAUNDRY, draft.laundry, set("laundry"))} />
-            <SelectRow label="Parking Type" value={draft.parkingType} onPress={() => openSingle("Parking Type", PARKING, draft.parkingType, set("parkingType"))} />
+            {toggles.car && (
+              <SelectRow label="Parking Type" value={draft.parkingType} onPress={() => openSingle("Parking Type", PARKING, draft.parkingType, set("parkingType"))} />
+            )}
           </Section>
 
           {/* ── TRANSPORTATION ── */}
@@ -576,24 +592,26 @@ export default function EditScreen() {
             <Field label="Bike Score" fieldKey="bikeScore" inputRefs={inputRefs} onNext={focusNext} value={draft.bikeScore} onChangeText={set("bikeScore")} keyboardType="number-pad" />
           </Section>
 
-          {/* ── SCHOOLS ── */}
-          <Section title="Schools" open={open.schools} onToggle={() => toggleSection("schools")}>
-            <Text style={{ color: colors.textPrimary, fontWeight: "900", marginBottom: 6 }}>Elementary</Text>
-            <Field label="Name" fieldKey="elementarySchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.elementarySchoolName} onChangeText={set("elementarySchoolName")} />
-            <Field label="Grades" fieldKey="elementaryGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryGrades} onChangeText={set("elementaryGrades")} placeholder="e.g. K–5" />
-            <Field label="Rating (0–10)" fieldKey="elementaryRating" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryRating} onChangeText={(t) => set("elementaryRating")(clampRating(t))} keyboardType="decimal-pad" />
-            <Field label="Distance (miles)" fieldKey="elementaryDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryDistance} onChangeText={set("elementaryDistance")} keyboardType="decimal-pad" />
-            <Text style={{ color: colors.textPrimary, fontWeight: "900", marginTop: 8, marginBottom: 6 }}>Middle</Text>
-            <Field label="Name" fieldKey="middleSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.middleSchoolName} onChangeText={set("middleSchoolName")} />
-            <Field label="Grades" fieldKey="middleGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.middleGrades} onChangeText={set("middleGrades")} placeholder="e.g. 6–8" />
-            <Field label="Rating (0–10)" fieldKey="middleRating" inputRefs={inputRefs} onNext={focusNext} value={draft.middleRating} onChangeText={(t) => set("middleRating")(clampRating(t))} keyboardType="decimal-pad" />
-            <Field label="Distance (miles)" fieldKey="middleDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.middleDistance} onChangeText={set("middleDistance")} keyboardType="decimal-pad" />
-            <Text style={{ color: colors.textPrimary, fontWeight: "900", marginTop: 8, marginBottom: 6 }}>High School</Text>
-            <Field label="Name" fieldKey="highSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.highSchoolName} onChangeText={set("highSchoolName")} />
-            <Field label="Grades" fieldKey="highGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.highGrades} onChangeText={set("highGrades")} placeholder="e.g. 9–12" />
-            <Field label="Rating (0–10)" fieldKey="highRating" inputRefs={inputRefs} onNext={focusNext} value={draft.highRating} onChangeText={(t) => set("highRating")(clampRating(t))} keyboardType="decimal-pad" />
-            <Field label="Distance (miles)" fieldKey="highDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.highDistance} onChangeText={set("highDistance")} keyboardType="decimal-pad" />
-          </Section>
+          {/* ── SCHOOLS — shown only when Children toggle is ON ── */}
+          {toggles.children && (
+            <Section title="Schools" open={open.schools} onToggle={() => toggleSection("schools")}>
+              <Text style={{ color: colors.textPrimary, fontWeight: "900", marginBottom: 6 }}>Elementary</Text>
+              <Field label="Name" fieldKey="elementarySchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.elementarySchoolName} onChangeText={set("elementarySchoolName")} />
+              <Field label="Grades" fieldKey="elementaryGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryGrades} onChangeText={set("elementaryGrades")} placeholder="e.g. K–5" />
+              <Field label="Rating (0–10)" fieldKey="elementaryRating" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryRating} onChangeText={(t) => set("elementaryRating")(clampRating(t))} keyboardType="decimal-pad" />
+              <Field label="Distance (miles)" fieldKey="elementaryDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryDistance} onChangeText={set("elementaryDistance")} keyboardType="decimal-pad" />
+              <Text style={{ color: colors.textPrimary, fontWeight: "900", marginTop: 8, marginBottom: 6 }}>Middle</Text>
+              <Field label="Name" fieldKey="middleSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.middleSchoolName} onChangeText={set("middleSchoolName")} />
+              <Field label="Grades" fieldKey="middleGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.middleGrades} onChangeText={set("middleGrades")} placeholder="e.g. 6–8" />
+              <Field label="Rating (0–10)" fieldKey="middleRating" inputRefs={inputRefs} onNext={focusNext} value={draft.middleRating} onChangeText={(t) => set("middleRating")(clampRating(t))} keyboardType="decimal-pad" />
+              <Field label="Distance (miles)" fieldKey="middleDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.middleDistance} onChangeText={set("middleDistance")} keyboardType="decimal-pad" />
+              <Text style={{ color: colors.textPrimary, fontWeight: "900", marginTop: 8, marginBottom: 6 }}>High School</Text>
+              <Field label="Name" fieldKey="highSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.highSchoolName} onChangeText={set("highSchoolName")} />
+              <Field label="Grades" fieldKey="highGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.highGrades} onChangeText={set("highGrades")} placeholder="e.g. 9–12" />
+              <Field label="Rating (0–10)" fieldKey="highRating" inputRefs={inputRefs} onNext={focusNext} value={draft.highRating} onChangeText={(t) => set("highRating")(clampRating(t))} keyboardType="decimal-pad" />
+              <Field label="Distance (miles)" fieldKey="highDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.highDistance} onChangeText={set("highDistance")} keyboardType="decimal-pad" />
+            </Section>
+          )}
 
           {/* ── LISTING ── */}
           <Section title="Listing" open={open.listing} onToggle={() => toggleSection("listing")}>
@@ -632,55 +650,61 @@ export default function EditScreen() {
       </KeyboardAvoidingView>
 
       {/* Picker Modal */}
-      <Modal visible={!!picker} transparent animationType="fade" onRequestClose={() => setPicker(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", padding: 18, justifyContent: "center" }} onPress={() => setPicker(null)}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 18, overflow: "hidden", alignSelf: "center", width: "100%", maxWidth: 420 }}>
-            <View style={{ padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 16 }}>{picker?.title ?? ""}</Text>
-              <Pressable onPress={() => setPicker(null)} hitSlop={10}><Ionicons name="close" size={20} color={colors.textSecondary} /></Pressable>
+      <Modal visible={!!picker} transparent animationType="slide" onRequestClose={() => setPicker(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }} onPress={() => setPicker(null)}>
+          <Pressable style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 30 }} onPress={(e) => e.stopPropagation()}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+              <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 16 }}>{picker?.title}</Text>
+              <Pressable onPress={() => setPicker(null)}>
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
+              </Pressable>
             </View>
-            {picker?.mode === "single" ? (
-              <ScrollView style={{ maxHeight: 360 }}>
-                {(picker.options ?? []).map((opt) => (
+            {picker?.mode === "single" && picker.options && (
+              <ScrollView style={{ maxHeight: 300 }}>
+                {picker.options.map((opt) => (
                   <Pressable key={opt} onPress={() => { picker.onPickSingle?.(opt); setPicker(null); }}
-                    style={({ pressed }) => ({ paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: pressed ? "rgba(255,255,255,0.03)" : "transparent", flexDirection: "row", alignItems: "center", justifyContent: "space-between" })}>
-                    <Text style={{ color: colors.textPrimary, fontWeight: "800" }}>{opt}</Text>
+                    style={({ pressed }) => ({ paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: pressed ? colors.cardHover : "transparent", flexDirection: "row", alignItems: "center", justifyContent: "space-between" })}>
+                    <Text style={{ color: colors.textPrimary, fontWeight: "700" }}>{opt}</Text>
                     {picker.value === opt ? <Ionicons name="checkmark" size={18} color={colors.primaryBlue} /> : null}
                   </Pressable>
                 ))}
               </ScrollView>
-            ) : null}
-            {picker?.mode === "multi" ? <MultiPicker options={picker.options ?? []} initial={picker.values ?? []} onDone={(vals) => { picker.onPickMulti?.(vals); setPicker(null); }} /> : null}
-            {picker?.mode === "date" ? (
-              <Calendar current={picker.initialDate || todayYYYYMMDD()} markedDates={marked}
-                onDayPress={(day) => { picker.onPickDate?.(day.dateString); setPicker(null); }}
-                theme={{ calendarBackground: colors.background, monthTextColor: colors.textPrimary, dayTextColor: colors.textPrimary, textDisabledColor: colors.textSecondary, todayTextColor: colors.primaryBlue, arrowColor: colors.textPrimary, selectedDayBackgroundColor: colors.primaryBlue, textDayFontWeight: "700", textMonthFontWeight: "800", textDayHeaderFontWeight: "800" }}
+            )}
+            {picker?.mode === "multi" && picker.options && picker.values !== undefined && (
+              <MultiPicker options={picker.options} initial={picker.values} onDone={(vals) => { picker.onPickMulti?.(vals); setPicker(null); }} />
+            )}
+            {picker?.mode === "date" && (
+              <Calendar
+                current={picker.initialDate || todayYYYYMMDD()}
+                markedDates={marked}
+                onDayPress={(day: any) => { picker.onPickDate?.(day.dateString); setPicker(null); }}
+                theme={{ calendarBackground: colors.card, dayTextColor: colors.textPrimary, monthTextColor: colors.textPrimary, arrowColor: colors.primaryBlue, todayTextColor: colors.primaryBlue, selectedDayBackgroundColor: colors.primaryBlue, selectedDayTextColor: "#fff" }}
               />
-            ) : null}
+            )}
           </Pressable>
         </Pressable>
       </Modal>
 
       {/* Time Picker Modal */}
-      <Modal visible={timePicker.open} transparent animationType="fade" onRequestClose={() => setTimePicker((t) => ({ ...t, open: false }))}>
-        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", padding: 18, justifyContent: "center" }} onPress={() => setTimePicker((t) => ({ ...t, open: false }))}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 18, overflow: "hidden", alignSelf: "center", width: "100%", maxWidth: 420 }}>
-            <View style={{ padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+      <Modal visible={timePicker.open} transparent animationType="slide" onRequestClose={() => setTimePicker((t) => ({ ...t, open: false }))}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }} onPress={() => setTimePicker((t) => ({ ...t, open: false }))}>
+          <Pressable style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 30 }} onPress={(e) => e.stopPropagation()}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
               <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 16 }}>Viewing Time</Text>
-              <Pressable onPress={() => setTimePicker((t) => ({ ...t, open: false }))} hitSlop={10}><Ionicons name="close" size={20} color={colors.textSecondary} /></Pressable>
+              <Pressable onPress={() => setTimePicker((t) => ({ ...t, open: false }))}><Ionicons name="close" size={22} color={colors.textSecondary} /></Pressable>
             </View>
-            <ScrollView style={{ maxHeight: 340 }}>
-              {PERIODS.flatMap((period) => HOURS.flatMap((h) => MINUTES.map((m) => {
-                const val = `${h}:${m} ${period}`;
+            <View style={{ flexDirection: "row", justifyContent: "center", flexWrap: "wrap", padding: 16 }}>
+              {HOURS.map((h) => MINUTES.map((m) => PERIODS.map((p) => {
+                const val = `${h}:${m} ${p}`;
+                const active = timePicker.value === val;
                 return (
-                  <Pressable key={val} onPress={() => { timePicker.onPick(val); setTimePicker((t) => ({ ...t, open: false })); }}
-                    style={({ pressed }) => ({ paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: pressed ? "rgba(255,255,255,0.03)" : "transparent", flexDirection: "row", alignItems: "center", justifyContent: "space-between" })}>
-                    <Text style={{ color: colors.textPrimary, fontWeight: "800" }}>{val}</Text>
-                    {timePicker.value === val ? <Ionicons name="checkmark" size={18} color={colors.primaryBlue} /> : null}
+                  <Pressable key={val} onPress={() => { timePicker.onPick(val); setTimePicker((t) => ({ ...t, open: false, value: val })); }}
+                    style={{ paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: active ? colors.primaryBlue : colors.cardHover, margin: 3 }}>
+                    <Text style={{ color: active ? "#fff" : colors.textPrimary, fontWeight: active ? "900" : "400", fontSize: 13 }}>{val}</Text>
                   </Pressable>
                 );
               })))}
-            </ScrollView>
+            </View>
           </Pressable>
         </Pressable>
       </Modal>
@@ -696,7 +720,7 @@ export default function EditScreen() {
 
       {/* Sub-panels */}
       {activeSubPanel === "profile" && (
-        <ProfilePanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+        <ProfilePanel topOffset={topBarHeight} onClose={() => { setActiveSubPanel(null); loadProfileToggles().then(setToggles); }} />
       )}
       {activeSubPanel === "criteria" && (
         <CriteriaPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />

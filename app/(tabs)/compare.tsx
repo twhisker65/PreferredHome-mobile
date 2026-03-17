@@ -1,7 +1,13 @@
-// app/(tabs)/compare.tsx — Build 3.2.08.2
-// Hotfix: two issues from 3.2.08.1 testing.
-// 1. Label row heights now match the tallest data cell in each row (onLayout sync).
-// 2. Total Monthly: API value only used when > 0; falls back to baseRent + fees otherwise.
+// app/(tabs)/compare.tsx — Build 3.2.09
+// Changes from 3.2.08.2:
+// - Import loadProfileToggles + ProfileToggles from profileStorage.
+// - Added toggles state in CompareTab; loaded in useFocusEffect alongside criteria.
+// - TABLE_ROWS and CARD_ROWS extended with petAmenities, elemSchool, middleSchool, highSchool.
+// - getCellData extended with cases for petAmenities and school composite rows.
+// - CompareTable and CompareCard receive toggles prop; each filters its row list at render time.
+// - rowHeights changed from index-based array to key-based Record to handle dynamic row count.
+// - Parking row hidden when car=false. Pet Amenities shown when pets=true. Schools shown when children=true.
+// All layout constants, color logic, frozen panes, and onLayout sync logic unchanged.
 
 import React, { useCallback, useRef, useState } from "react";
 import {
@@ -22,7 +28,7 @@ import { CriteriaPanel } from "../../components/CriteriaPanel";
 import { SettingsPanel } from "../../components/SettingsPanel";
 import { useListings } from "../../lib/useListings";
 import { loadCompareIds } from "../../lib/compareStorage";
-import { loadCriteriaData, type CriteriaData } from "../../lib/profileStorage";
+import { loadCriteriaData, loadProfileToggles, type CriteriaData, type ProfileToggles } from "../../lib/profileStorage";
 import type { ListingUI } from "../../lib/types";
 
 // ── Layout constants ──────────────────────────────────────────────
@@ -128,8 +134,6 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
       return pill(fmtCurrency(v), lteColor(v, criteria.maxBaseRent));
     }
     case "totalMonthly": {
-      // Use API total only when it is a positive number.
-      // rawNum returns 0 when the API sends "0", which is incorrect — fall through to local calc.
       const apiTotal = rawNum(raw.totalMonthly);
       const localTotal = listing.baseRent !== null
         ? (listing.baseRent ?? 0) + (listing.fees ?? 0)
@@ -171,10 +175,38 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
     case "utilitiesIncluded": return multi(joinMultiLines(raw.utilitiesIncluded));
     case "unitFeatures":      return multi(joinMultiLines(raw.unitFeatures));
     case "buildingAmenities": return multi(joinMultiLines(raw.buildingAmenities));
+    case "petAmenities":      return multi(joinMultiLines(raw.petAmenities));
     case "closeBy":           return multi(joinMultiLines(raw.closeBy));
     case "commuteTime": {
       const v = rawNum(raw.commuteTime);
       return pill(v !== null ? `${Math.round(v)} min` : "—", lteColor(v, criteria.maxCommuteTime));
+    }
+    case "elemSchool": {
+      const name = rawStr(raw.elementarySchoolName);
+      if (!name) return plain("—");
+      const rating = rawNum(raw.elementaryRating);
+      const grades = rawStr(raw.elementaryGrades);
+      const dist   = rawStr(raw.elementaryDistance);
+      const parts  = [name, rating !== null ? `Rating: ${rating}` : null, grades || null, dist ? `${dist} mi` : null].filter(Boolean);
+      return plain(parts.join(" · "));
+    }
+    case "middleSchool": {
+      const name = rawStr(raw.middleSchoolName);
+      if (!name) return plain("—");
+      const rating = rawNum(raw.middleRating);
+      const grades = rawStr(raw.middleGrades);
+      const dist   = rawStr(raw.middleDistance);
+      const parts  = [name, rating !== null ? `Rating: ${rating}` : null, grades || null, dist ? `${dist} mi` : null].filter(Boolean);
+      return plain(parts.join(" · "));
+    }
+    case "highSchool": {
+      const name = rawStr(raw.highSchoolName);
+      if (!name) return plain("—");
+      const rating = rawNum(raw.highRating);
+      const grades = rawStr(raw.highGrades);
+      const dist   = rawStr(raw.highDistance);
+      const parts  = [name, rating !== null ? `Rating: ${rating}` : null, grades || null, dist ? `${dist} mi` : null].filter(Boolean);
+      return plain(parts.join(" · "));
     }
     default:
       return plain("—");
@@ -182,6 +214,7 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
 }
 
 // ── Row definitions ───────────────────────────────────────────────
+// All rows are defined here. Toggle-gated rows are filtered at render time.
 
 const TABLE_ROWS: Array<{ label: string; key: string }> = [
   { label: "Base Rent",          key: "baseRent" },
@@ -197,12 +230,16 @@ const TABLE_ROWS: Array<{ label: string; key: string }> = [
   { label: "Furnished",          key: "furnished" },
   { label: "AC Type",            key: "acType" },
   { label: "Laundry",            key: "laundry" },
-  { label: "Parking",            key: "parkingType" },
+  { label: "Parking",            key: "parkingType" },     // car gated
   { label: "Utilities Included", key: "utilitiesIncluded" },
   { label: "Unit Features",      key: "unitFeatures" },
   { label: "Building Amenities", key: "buildingAmenities" },
+  { label: "Pet Amenities",      key: "petAmenities" },    // pets gated
   { label: "Close By",           key: "closeBy" },
   { label: "Commute Time",       key: "commuteTime" },
+  { label: "Elem. School",       key: "elemSchool" },      // children gated
+  { label: "Middle School",      key: "middleSchool" },    // children gated
+  { label: "High School",        key: "highSchool" },      // children gated
 ];
 
 const CARD_ROWS: Array<{ label: string; key: string }> = [
@@ -219,9 +256,24 @@ const CARD_ROWS: Array<{ label: string; key: string }> = [
   { label: "Furnished",          key: "furnished" },
   { label: "AC Type",            key: "acType" },
   { label: "Laundry",            key: "laundry" },
-  { label: "Parking",            key: "parkingType" },
+  { label: "Parking",            key: "parkingType" },     // car gated
+  { label: "Pet Amenities",      key: "petAmenities" },    // pets gated
   { label: "Commute Time",       key: "commuteTime" },
+  { label: "Elem. School",       key: "elemSchool" },      // children gated
+  { label: "Middle School",      key: "middleSchool" },    // children gated
+  { label: "High School",        key: "highSchool" },      // children gated
 ];
+
+// ── Helper to filter rows by toggles ─────────────────────────────
+
+function filterRows<T extends { key: string }>(rows: T[], toggles: ProfileToggles): T[] {
+  return rows.filter((r) => {
+    if (r.key === "parkingType" && !toggles.car)      return false;
+    if (r.key === "petAmenities" && !toggles.pets)    return false;
+    if ((r.key === "elemSchool" || r.key === "middleSchool" || r.key === "highSchool") && !toggles.children) return false;
+    return true;
+  });
+}
 
 // ── Shared sub-components ─────────────────────────────────────────
 
@@ -271,20 +323,16 @@ function VDoubleSep() {
 
 // ── Table view — freeze panes + synced row heights ────────────────
 
-function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria: CriteriaData }) {
+function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; criteria: CriteriaData; toggles: ProfileToggles }) {
   const headerScrollRef = useRef<ScrollView>(null);
 
-  // rowHeights[i] = measured height of data row i (tallest cell across all listing columns)
-  const [rowHeights, setRowHeights] = useState<number[]>(
-    TABLE_ROWS.map(() => MIN_ROW_H)
-  );
+  // rowHeights keyed by row.key so they remain stable across toggle changes
+  const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
 
-  function handleDataRowLayout(idx: number, height: number) {
+  function handleDataRowLayout(key: string, height: number) {
     setRowHeights((prev) => {
-      if (prev[idx] === height) return prev;
-      const next = [...prev];
-      next[idx] = height;
-      return next;
+      if (prev[key] === height) return prev;
+      return { ...prev, [key]: height };
     });
   }
 
@@ -303,6 +351,8 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
     borderRightColor: colors.border,
     justifyContent: "center" as const,
   };
+
+  const visibleRows = filterRows(TABLE_ROWS, toggles);
 
   return (
     <View style={{ flex: 1 }}>
@@ -325,10 +375,7 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
         >
           {listings.map((l) => (
             <View key={l.id} style={[dataCellBase, { paddingVertical: 11 }]}>
-              <Text
-                style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }}
-                numberOfLines={2}
-              >
+              <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }} numberOfLines={2}>
                 {l.buildingName}
               </Text>
             </View>
@@ -338,27 +385,29 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
 
       <HDoubleRule />
 
-      {/* ── SCROLLABLE DATA SECTION ── */}
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      {/* ── SCROLLABLE DATA ROWS ── */}
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={{ flexDirection: "row" }}>
 
-          {/* FROZEN label column — height of each cell matches measured data row */}
+          {/* ── FROZEN LABEL COLUMN ── */}
           <View style={{ width: LABEL_W }}>
-            {TABLE_ROWS.map((row, idx) => (
+            {visibleRows.map((row, rowIdx) => (
               <View
                 key={row.key}
                 style={{
-                  width: LABEL_W,
-                  height: rowHeights[idx],
+                  height: rowHeights[row.key] ?? MIN_ROW_H,
                   paddingHorizontal: 8,
-                  paddingVertical: 9,
+                  paddingVertical: 6,
                   justifyContent: "center",
                   borderBottomWidth: 1,
                   borderBottomColor: colors.border,
-                  backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
+                  backgroundColor: rowIdx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
                 }}
               >
-                <Text style={{ color: colors.textPrimary, fontSize: 11, fontWeight: "700", letterSpacing: 0.2 }}>
+                <Text style={{ color: colors.textPrimary, fontSize: 11, fontWeight: "700" }} numberOfLines={3}>
                   {row.label}
                 </Text>
               </View>
@@ -367,29 +416,35 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
 
           <VDoubleSep />
 
-          {/* Horizontally scrollable data — measures each row height and drives header sync */}
+          {/* ── SCROLLABLE DATA COLUMNS ── */}
           <ScrollView
             horizontal
+            showsHorizontalScrollIndicator={false}
             onScroll={syncHeader}
             scrollEventThrottle={16}
-            showsHorizontalScrollIndicator={false}
           >
-            <View>
-              {TABLE_ROWS.map((row, idx) => (
-                <View
-                  key={row.key}
-                  onLayout={(e) => handleDataRowLayout(idx, e.nativeEvent.layout.height)}
-                  style={{
-                    flexDirection: "row",
-                    borderBottomWidth: 1,
-                    borderBottomColor: colors.border,
-                    backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
-                  }}
-                >
-                  {listings.map((l) => {
-                    const cell = getCellData(row.key, l, criteria);
+            <View style={{ flexDirection: "row" }}>
+              {listings.map((listing) => (
+                <View key={listing.id}>
+                  {visibleRows.map((row, rowIdx) => {
+                    const cell = getCellData(row.key, listing, criteria);
                     return (
-                      <View key={l.id} style={[dataCellBase, { minHeight: MIN_ROW_H }]}>
+                      <View
+                        key={row.key}
+                        onLayout={(e) => {
+                          const h = e.nativeEvent.layout.height;
+                          if (h >= MIN_ROW_H) handleDataRowLayout(row.key, h);
+                        }}
+                        style={[
+                          dataCellBase,
+                          {
+                            minHeight: MIN_ROW_H,
+                            borderBottomWidth: 1,
+                            borderBottomColor: colors.border,
+                            backgroundColor: rowIdx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
+                          },
+                        ]}
+                      >
                         {cell.isBool ? (
                           <BoolCell value={cell.boolValue} small />
                         ) : cell.color ? (
@@ -412,13 +467,16 @@ function CompareTable({ listings, criteria }: { listings: ListingUI[]; criteria:
 
         </View>
       </ScrollView>
+
     </View>
   );
 }
 
 // ── Card view ─────────────────────────────────────────────────────
 
-function CompareCard({ listing, criteria }: { listing: ListingUI; criteria: CriteriaData }) {
+function CompareCard({ listing, criteria, toggles }: { listing: ListingUI; criteria: CriteriaData; toggles: ProfileToggles }) {
+  const visibleRows = filterRows(CARD_ROWS, toggles);
+
   return (
     <View
       style={{
@@ -439,7 +497,7 @@ function CompareCard({ listing, criteria }: { listing: ListingUI; criteria: Crit
         </Text>
       </View>
 
-      {CARD_ROWS.map((row, idx) => {
+      {visibleRows.map((row, idx) => {
         const cell = getCellData(row.key, listing, criteria);
         return (
           <View
@@ -450,7 +508,7 @@ function CompareCard({ listing, criteria }: { listing: ListingUI; criteria: Crit
               justifyContent: "space-between",
               paddingHorizontal: 14,
               paddingVertical: 9,
-              borderBottomWidth: idx < CARD_ROWS.length - 1 ? 1 : 0,
+              borderBottomWidth: idx < visibleRows.length - 1 ? 1 : 0,
               borderBottomColor: colors.border,
               backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
             }}
@@ -520,6 +578,7 @@ export default function CompareTab() {
     maxTotalMonthly: "",
     maxCommuteTime: "",
   });
+  const [toggles, setToggles] = useState<ProfileToggles>({ children: false, pets: false, car: false });
   const [mode, setMode] = useState<"cards" | "table">("cards");
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
@@ -528,6 +587,7 @@ export default function CompareTab() {
     useCallback(() => {
       loadCompareIds().then(setCompareIds);
       loadCriteriaData().then(setCriteria);
+      loadProfileToggles().then(setToggles);
     }, [])
   );
 
@@ -594,12 +654,12 @@ export default function CompareTab() {
       ) : mode === "cards" ? (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
           {selectedListings.map((l) => (
-            <CompareCard key={l.id} listing={l} criteria={criteria} />
+            <CompareCard key={l.id} listing={l} criteria={criteria} toggles={toggles} />
           ))}
         </ScrollView>
       ) : (
         <View style={{ flex: 1, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 16 }}>
-          <CompareTable listings={selectedListings} criteria={criteria} />
+          <CompareTable listings={selectedListings} criteria={criteria} toggles={toggles} />
         </View>
       )}
 

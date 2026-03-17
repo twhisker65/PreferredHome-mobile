@@ -1,11 +1,15 @@
-// components/ViewPanel.tsx — Build 3.2.05
-// Read-only listing detail panel. Slides in from the right.
-// Width = screen width - 102px so building name aligns with listing card text.
-// Top = bottom of header bar (passed as topOffset prop).
-// All field labels bold, all field values same size/color as address on listing card.
-// Section headings use headingLabel style.
+// components/ViewPanel.tsx — Build 3.2.09
+// Changes from 3.2.05:
+// - Added useState to React import.
+// - Import loadProfileToggles + ProfileToggles from profileStorage.
+// - Added toggles state; loaded via useEffect on mount.
+// - Schools section gated by toggles.children.
+// - Pet Amenities CommaField gated by toggles.pets.
+// - Parking Type display line gated by toggles.car.
+// - Parking Fee TwoCol in Costs gated by toggles.car.
+// All other layout, fields, and animation logic unchanged.
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -18,6 +22,7 @@ import {
 import { colors } from "../styles/colors";
 import { headingLabel } from "../styles/typography";
 import type { ListingUI } from "../lib/types";
+import { loadProfileToggles, type ProfileToggles } from "../lib/profileStorage";
 
 // ── Panel geometry ────────────────────────────────────────────────
 // Left edge of panel aligns with right edge of the listing card photo.
@@ -267,6 +272,12 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
 
   const translateX = useRef(new Animated.Value(panelW)).current;
 
+  // Load profile toggles once on mount
+  const [toggles, setToggles] = useState<ProfileToggles>({ children: false, pets: false, car: false });
+  useEffect(() => {
+    loadProfileToggles().then(setToggles);
+  }, []);
+
   useEffect(() => {
     Animated.timing(translateX, {
       toValue: visible ? 0 : panelW,
@@ -479,10 +490,12 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
               left={["Utility Fee", utilFee]}
               right={["", ""]}
             />
-            <TwoCol
-              left={["Parking Fee", parkFee]}
-              right={["", ""]}
-            />
+            {toggles.car && (
+              <TwoCol
+                left={["Parking Fee", parkFee]}
+                right={["", ""]}
+              />
+            )}
             <TwoCol
               left={["Other Fee", otherFee]}
               right={["", ""]}
@@ -530,7 +543,9 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
             <CommaField label="Utilities Included:" value={utilities} />
             <CommaField label="Unit Features:" value={unitFeat} />
             <CommaField label="Building Amenities:" value={bldgAmen} />
-            <CommaField label="Pet Amenities:" value={petAmen} />
+            {toggles.pets && (
+              <CommaField label="Pet Amenities:" value={petAmen} />
+            )}
             <CommaField label="Close By:" value={closeBy} />
             <View
               style={{
@@ -544,8 +559,12 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
               <Text style={[styles.value, { marginRight: 10 }]}>{acType}</Text>
               <Text style={styles.label}>Laundry: </Text>
               <Text style={[styles.value, { marginRight: 10 }]}>{laundry}</Text>
-              <Text style={styles.label}>Parking: </Text>
-              <Text style={styles.value}>{parking}</Text>
+              {toggles.car && (
+                <>
+                  <Text style={styles.label}>Parking: </Text>
+                  <Text style={styles.value}>{parking}</Text>
+                </>
+              )}
             </View>
 
             {/* ── TRANSPORTATION ────────────────────────────────── */}
@@ -574,8 +593,8 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
               </View>
             )}
 
-            {/* ── SCHOOLS ──────────────────────────────────────── */}
-            {hasSchools && (
+            {/* ── SCHOOLS — shown only when Children toggle is ON ── */}
+            {hasSchools && toggles.children && (
               <>
                 <SectionHead title="Schools" />
                 <SchoolRow

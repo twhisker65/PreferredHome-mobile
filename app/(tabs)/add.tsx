@@ -1,9 +1,15 @@
-// app/(tabs)/add.tsx — Build 3.2.06
-// Change: replaced SidePanel+MenuSheet with MenuPanel+sub-panel system.
-// Added useSafeAreaInsets + topBarHeight. Added activeSubPanel state.
+// app/(tabs)/add.tsx — Build 3.2.09
+// Changes from 3.2.06:
+// - Import useCallback + useFocusEffect.
+// - Import loadProfileToggles + ProfileToggles from profileStorage.
+// - Added toggles state. Loaded via useFocusEffect on every screen focus.
+// - Schools Section gated by toggles.children.
+// - Pet Amenities MultiRow gated by toggles.pets.
+// - Parking Type SelectRow gated by toggles.car.
+// - Parking Fee Field gated by toggles.car.
 // All form logic, save logic, ZIP auto-fill, and picker logic unchanged.
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -18,7 +24,7 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../styles/colors";
 import { headingLabel } from "../../styles/typography";
@@ -29,6 +35,7 @@ import { CriteriaPanel } from "../../components/CriteriaPanel";
 import { SettingsPanel } from "../../components/SettingsPanel";
 import { Calendar } from "react-native-calendars";
 import { postListing, lookupZip } from "../../lib/api";
+import { loadProfileToggles, type ProfileToggles } from "../../lib/profileStorage";
 
 type Draft = {
   status: string;
@@ -255,7 +262,7 @@ function SelectRow({ label, value, onPress, emptyLabel }: { label: string; value
     <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, paddingHorizontal: 12, backgroundColor: pressed ? colors.cardHover : colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 10 })}>
       <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{label}</Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-        <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 14, fontWeight: "700" }}>{value || emptyLabel || "Select"}</Text>
+        <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 14, fontWeight: value ? "700" : "400" }}>{value || emptyLabel || "Select"}</Text>
         <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
       </View>
     </Pressable>
@@ -266,8 +273,10 @@ function MultiRow({ label, values, onPress }: { label: string; values: string[];
   return (
     <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, paddingHorizontal: 12, backgroundColor: pressed ? colors.cardHover : colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 10 })}>
       <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{label}</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-        <Text style={{ color: values.length ? colors.textPrimary : colors.textSecondary, fontSize: 14, fontWeight: "700" }} numberOfLines={1}>{values.length ? values.join(", ") : "Select"}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1, justifyContent: "flex-end" }}>
+        <Text style={{ color: values.length ? colors.textPrimary : colors.textSecondary, fontSize: 13, fontWeight: values.length ? "700" : "400", textAlign: "right", flexShrink: 1 }} numberOfLines={2}>
+          {values.length ? values.join(", ") : "None selected"}
+        </Text>
         <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
       </View>
     </Pressable>
@@ -276,17 +285,17 @@ function MultiRow({ label, values, onPress }: { label: string; values: string[];
 
 function DateRow({ label, value, onPress, onClear }: { label: string; value: string; onPress: () => void; onClear: () => void }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-      <Pressable onPress={onPress} style={({ pressed }) => ({ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, paddingHorizontal: 12, backgroundColor: pressed ? colors.cardHover : colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 10 })}>
-        <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{label}</Text>
-        <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 14, fontWeight: "700" }}>{value || "Select"}</Text>
-      </Pressable>
-      {value ? (
-        <Pressable onPress={onClear} hitSlop={8} style={{ padding: 6 }}>
-          <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-        </Pressable>
-      ) : null}
-    </View>
+    <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, paddingHorizontal: 12, backgroundColor: pressed ? colors.cardHover : colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 10 })}>
+      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{label}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 14, fontWeight: value ? "700" : "400" }}>{value || "Select date"}</Text>
+        {value ? (
+          <Pressable onPress={onClear} hitSlop={8} style={{ padding: 6 }}>
+            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+          </Pressable>
+        ) : null}
+      </View>
+    </Pressable>
   );
 }
 
@@ -324,8 +333,16 @@ export default function AddScreen() {
     property: true, costs: true, features: true,
     transportation: true, schools: true, listing: true, timeline: true, notes: true,
   });
+  const [toggles, setToggles] = useState<ProfileToggles>({ children: false, pets: false, car: false });
 
   const inputRefs = useRef<Record<string, any>>({});
+
+  // Load profile toggles on every focus so they stay in sync with Profile panel changes
+  useFocusEffect(
+    useCallback(() => {
+      loadProfileToggles().then(setToggles);
+    }, [])
+  );
 
   // ZIP auto-fill: when ZIP reaches 5 digits, look up city and state
   useEffect(() => {
@@ -472,6 +489,7 @@ export default function AddScreen() {
         pros: draft.pros,
         cons: draft.cons,
       };
+
       await postListing(payload);
       setDraft({ ...BLANK_DRAFT });
       Alert.alert("Saved", "Listing added successfully.", [
@@ -507,7 +525,7 @@ export default function AddScreen() {
             ) : null}
             <Field label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={(t) => setDraft((d) => ({ ...d, neighborhood: t }))} />
             <Field label="Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={(t) => setDraft((d) => ({ ...d, unitNumber: t }))} />
-            <Field label="Floor #" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="number-pad" />
+            <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="number-pad" />
             <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bedrooms: t }))} keyboardType="number-pad" />
             <Field label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bathrooms: t }))} keyboardType="decimal-pad" />
             <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={(t) => setDraft((d) => ({ ...d, squareFootage: t }))} keyboardType="number-pad" />
@@ -522,7 +540,9 @@ export default function AddScreen() {
             <Field label="Amenity Fee" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={(t) => setDraft((d) => ({ ...d, amenityFee: t }))} keyboardType="number-pad" />
             <Field label="Admin Fee" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={(t) => setDraft((d) => ({ ...d, adminFee: t }))} keyboardType="number-pad" />
             <Field label="Utility Fee" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={(t) => setDraft((d) => ({ ...d, utilityFee: t }))} keyboardType="number-pad" />
-            <Field label="Parking Fee" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={(t) => setDraft((d) => ({ ...d, parkingFee: t }))} keyboardType="number-pad" />
+            {toggles.car && (
+              <Field label="Parking Fee" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={(t) => setDraft((d) => ({ ...d, parkingFee: t }))} keyboardType="number-pad" />
+            )}
             <Field label="Other Fee" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={(t) => setDraft((d) => ({ ...d, otherFee: t }))} keyboardType="number-pad" />
             <Field label="Security Deposit" fieldKey="securityDeposit" inputRefs={inputRefs} onNext={focusNext} value={draft.securityDeposit} onChangeText={(t) => setDraft((d) => ({ ...d, securityDeposit: t }))} keyboardType="number-pad" />
             <Field label="Application Fee" fieldKey="applicationFee" inputRefs={inputRefs} onNext={focusNext} value={draft.applicationFee} onChangeText={(t) => setDraft((d) => ({ ...d, applicationFee: t }))} keyboardType="number-pad" />
@@ -533,11 +553,15 @@ export default function AddScreen() {
             <MultiRow label="Utilities Included" values={draft.utilitiesIncluded} onPress={() => openMulti("Utilities Included", UTILITIES, draft.utilitiesIncluded, (v) => setDraft((d) => ({ ...d, utilitiesIncluded: v })))} />
             <MultiRow label="Unit Features" values={draft.unitFeatures} onPress={() => openMulti("Unit Features", UNIT_FEATURES, draft.unitFeatures, (v) => setDraft((d) => ({ ...d, unitFeatures: v })))} />
             <MultiRow label="Building Amenities" values={draft.buildingAmenities} onPress={() => openMulti("Building Amenities", BUILDING_AMENITIES, draft.buildingAmenities, (v) => setDraft((d) => ({ ...d, buildingAmenities: v })))} />
-            <MultiRow label="Pet Amenities" values={draft.petAmenities} onPress={() => openMulti("Pet Amenities", PET_AMENITIES, draft.petAmenities, (v) => setDraft((d) => ({ ...d, petAmenities: v })))} />
+            {toggles.pets && (
+              <MultiRow label="Pet Amenities" values={draft.petAmenities} onPress={() => openMulti("Pet Amenities", PET_AMENITIES, draft.petAmenities, (v) => setDraft((d) => ({ ...d, petAmenities: v })))} />
+            )}
             <MultiRow label="Close By" values={draft.closeBy} onPress={() => openMulti("Close By", CLOSE_BY, draft.closeBy, (v) => setDraft((d) => ({ ...d, closeBy: v })))} />
             <SelectRow label="AC Type" value={draft.acType} onPress={() => openSingle("AC Type", AC_TYPES, draft.acType, (v) => setDraft((d) => ({ ...d, acType: v })))} />
             <SelectRow label="Laundry" value={draft.laundry} onPress={() => openSingle("Laundry", LAUNDRY, draft.laundry, (v) => setDraft((d) => ({ ...d, laundry: v })))} />
-            <SelectRow label="Parking Type" value={draft.parkingType} onPress={() => openSingle("Parking Type", PARKING, draft.parkingType, (v) => setDraft((d) => ({ ...d, parkingType: v })))} />
+            {toggles.car && (
+              <SelectRow label="Parking Type" value={draft.parkingType} onPress={() => openSingle("Parking Type", PARKING, draft.parkingType, (v) => setDraft((d) => ({ ...d, parkingType: v })))} />
+            )}
           </Section>
 
           {/* ── TRANSPORTATION ── */}
@@ -548,24 +572,26 @@ export default function AddScreen() {
             <Field label="Bike Score" fieldKey="bikeScore" inputRefs={inputRefs} onNext={focusNext} value={draft.bikeScore} onChangeText={(t) => setDraft((d) => ({ ...d, bikeScore: t }))} keyboardType="number-pad" />
           </Section>
 
-          {/* ── SCHOOLS ── */}
-          <Section title="Schools" open={open.schools} onToggle={() => toggleSection("schools")}>
-            <Text style={{ color: colors.textPrimary, fontWeight: "900", marginBottom: 6 }}>Elementary</Text>
-            <Field label="Name" fieldKey="elementarySchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.elementarySchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, elementarySchoolName: t }))} />
-            <Field label="Grades" fieldKey="elementaryGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryGrades} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryGrades: t }))} placeholder="e.g. K–5" />
-            <Field label="Rating (0–10)" fieldKey="elementaryRating" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryRating} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryRating: clampRating(t) }))} keyboardType="decimal-pad" />
-            <Field label="Distance (miles)" fieldKey="elementaryDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryDistance} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryDistance: t }))} keyboardType="decimal-pad" />
-            <Text style={{ color: colors.textPrimary, fontWeight: "900", marginTop: 8, marginBottom: 6 }}>Middle</Text>
-            <Field label="Name" fieldKey="middleSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.middleSchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, middleSchoolName: t }))} />
-            <Field label="Grades" fieldKey="middleGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.middleGrades} onChangeText={(t) => setDraft((d) => ({ ...d, middleGrades: t }))} placeholder="e.g. 6–8" />
-            <Field label="Rating (0–10)" fieldKey="middleRating" inputRefs={inputRefs} onNext={focusNext} value={draft.middleRating} onChangeText={(t) => setDraft((d) => ({ ...d, middleRating: clampRating(t) }))} keyboardType="decimal-pad" />
-            <Field label="Distance (miles)" fieldKey="middleDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.middleDistance} onChangeText={(t) => setDraft((d) => ({ ...d, middleDistance: t }))} keyboardType="decimal-pad" />
-            <Text style={{ color: colors.textPrimary, fontWeight: "900", marginTop: 8, marginBottom: 6 }}>High School</Text>
-            <Field label="Name" fieldKey="highSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.highSchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, highSchoolName: t }))} />
-            <Field label="Grades" fieldKey="highGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.highGrades} onChangeText={(t) => setDraft((d) => ({ ...d, highGrades: t }))} placeholder="e.g. 9–12" />
-            <Field label="Rating (0–10)" fieldKey="highRating" inputRefs={inputRefs} onNext={focusNext} value={draft.highRating} onChangeText={(t) => setDraft((d) => ({ ...d, highRating: clampRating(t) }))} keyboardType="decimal-pad" />
-            <Field label="Distance (miles)" fieldKey="highDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.highDistance} onChangeText={(t) => setDraft((d) => ({ ...d, highDistance: t }))} keyboardType="decimal-pad" />
-          </Section>
+          {/* ── SCHOOLS — shown only when Children toggle is ON ── */}
+          {toggles.children && (
+            <Section title="Schools" open={open.schools} onToggle={() => toggleSection("schools")}>
+              <Text style={{ color: colors.textPrimary, fontWeight: "900", marginBottom: 6 }}>Elementary</Text>
+              <Field label="Name" fieldKey="elementarySchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.elementarySchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, elementarySchoolName: t }))} />
+              <Field label="Grades" fieldKey="elementaryGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryGrades} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryGrades: t }))} placeholder="e.g. K–5" />
+              <Field label="Rating (0–10)" fieldKey="elementaryRating" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryRating} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryRating: clampRating(t) }))} keyboardType="decimal-pad" />
+              <Field label="Distance (miles)" fieldKey="elementaryDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryDistance} onChangeText={(t) => setDraft((d) => ({ ...d, elementaryDistance: t }))} keyboardType="decimal-pad" />
+              <Text style={{ color: colors.textPrimary, fontWeight: "900", marginTop: 8, marginBottom: 6 }}>Middle</Text>
+              <Field label="Name" fieldKey="middleSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.middleSchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, middleSchoolName: t }))} />
+              <Field label="Grades" fieldKey="middleGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.middleGrades} onChangeText={(t) => setDraft((d) => ({ ...d, middleGrades: t }))} placeholder="e.g. 6–8" />
+              <Field label="Rating (0–10)" fieldKey="middleRating" inputRefs={inputRefs} onNext={focusNext} value={draft.middleRating} onChangeText={(t) => setDraft((d) => ({ ...d, middleRating: clampRating(t) }))} keyboardType="decimal-pad" />
+              <Field label="Distance (miles)" fieldKey="middleDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.middleDistance} onChangeText={(t) => setDraft((d) => ({ ...d, middleDistance: t }))} keyboardType="decimal-pad" />
+              <Text style={{ color: colors.textPrimary, fontWeight: "900", marginTop: 8, marginBottom: 6 }}>High School</Text>
+              <Field label="Name" fieldKey="highSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.highSchoolName} onChangeText={(t) => setDraft((d) => ({ ...d, highSchoolName: t }))} />
+              <Field label="Grades" fieldKey="highGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.highGrades} onChangeText={(t) => setDraft((d) => ({ ...d, highGrades: t }))} placeholder="e.g. 9–12" />
+              <Field label="Rating (0–10)" fieldKey="highRating" inputRefs={inputRefs} onNext={focusNext} value={draft.highRating} onChangeText={(t) => setDraft((d) => ({ ...d, highRating: clampRating(t) }))} keyboardType="decimal-pad" />
+              <Field label="Distance (miles)" fieldKey="highDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.highDistance} onChangeText={(t) => setDraft((d) => ({ ...d, highDistance: t }))} keyboardType="decimal-pad" />
+            </Section>
+          )}
 
           {/* ── LISTING ── */}
           <Section title="Listing" open={open.listing} onToggle={() => toggleSection("listing")}>
@@ -604,55 +630,61 @@ export default function AddScreen() {
       </KeyboardAvoidingView>
 
       {/* Picker Modal */}
-      <Modal visible={!!picker} transparent animationType="fade" onRequestClose={() => setPicker(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", padding: 18, justifyContent: "center" }} onPress={() => setPicker(null)}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 18, overflow: "hidden", alignSelf: "center", width: "100%", maxWidth: 420 }}>
-            <View style={{ padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 16 }}>{picker?.title ?? ""}</Text>
-              <Pressable onPress={() => setPicker(null)} hitSlop={10}><Ionicons name="close" size={20} color={colors.textSecondary} /></Pressable>
+      <Modal visible={!!picker} transparent animationType="slide" onRequestClose={() => setPicker(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }} onPress={() => setPicker(null)}>
+          <Pressable style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 30 }} onPress={(e) => e.stopPropagation()}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+              <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 16 }}>{picker?.title}</Text>
+              <Pressable onPress={() => setPicker(null)}>
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
+              </Pressable>
             </View>
-            {picker?.mode === "single" ? (
-              <ScrollView style={{ maxHeight: 360 }}>
-                {(picker.options ?? []).map((opt) => (
+            {picker?.mode === "single" && picker.options && (
+              <ScrollView style={{ maxHeight: 300 }}>
+                {picker.options.map((opt) => (
                   <Pressable key={opt} onPress={() => { picker.onPickSingle?.(opt); setPicker(null); }}
-                    style={({ pressed }) => ({ paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: pressed ? "rgba(255,255,255,0.03)" : "transparent", flexDirection: "row", alignItems: "center", justifyContent: "space-between" })}>
-                    <Text style={{ color: colors.textPrimary, fontWeight: "800" }}>{opt}</Text>
+                    style={({ pressed }) => ({ paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: pressed ? colors.cardHover : "transparent", flexDirection: "row", alignItems: "center", justifyContent: "space-between" })}>
+                    <Text style={{ color: colors.textPrimary, fontWeight: "700" }}>{opt}</Text>
                     {picker.value === opt ? <Ionicons name="checkmark" size={18} color={colors.primaryBlue} /> : null}
                   </Pressable>
                 ))}
               </ScrollView>
-            ) : null}
-            {picker?.mode === "multi" ? <MultiPicker options={picker.options ?? []} initial={picker.values ?? []} onDone={(vals) => { picker.onPickMulti?.(vals); setPicker(null); }} /> : null}
-            {picker?.mode === "date" ? (
-              <Calendar current={picker.initialDate || todayYYYYMMDD()} markedDates={marked}
-                onDayPress={(day) => { picker.onPickDate?.(day.dateString); setPicker(null); }}
-                theme={{ calendarBackground: colors.background, monthTextColor: colors.textPrimary, dayTextColor: colors.textPrimary, textDisabledColor: colors.textSecondary, todayTextColor: colors.primaryBlue, arrowColor: colors.textPrimary, selectedDayBackgroundColor: colors.primaryBlue, textDayFontWeight: "700", textMonthFontWeight: "800", textDayHeaderFontWeight: "800" }}
+            )}
+            {picker?.mode === "multi" && picker.options && picker.values !== undefined && (
+              <MultiPicker options={picker.options} initial={picker.values} onDone={(vals) => { picker.onPickMulti?.(vals); setPicker(null); }} />
+            )}
+            {picker?.mode === "date" && (
+              <Calendar
+                current={picker.initialDate || todayYYYYMMDD()}
+                markedDates={marked}
+                onDayPress={(day: any) => { picker.onPickDate?.(day.dateString); setPicker(null); }}
+                theme={{ calendarBackground: colors.card, dayTextColor: colors.textPrimary, monthTextColor: colors.textPrimary, arrowColor: colors.primaryBlue, todayTextColor: colors.primaryBlue, selectedDayBackgroundColor: colors.primaryBlue, selectedDayTextColor: "#fff" }}
               />
-            ) : null}
+            )}
           </Pressable>
         </Pressable>
       </Modal>
 
       {/* Time Picker Modal */}
-      <Modal visible={timePicker.open} transparent animationType="fade" onRequestClose={() => setTimePicker((t) => ({ ...t, open: false }))}>
-        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", padding: 18, justifyContent: "center" }} onPress={() => setTimePicker((t) => ({ ...t, open: false }))}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 18, overflow: "hidden", alignSelf: "center", width: "100%", maxWidth: 420 }}>
-            <View style={{ padding: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+      <Modal visible={timePicker.open} transparent animationType="slide" onRequestClose={() => setTimePicker((t) => ({ ...t, open: false }))}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }} onPress={() => setTimePicker((t) => ({ ...t, open: false }))}>
+          <Pressable style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 30 }} onPress={(e) => e.stopPropagation()}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
               <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 16 }}>Viewing Time</Text>
-              <Pressable onPress={() => setTimePicker((t) => ({ ...t, open: false }))} hitSlop={10}><Ionicons name="close" size={20} color={colors.textSecondary} /></Pressable>
+              <Pressable onPress={() => setTimePicker((t) => ({ ...t, open: false }))}><Ionicons name="close" size={22} color={colors.textSecondary} /></Pressable>
             </View>
-            <ScrollView style={{ maxHeight: 340 }}>
-              {PERIODS.flatMap((period) => HOURS.flatMap((h) => MINUTES.map((m) => {
-                const val = `${h}:${m} ${period}`;
+            <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, padding: 16 }}>
+              {HOURS.map((h) => MINUTES.map((m) => PERIODS.map((p) => {
+                const val = `${h}:${m} ${p}`;
+                const active = timePicker.value === val;
                 return (
-                  <Pressable key={val} onPress={() => { timePicker.onPick(val); setTimePicker((t) => ({ ...t, open: false })); }}
-                    style={({ pressed }) => ({ paddingHorizontal: 14, paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: pressed ? "rgba(255,255,255,0.03)" : "transparent", flexDirection: "row", alignItems: "center", justifyContent: "space-between" })}>
-                    <Text style={{ color: colors.textPrimary, fontWeight: "800" }}>{val}</Text>
-                    {timePicker.value === val ? <Ionicons name="checkmark" size={18} color={colors.primaryBlue} /> : null}
+                  <Pressable key={val} onPress={() => { timePicker.onPick(val); setTimePicker((t) => ({ ...t, open: false, value: val })); }}
+                    style={{ paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: active ? colors.primaryBlue : colors.cardHover, margin: 3 }}>
+                    <Text style={{ color: active ? "#fff" : colors.textPrimary, fontWeight: active ? "900" : "400", fontSize: 13 }}>{val}</Text>
                   </Pressable>
                 );
               })))}
-            </ScrollView>
+            </View>
           </Pressable>
         </Pressable>
       </Modal>
@@ -668,7 +700,7 @@ export default function AddScreen() {
 
       {/* Sub-panels */}
       {activeSubPanel === "profile" && (
-        <ProfilePanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+        <ProfilePanel topOffset={topBarHeight} onClose={() => { setActiveSubPanel(null); loadProfileToggles().then(setToggles); }} />
       )}
       {activeSubPanel === "criteria" && (
         <CriteriaPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
