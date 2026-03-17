@@ -1,4 +1,4 @@
-// components/ViewPanel.tsx — Build 3.2.09
+// components/ViewPanel.tsx — Build 3.2.09.1
 // Changes from 3.2.05:
 // - Added useState to React import.
 // - Import loadProfileToggles + ProfileToggles from profileStorage.
@@ -272,11 +272,13 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
 
   const translateX = useRef(new Animated.Value(panelW)).current;
 
-  // Load profile toggles once on mount
+  // Reload profile toggles every time the panel opens
   const [toggles, setToggles] = useState<ProfileToggles>({ children: false, pets: false, car: false });
   useEffect(() => {
-    loadProfileToggles().then(setToggles);
-  }, []);
+    if (visible) {
+      loadProfileToggles().then(setToggles);
+    }
+  }, [visible]);
 
   useEffect(() => {
     Animated.timing(translateX, {

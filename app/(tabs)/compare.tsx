@@ -1,4 +1,4 @@
-// app/(tabs)/compare.tsx — Build 3.2.09
+// app/(tabs)/compare.tsx — Build 3.2.09.1
 // Changes from 3.2.08.2:
 // - Import loadProfileToggles + ProfileToggles from profileStorage.
 // - Added toggles state in CompareTab; loaded in useFocusEffect alongside criteria.
@@ -331,7 +331,8 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
 
   function handleDataRowLayout(key: string, height: number) {
     setRowHeights((prev) => {
-      if (prev[key] === height) return prev;
+      const current = prev[key] ?? MIN_ROW_H;
+      if (height <= current) return prev;
       return { ...prev, [key]: height };
     });
   }
