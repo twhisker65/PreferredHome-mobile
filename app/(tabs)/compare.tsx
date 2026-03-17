@@ -1,4 +1,4 @@
-// app/(tabs)/compare.tsx — Build 3.2.09.1
+// app/(tabs)/compare.tsx — Build 3.2.09.2
 // Changes from 3.2.08.2:
 // - Import loadProfileToggles + ProfileToggles from profileStorage.
 // - Added toggles state in CompareTab; loaded in useFocusEffect alongside criteria.
@@ -321,21 +321,14 @@ function VDoubleSep() {
   );
 }
 
-// ── Table view — freeze panes + synced row heights ────────────────
+// ── Table view ────────────────────────────────────────────────────
+// Frozen header (building names). Unified rows — label + all data cells
+// in a single flexDirection:"row" so React Native sizes each row to its
+// tallest cell automatically. No height state, no onLayout, no measurement.
+// Labels scroll horizontally with the data (no frozen label column).
 
 function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; criteria: CriteriaData; toggles: ProfileToggles }) {
   const headerScrollRef = useRef<ScrollView>(null);
-
-  // rowHeights keyed by row.key so they remain stable across toggle changes
-  const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
-
-  function handleDataRowLayout(key: string, height: number) {
-    setRowHeights((prev) => {
-      const current = prev[key] ?? MIN_ROW_H;
-      if (height <= current) return prev;
-      return { ...prev, [key]: height };
-    });
-  }
 
   function syncHeader(e: any) {
     headerScrollRef.current?.scrollTo({
@@ -344,129 +337,118 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
     });
   }
 
-  const dataCellBase = {
-    width: COL_W,
-    paddingHorizontal: 8,
-    paddingVertical: 9,
-    borderRightWidth: 1 as const,
-    borderRightColor: colors.border,
-    justifyContent: "center" as const,
-  };
-
   const visibleRows = filterRows(TABLE_ROWS, toggles);
+
+  // Total content width = label + data columns
+  const contentW = LABEL_W + COL_W * listings.length;
 
   return (
     <View style={{ flex: 1 }}>
 
-      {/* ── FROZEN BUILDING NAME ROW ── */}
-      <View style={{ flexDirection: "row" }}>
+      {/* ── FROZEN HEADER — building names ── */}
+      <ScrollView
+        horizontal
+        ref={headerScrollRef}
+        scrollEnabled={false}
+        showsHorizontalScrollIndicator={false}
+      >
+        {/* Spacer aligns with label column in body rows */}
         <View style={{ width: LABEL_W, paddingHorizontal: 8, paddingVertical: 11, justifyContent: "center" }}>
           <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }}>
             Criteria
           </Text>
         </View>
-
-        <VDoubleSep />
-
-        <ScrollView
-          horizontal
-          ref={headerScrollRef}
-          scrollEnabled={false}
-          showsHorizontalScrollIndicator={false}
-        >
-          {listings.map((l) => (
-            <View key={l.id} style={[dataCellBase, { paddingVertical: 11 }]}>
-              <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }} numberOfLines={2}>
-                {l.buildingName}
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-      </View>
+        {listings.map((l) => (
+          <View
+            key={l.id}
+            style={{
+              width: COL_W,
+              paddingHorizontal: 8,
+              paddingVertical: 11,
+              borderLeftWidth: 1,
+              borderLeftColor: colors.border,
+              justifyContent: "center",
+            }}
+          >
+            <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }} numberOfLines={2}>
+              {l.buildingName}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
 
       <HDoubleRule />
 
-      {/* ── SCROLLABLE DATA ROWS ── */}
-      <ScrollView
-        style={{ flex: 1 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={{ flexDirection: "row" }}>
-
-          {/* ── FROZEN LABEL COLUMN ── */}
-          <View style={{ width: LABEL_W }}>
+      {/* ── BODY — vertical scroll wraps horizontal scroll ── */}
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          onScroll={syncHeader}
+          scrollEventThrottle={16}
+        >
+          <View style={{ width: contentW }}>
             {visibleRows.map((row, rowIdx) => (
               <View
                 key={row.key}
                 style={{
-                  height: rowHeights[row.key] ?? MIN_ROW_H,
-                  paddingHorizontal: 8,
-                  paddingVertical: 6,
-                  justifyContent: "center",
+                  flexDirection: "row",
                   borderBottomWidth: 1,
                   borderBottomColor: colors.border,
                   backgroundColor: rowIdx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
+                  minHeight: MIN_ROW_H,
                 }}
               >
-                <Text style={{ color: colors.textPrimary, fontSize: 11, fontWeight: "700" }} numberOfLines={3}>
-                  {row.label}
-                </Text>
+                {/* Label cell */}
+                <View
+                  style={{
+                    width: LABEL_W,
+                    paddingHorizontal: 8,
+                    paddingVertical: 9,
+                    justifyContent: "center",
+                    borderRightWidth: 1,
+                    borderRightColor: colors.border,
+                  }}
+                >
+                  <Text style={{ color: colors.textPrimary, fontSize: 11, fontWeight: "700" }}>
+                    {row.label}
+                  </Text>
+                </View>
+
+                {/* Data cells — one per listing */}
+                {listings.map((listing) => {
+                  const cell = getCellData(row.key, listing, criteria);
+                  return (
+                    <View
+                      key={listing.id}
+                      style={{
+                        width: COL_W,
+                        paddingHorizontal: 8,
+                        paddingVertical: 9,
+                        justifyContent: "center",
+                        borderRightWidth: 1,
+                        borderRightColor: colors.border,
+                      }}
+                    >
+                      {cell.isBool ? (
+                        <BoolCell value={cell.boolValue} small />
+                      ) : cell.color ? (
+                        <CPill text={cell.text} color={cell.color} small />
+                      ) : (
+                        <Text
+                          style={{ color: colors.textSecondary, fontSize: 11 }}
+                          numberOfLines={cell.isMulti ? 0 : 4}
+                        >
+                          {cell.text}
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
             ))}
           </View>
-
-          <VDoubleSep />
-
-          {/* ── SCROLLABLE DATA COLUMNS ── */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            onScroll={syncHeader}
-            scrollEventThrottle={16}
-          >
-            <View style={{ flexDirection: "row" }}>
-              {listings.map((listing) => (
-                <View key={listing.id}>
-                  {visibleRows.map((row, rowIdx) => {
-                    const cell = getCellData(row.key, listing, criteria);
-                    return (
-                      <View
-                        key={row.key}
-                        onLayout={(e) => {
-                          const h = e.nativeEvent.layout.height;
-                          if (h >= MIN_ROW_H) handleDataRowLayout(row.key, h);
-                        }}
-                        style={[
-                          dataCellBase,
-                          {
-                            minHeight: MIN_ROW_H,
-                            borderBottomWidth: 1,
-                            borderBottomColor: colors.border,
-                            backgroundColor: rowIdx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
-                          },
-                        ]}
-                      >
-                        {cell.isBool ? (
-                          <BoolCell value={cell.boolValue} small />
-                        ) : cell.color ? (
-                          <CPill text={cell.text} color={cell.color} small />
-                        ) : (
-                          <Text
-                            style={{ color: colors.textSecondary, fontSize: 11 }}
-                            numberOfLines={cell.isMulti ? 0 : 4}
-                          >
-                            {cell.text}
-                          </Text>
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-
-        </View>
+        </ScrollView>
       </ScrollView>
 
     </View>
