@@ -322,10 +322,11 @@ function VDoubleSep() {
 }
 
 // ── Table view ────────────────────────────────────────────────────
-// Frozen header (building names). Unified rows — label + all data cells
-// in a single flexDirection:"row" so React Native sizes each row to its
-// tallest cell automatically. No height state, no onLayout, no measurement.
-// Labels scroll horizontally with the data (no frozen label column).
+// Styled like CompareCard: rounded corners, surrounding border, shaded header.
+// Frozen header syncs horizontally with body via ref.
+// Unified rows — label cell + VDoubleSep + data cells in one flexDirection:"row"
+// so React Native sizes each row to its tallest cell automatically.
+// No height state, no onLayout, no measurement.
 
 function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; criteria: CriteriaData; toggles: ProfileToggles }) {
   const headerScrollRef = useRef<ScrollView>(null);
@@ -338,46 +339,60 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
   }
 
   const visibleRows = filterRows(TABLE_ROWS, toggles);
-
-  // Total content width = label + data columns
-  const contentW = LABEL_W + COL_W * listings.length;
+  // 4px accounts for VDoubleSep (1px + 2px gap + 1px)
+  const contentW = LABEL_W + 4 + COL_W * listings.length;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{
+      flex: 1,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: colors.border,
+      overflow: "hidden",
+      backgroundColor: colors.card,
+    }}>
 
-      {/* ── FROZEN HEADER — building names ── */}
+      {/* ── FROZEN HEADER — shaded, same style as compare card header ── */}
       <ScrollView
         horizontal
         ref={headerScrollRef}
         scrollEnabled={false}
         showsHorizontalScrollIndicator={false}
       >
-        {/* Spacer aligns with label column in body rows */}
-        <View style={{ width: LABEL_W, paddingHorizontal: 8, paddingVertical: 11, justifyContent: "center" }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }}>
-            Criteria
-          </Text>
-        </View>
-        {listings.map((l) => (
-          <View
-            key={l.id}
-            style={{
-              width: COL_W,
-              paddingHorizontal: 8,
-              paddingVertical: 11,
-              borderLeftWidth: 1,
-              borderLeftColor: colors.border,
-              justifyContent: "center",
-            }}
-          >
-            <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }} numberOfLines={2}>
-              {l.buildingName}
+        <View style={{
+          flexDirection: "row",
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+          backgroundColor: "rgba(255,255,255,0.025)",
+        }}>
+          {/* Criteria label */}
+          <View style={{ width: LABEL_W, padding: 14, justifyContent: "center" }}>
+            <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "900" }}>
+              Criteria
             </Text>
           </View>
-        ))}
-      </ScrollView>
 
-      <HDoubleRule />
+          <VDoubleSep />
+
+          {/* Building name cells */}
+          {listings.map((l) => (
+            <View
+              key={l.id}
+              style={{
+                width: COL_W,
+                padding: 14,
+                borderLeftWidth: 1,
+                borderLeftColor: colors.border,
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "900" }} numberOfLines={2}>
+                {l.buildingName}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
 
       {/* ── BODY — vertical scroll wraps horizontal scroll ── */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
@@ -406,14 +421,14 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
                     paddingHorizontal: 8,
                     paddingVertical: 9,
                     justifyContent: "center",
-                    borderRightWidth: 1,
-                    borderRightColor: colors.border,
                   }}
                 >
                   <Text style={{ color: colors.textPrimary, fontSize: 11, fontWeight: "700" }}>
                     {row.label}
                   </Text>
                 </View>
+
+                <VDoubleSep />
 
                 {/* Data cells — one per listing */}
                 {listings.map((listing) => {
@@ -426,8 +441,8 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
                         paddingHorizontal: 8,
                         paddingVertical: 9,
                         justifyContent: "center",
-                        borderRightWidth: 1,
-                        borderRightColor: colors.border,
+                        borderLeftWidth: 1,
+                        borderLeftColor: colors.border,
                       }}
                     >
                       {cell.isBool ? (
