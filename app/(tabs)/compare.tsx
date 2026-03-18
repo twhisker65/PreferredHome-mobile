@@ -27,7 +27,7 @@ import { ProfilePanel } from "../../components/ProfilePanel";
 import { CriteriaPanel } from "../../components/CriteriaPanel";
 import { SettingsPanel } from "../../components/SettingsPanel";
 import { useListings } from "../../lib/useListings";
-import { loadCompareIds } from "../../lib/compareStorage";
+import { loadCompareIds, saveCompareIds } from "../../lib/compareStorage";
 import { loadCriteriaData, loadProfileToggles, type CriteriaData, type ProfileToggles } from "../../lib/profileStorage";
 import type { ListingUI } from "../../lib/types";
 
@@ -396,6 +396,8 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
         </ScrollView>
       </View>
 
+      <HDoubleRule />
+
       {/* ── BODY — vertical scroll wraps horizontal scroll ── */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         <ScrollView
@@ -629,10 +631,25 @@ export default function CompareTab() {
         </Pressable>
       )}
 
-      {/* Mode toggle */}
+      {/* Mode toggle + Clear button */}
       <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 18, paddingTop: 10, paddingBottom: 4 }}>
         <IconToggle icon="grid-outline" active={mode === "cards"} onPress={() => setMode("cards")} />
         <IconToggle icon="list-outline" active={mode === "table"} onPress={() => setMode("table")} />
+        {selectedListings.length > 0 && (
+          <Pressable
+            onPress={() => { saveCompareIds([]); setCompareIds([]); }}
+            style={({ pressed }) => ({
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: pressed ? colors.cardHover : "transparent",
+            })}
+          >
+            <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "700" }}>Clear</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* Content */}
