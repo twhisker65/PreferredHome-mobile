@@ -352,47 +352,49 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
       backgroundColor: colors.card,
     }}>
 
-      {/* ── FROZEN HEADER — shaded, same style as compare card header ── */}
-      <ScrollView
-        horizontal
-        ref={headerScrollRef}
-        scrollEnabled={false}
-        showsHorizontalScrollIndicator={false}
-      >
-        <View style={{
-          flexDirection: "row",
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-          backgroundColor: "rgba(255,255,255,0.025)",
-        }}>
-          {/* Criteria label */}
-          <View style={{ width: LABEL_W, padding: 14, justifyContent: "center" }}>
-            <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "900" }}>
-              Criteria
-            </Text>
-          </View>
-
-          <VDoubleSep />
-
-          {/* Building name cells */}
-          {listings.map((l) => (
-            <View
-              key={l.id}
-              style={{
-                width: COL_W,
-                padding: 14,
-                borderLeftWidth: 1,
-                borderLeftColor: colors.border,
-                justifyContent: "center",
-              }}
-            >
-              <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "900" }} numberOfLines={2}>
-                {l.buildingName}
+      {/* ── FROZEN HEADER — fixed 80px, names wrap to 2 lines ── */}
+      <View style={{ height: 80 }}>
+        <ScrollView
+          horizontal
+          ref={headerScrollRef}
+          scrollEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          style={{ flex: 1 }}
+        >
+          <View style={{
+            flexDirection: "row",
+            height: 80,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+            backgroundColor: "rgba(255,255,255,0.025)",
+          }}>
+            <View style={{ width: LABEL_W, paddingHorizontal: 8, justifyContent: "center" }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "900" }}>
+                Criteria
               </Text>
             </View>
-          ))}
-        </View>
-      </ScrollView>
+
+            <VDoubleSep />
+
+            {listings.map((l) => (
+              <View
+                key={l.id}
+                style={{
+                  width: COL_W,
+                  paddingHorizontal: 8,
+                  borderLeftWidth: 1,
+                  borderLeftColor: colors.border,
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "900" }} numberOfLines={2}>
+                  {l.buildingName}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
 
       {/* ── BODY — vertical scroll wraps horizontal scroll ── */}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
