@@ -301,6 +301,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
   const unit     = str(raw.unitNumber);
   const addressParts = [street, [city, stateVal, zip].filter(Boolean).join(", "), unit].filter(Boolean);
   const fullAddress  = addressParts.join(", ") || "—";
+  const mapsAddress  = [street, [city, stateVal, zip].filter(Boolean).join(", ")].filter(Boolean).join(", ");
   const unitType  = str(raw.unitType);
   const beds      = str(raw.bedrooms);
   const baths     = str(raw.bathrooms);
@@ -439,7 +440,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
               <Pressable
                 onPress={() =>
                   Linking.openURL(
-                    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`
+                    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsAddress)}`
                   )
                 }
               >
