@@ -1,18 +1,17 @@
-// components/ViewPanel.tsx — Build 3.2.09.1
-// Changes from 3.2.05:
-// - Added useState to React import.
-// - Import loadProfileToggles + ProfileToggles from profileStorage.
-// - Added toggles state; loaded via useEffect on mount.
-// - Schools section gated by toggles.children.
-// - Pet Amenities CommaField gated by toggles.pets.
-// - Parking Type display line gated by toggles.car.
-// - Parking Fee TwoCol in Costs gated by toggles.car.
+// components/ViewPanel.tsx — Build 3.2.10
+// Changes from 3.2.09.1:
+// - Added Linking to React Native imports.
+// - Address: tapping opens Maps.
+// - URL: tapping opens browser.
+// - Phone: tapping opens dialer.
+// - Email: tapping opens mail app.
 // All other layout, fields, and animation logic unchanged.
 
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -191,7 +190,7 @@ function ScoreBadge({ score, label }: { score: number; label: string }) {
   );
 }
 
-/** School row: dark blue circle with rating, name bold white, grades+distance */
+/** School row: dark blue circle with rating, name bold, grades+distance */
 function SchoolRow({
   rating,
   name,
@@ -345,35 +344,35 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
   const hasScores   = walkScore !== null || transitScore !== null || bikeScore !== null;
 
   // SCHOOLS
-  const elemName = str(raw.elementarySchoolName);
+  const elemName   = str(raw.elementarySchoolName);
   const elemGrades = str(raw.elementaryGrades);
   const elemRating = num(raw.elementaryRating);
-  const elemDist = str(raw.elementaryDistance);
-  const midName  = str(raw.middleSchoolName);
-  const midGrades = str(raw.middleGrades);
-  const midRating = num(raw.middleRating);
-  const midDist  = str(raw.middleDistance);
-  const highName = str(raw.highSchoolName);
+  const elemDist   = str(raw.elementaryDistance);
+  const midName    = str(raw.middleSchoolName);
+  const midGrades  = str(raw.middleGrades);
+  const midRating  = num(raw.middleRating);
+  const midDist    = str(raw.middleDistance);
+  const highName   = str(raw.highSchoolName);
   const highGrades = str(raw.highGrades);
   const highRating = num(raw.highRating);
-  const highDist = str(raw.highDistance);
+  const highDist   = str(raw.highDistance);
   const hasSchools = !!(elemName || midName || highName);
 
   // LISTING
-  const site     = str(raw.listingSite) || "—";
-  const url      = str(raw.listingUrl);
-  const contact  = str(raw.contactName) || "—";
-  const phone    = str(raw.contactPhone) || "—";
-  const email    = str(raw.contactEmail) || "—";
-  const lease    = str(raw.leaseLength) || "—";
+  const site          = str(raw.listingSite) || "—";
+  const url           = str(raw.listingUrl);
+  const contact       = str(raw.contactName) || "—";
+  const phone         = str(raw.contactPhone) || "—";
+  const email         = str(raw.contactEmail) || "—";
+  const lease         = str(raw.leaseLength) || "—";
   const noBrdApproval = bool(raw.noBoardApproval);
   const noBrkFee      = bool(raw.noBrokerFee);
 
   // TIMELINE
-  const dateAvail   = fmtDate(raw.dateAvailable);
-  const contacted   = fmtDate(raw.contactedDate);
-  const viewing     = str(raw.viewingAppointment) ? fmtDate(raw.viewingAppointment) : "—";
-  const applied     = fmtDate(raw.appliedDate);
+  const dateAvail = fmtDate(raw.dateAvailable);
+  const contacted = fmtDate(raw.contactedDate);
+  const viewing   = str(raw.viewingAppointment) ? fmtDate(raw.viewingAppointment) : "—";
+  const applied   = fmtDate(raw.appliedDate);
 
   // NOTES
   const pros = str(raw.pros);
@@ -435,7 +434,23 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
               {buildingName}
             </Text>
 
-            <Text style={[styles.value, { marginBottom: 3 }]}>{fullAddress}</Text>
+            {/* Address — tapping opens Maps */}
+            {fullAddress !== "—" ? (
+              <Pressable
+                onPress={() =>
+                  Linking.openURL(
+                    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`
+                  )
+                }
+              >
+                <Text style={[styles.value, { marginBottom: 3, color: colors.primaryBlue }]}>
+                  {fullAddress}
+                </Text>
+              </Pressable>
+            ) : (
+              <Text style={[styles.value, { marginBottom: 3 }]}>{fullAddress}</Text>
+            )}
+
             {!!unitLine && (
               <Text style={[styles.value, { marginBottom: 6 }]}>{unitLine}</Text>
             )}
@@ -623,8 +638,13 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
             {/* ── LISTING ───────────────────────────────────────── */}
             <SectionHead title="Listing" />
             <FieldRow label="Site:" value={site} />
+
+            {/* URL — tapping opens browser */}
             {!!url && (
-              <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}>
+              <Pressable
+                onPress={() => Linking.openURL(url)}
+                style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}
+              >
                 <Text style={styles.label}>URL: </Text>
                 <Text
                   style={[styles.value, { color: colors.primaryBlue }]}
@@ -632,11 +652,37 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
                 >
                   {url}
                 </Text>
-              </View>
+              </Pressable>
             )}
+
             <FieldRow label="Contact:" value={contact} />
-            <FieldRow label="Phone:" value={phone} />
-            <FieldRow label="Email:" value={email} />
+
+            {/* Phone — tapping opens dialer */}
+            {phone !== "—" ? (
+              <Pressable
+                onPress={() => Linking.openURL(`tel:${phone}`)}
+                style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}
+              >
+                <Text style={styles.label}>Phone: </Text>
+                <Text style={[styles.value, { color: colors.primaryBlue }]}>{phone}</Text>
+              </Pressable>
+            ) : (
+              <FieldRow label="Phone:" value={phone} />
+            )}
+
+            {/* Email — tapping opens mail app */}
+            {email !== "—" ? (
+              <Pressable
+                onPress={() => Linking.openURL(`mailto:${email}`)}
+                style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}
+              >
+                <Text style={styles.label}>Email: </Text>
+                <Text style={[styles.value, { color: colors.primaryBlue }]}>{email}</Text>
+              </Pressable>
+            ) : (
+              <FieldRow label="Email:" value={email} />
+            )}
+
             <FieldRow label="Lease:" value={lease} />
             <View
               style={{
