@@ -49,6 +49,8 @@ This log records every confirmed drift, protocol violation, and unauthorized cha
 | 3.2.08 / 3.2.09 | Hotfix Numbering | Reused the same hotfix number across multiple deliveries in a session instead of incrementing. | Each hotfix increments the fourth digit. Never reuse a hotfix number. |
 | 3.2.09 | Code-Start Violation | Jumped into coding during discussion without waiting for explicit confirmation from Thomas. | Section 27: Never write code during discussion. Wait for Thomas's explicit go-ahead. |
 | 3.2.10 | Session Awareness | Had no recollection that Tap-to-Contact (3.2.10) had been completed and treated it as an upcoming build. Thomas had to correct this. | Read the Assistant Briefing at session start. Never treat a completed build as upcoming. |
+| 3.2.11B | Protocol Violation — Section 31 | Did not produce the Session Confirmation Checklist widget after the Begin Build Brief. Proceeded directly into layout discussion and then code without the 9-question interactive checklist. | Section 31 is mandatory after every Begin Build Brief without exception. Produce the widget. Wait for Thomas to complete it before writing any code. |
+| 3.2.11B | Delivery Format | ZIP delivered with wrong filename format — used `Build_3_2_11B.zip` instead of `PreferredHome_Build_3_2_11B.zip`. Section 6 has now been corrected to enforce underscore-only format. | ZIP name must always be `PreferredHome_Build_X_X_XX.zip`. No dots. Prefix is mandatory. |
 
 ---
 

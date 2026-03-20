@@ -1,5 +1,5 @@
 # PreferredHome — Dev Control Protocols
-**Version V15 | March 2026**
+**Version V16 | March 2026**
 
 ---
 
@@ -62,7 +62,7 @@ The Drift Log (`PreferredHome_Drift_Log.md`) is a permanent, cumulative record o
 
 ## Section 6 — Delivery Format
 
-- All changed files are packaged in a correctly structured ZIP. ZIP name: `PreferredHome_Build_X.X.YY.zip` or `PreferredHome_Build_X.X.YY.N_HOTFIX.zip`.
+- All changed files are packaged in a correctly structured ZIP. ZIP name: `PreferredHome_Build_X_X_XX.zip` or `PreferredHome_Build_X_X_XX_N_HOTFIX.zip`. Underscores only — no dots in the filename.
 - Every changed file must be complete — no patch instructions ever. Thomas never manually edits code.
 - Commit message appears as a copyable code block in the chat AND in the README.
 - The `cd` path and `npx expo start --tunnel --clear` command appear as a single copyable code block in the chat.
@@ -335,3 +335,4 @@ All governing documents live in the repo root with fixed filenames in `.md` form
 | V14 | Section 27 reinforced. HOTFIX naming rule. Hotfix number reuse prohibition. |
 | V15 | Drift Log (Sec 5). Begin Build Brief + Do Not Touch list (Sec 4, 28). Session Confirmation Checklist widget (Sec 31). Diff Declaration (Sec 32). Pre-Test Declaration (Sec 33). |
 | V15.1 | All governing documents converted from PDF to .md format for reliable project knowledge indexing. Closing documents now produced as .md. Section 19 updated accordingly. |
+| V16 | Section 6 ZIP name corrected to underscore format: `PreferredHome_Build_X_X_XX.zip`. Dots removed from ZIP filename. |

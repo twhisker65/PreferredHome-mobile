@@ -1,5 +1,5 @@
 # PreferredHome — Assistant Briefing
-**Build 3.2.11A | March 2026**
+**Build 3.2.11B | March 2026**
 
 ---
 
@@ -23,42 +23,68 @@
 
 | Item | Status |
 |---|---|
-| Stable baseline | Build 3.2.11A — confirmed stable. |
-| ISSUE 1 (carried fwd) | Edit page shows only Building Name. Root cause: `edit.tsx` passes `ListingUI` to `rawToDraft()` instead of raw API response. **Target: 3.2.11B.** |
+| Stable baseline | Build 3.2.11B — confirmed stable. |
+| ISSUE 1 | **Resolved.** Edit page was showing only Building Name. Fixed by correcting `rawToDraft()` to read `propertyType`, `coolingType`, and all new fields from raw API response. |
 | ISSUE 2 (carried fwd) | API `totalMonthly` omits fees for some listings. Workaround: `compare.tsx` uses local `baseRent + fees`. Permanent fix: Build 3.2.13. |
-| `modal.tsx` | Deleted from mobile repo. Was a leftover Expo template stub — never used in PreferredHome. |
 
 ---
 
-## Build 3.2.11A Session Summary
+## Build 3.2.11B Session Summary
 
 | File | Change |
 |---|---|
-| `preferredhome_api/core/config_constants.py` | Full data model update — 11 new fields, `unitType` → `propertyType`, `acType` → `coolingType`, expanded option lists |
-| `preferredhome_api/utils/helpers.py` | Surgical import fix — `AC_TYPE_OPTIONS` → `COOLING_TYPE_OPTIONS`; matching field name update in `get_comparison_color()` |
+| `app/(tabs)/add.tsx` | 11 new fields added; `unitType` → `propertyType`; `acType` → `coolingType`; option arrays updated; PROPERTY section restructured; COSTS section split into MONTHLY / UPFRONT visual groups; FEATURES section reordered; handleSave payload updated |
+| `app/edit.tsx` | All changes from add.tsx; rawToDraft updated for all new and renamed fields; ISSUE 1 resolved |
+| `lib/listingsNormalize.ts` | `unitType` → `propertyType`; `petFee` and `storageRent` added to fees total |
 
-**Google Sheet:** All 11 new columns confirmed present in the `listings` tab before the build. Column order matches `LISTINGS_COLUMNS` exactly.
+---
+
+## Field Renames — Permanent Record
+
+| Old Name | New Name | Applies To |
+|---|---|---|
+| `unitType` | `propertyType` | All mobile files, API (done in 3.2.11A) |
+| `acType` | `coolingType` | All mobile files, API (done in 3.2.11A) |
+
+---
+
+## New Fields Added — Build 3.2.11B
+
+| Field | Type | Section | Notes |
+|---|---|---|---|
+| `numberOfFloors` | Numeric (decimal-pad) | PROPERTY | After Floor Number |
+| `shortTermAvailable` | Boolean | PROPERTY | After Furnished |
+| `rentersInsuranceRequired` | Boolean | PROPERTY | After Short Term Available |
+| `heatingType` | Select | FEATURES | After Cooling Type |
+| `petFee` | Numeric | COSTS — Monthly | Pets toggle gated |
+| `storageRent` | Numeric | COSTS — Monthly | Always visible |
+| `brokerFee` | Numeric | COSTS — Upfront | Always visible |
+| `moveInFee` | Numeric | COSTS — Upfront | Always visible |
+| `roomTypes` | Multi-select | FEATURES | ROOM_TYPES array |
+| `privateOutdoorSpaceTypes` | Multi-select | FEATURES | PRIVATE_OUTDOOR_SPACE array |
+| `storageTypes` | Multi-select | FEATURES | STORAGE_TYPES array |
 
 ---
 
 ## Active Drift Warnings — Carry Forward Every Session
 
-| ID | Warning |
+| ID | Rule |
 |---|---|
-| DRIFT 1 | No Unit section — unit fields appear at end of PROPERTY section only. |
-| DRIFT 5 | Apply `boolStr()` to every file that sends a payload to the API. |
-| DRIFT 6 | No structural changes to any screen without explicit authorisation. |
-| DRIFT 7 | Read the original spec before touching any form structure. |
+| DRIFT 1 | No Unit section. Unit fields appear at the end of the PROPERTY section only. Never create a separate Unit sub-section. |
+| DRIFT 5 | Apply `boolStr()` to every file that sends a payload to the API. Never apply it to only one file when the same pattern exists in others. |
+| DRIFT 6 | No structural changes to any screen without explicit authorisation from Thomas. If in doubt — ask first. |
+| DRIFT 7 | Read the original spec before touching any form structure. Never infer the structure from memory. |
 
 ---
 
-## Immediate Next Build — 3.2.11B
+## Deferred Items
 
-**Repo:** `twhisker65/PreferredHome-mobile`
-**Files:** `app/(tabs)/add.tsx`, `app/edit.tsx`, `lib/listingsNormalize.ts`, `components/ViewPanel.tsx`
-**Scope:** Update mobile forms, normalization, and view panel to support all new and changed fields from 3.2.11A.
-**Also resolves:** ISSUE 1 — Edit page showing only Building Name.
-**Build brief:** `BUILD_3_2_11B_INSTRUCTIONS.pdf`
+| Item | Target |
+|---|---|
+| `components/ViewPanel.tsx` — display all new fields | To be scheduled |
+| `app/(tabs)/compare.tsx` — display new fields | To be scheduled |
+| ISSUE 2 — `totalMonthly` fee omission | Build 3.2.13 |
+| Add/Edit unification | Build 3.2.16 |
 
 ---
 
@@ -66,29 +92,26 @@
 
 | Build | Scope |
 |---|---|
-| 3.2.11B | Mobile forms and display update for all new fields. Resolves ISSUE 1. |
-| 3.2.12 | Field visibility rules — property type drives which fields show on all screens. |
-| 3.2.13 | Auto-calculations — Total Monthly + Total One-Time Upfront. API `totalMonthly` fix (ISSUE 2). |
-| 3.2.14 | ZIP to City/State auto-fill + Listing Site auto-detect from URL pattern match. |
-| 3.2.15 | Commute Calculation + Walk / Transit / Bike Scores. |
-| 3.2.16 | Add/Edit Unification + efficiency cleanup. |
-| 3.2.17 | Canonical Data Model. |
-| 3.2.18 | UI Polish. |
-| 3.2.19 | APK — Android local testing. |
-| 5.0+ | Notifications, Photos, Criteria Scoring, Login/Sync, URL Import, Import/Export, Themes, Help Center, User-Defined Lists, Buying Mode, Map View. |
+| 3.2.12 | Field visibility rules — property type drives which fields show |
+| 3.2.13 | totalMonthly permanent fix (ISSUE 2) |
+| 3.2.14 | Tap-to-contact links |
+| 3.2.15 | Pet fee and auto-calculations |
+| 3.2.16 | Add/Edit unification |
+| 3.2.17 | UI polish |
+| ViewPanel + Compare new fields | To be slotted into roadmap — discuss at next session |
 
 ---
 
-## Session Start Protocol (Mandatory)
+## Key Conventions — Standing Rules
 
-1. Read `PreferredHome_Dev_Control_Protocols.md` in full.
-2. Read `PreferredHome_Drift_Log.md` in full. State which past drift is most likely to recur and how it will be avoided.
-3. Acknowledge repo state — confirm GitHub sync has been performed.
-4. Read this Assistant Briefing and Next Steps.
-5. Restate Thomas's request precisely.
-6. Ask clarifying questions.
-7. Summarise all tasks.
-8. Perform Code-Start Gate — read all in-scope files, state working vs missing, produce Begin Build Brief with Do Not Touch list, produce Pre-Test Declaration, wait for confirmation.
-9. Produce Session Confirmation Checklist widget — wait for Thomas to complete it.
-10. Analyse both repos for compatibility.
-11. Declare readiness. DO NOT write any code until Thomas explicitly says go ahead.
+| Rule | Detail |
+|---|---|
+| Boolean serialization | Always `"TRUE"` / `"FALSE"` all-caps strings in every file that sends a payload |
+| Build numbering | Two-digit format e.g. 3.2.11B. Hotfixes use a fourth digit e.g. 3.2.11B.1 |
+| ZIP naming | `PreferredHome_Build_X_X_XX.zip` |
+| README naming | `README_X.X.XX.txt` — versioned, accumulates in repo |
+| Closing docs | Fixed filename, overwrite each build: `PreferredHome_Next_Steps.md`, `PreferredHome_Assistant_Briefing.md` |
+| Closing doc timing | Produced only after Thomas confirms build stability. Never before. |
+| Delivery | Always a ZIP with correct folder structure. No individual files. No patch instructions. |
+| Commit message | Copyable code block in chat AND in README |
+| Expo restart | Copyable code block in chat AND in README |

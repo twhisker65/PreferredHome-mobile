@@ -1,11 +1,11 @@
 # PreferredHome — Next Steps
-**Build 3.2.11A | March 2026**
+**Build 3.2.11B | March 2026**
 
 ---
 
-## Build 3.2.11A — Confirmed Stable
+## Build 3.2.11B — Confirmed Stable
 
-Build 3.2.11A is confirmed stable. All test steps passed.
+Build 3.2.11B is confirmed stable. All test steps passed.
 
 ---
 
@@ -13,52 +13,54 @@ Build 3.2.11A is confirmed stable. All test steps passed.
 
 | Step | Result |
 |---|---|
-| `/health` endpoint returns healthy response | PASS |
-| `/listings` endpoint returns all listings with new fields present | PASS |
-| Existing listings display correctly on Listings screen | PASS |
-| View panel opens without error | PASS |
-| No data loss on existing listings | PASS |
-| `modal.tsx` deleted — bundler error cleared | PASS |
+| Add screen — Property Type at position 2 | PASS |
+| Add screen — Number of Floors after Floor Number | PASS |
+| Add screen — Short Term Available and Renters Insurance Required toggles | PASS |
+| Add screen — COSTS section shows MONTHLY and UPFRONT sub-labels | PASS |
+| Add screen — Parking Fee gated by Car toggle | PASS |
+| Add screen — Pet Fee gated by Pets toggle | PASS |
+| Add screen — Storage Rent, Broker Fee, Move-in Fee present | PASS |
+| Add screen — Features section order correct | PASS |
+| Add screen — Save with new fields filled in, no errors | PASS |
+| Edit screen — all fields load correctly (ISSUE 1 resolved) | PASS |
+| Edit screen — Property Type, Cooling Type, all new fields populate | PASS |
+| Edit screen — Save changes, no errors | PASS |
+| Listings screen — propertyType shown in unit summary | PASS |
+| Listings screen — petFee and storageRent included in fee total | PASS |
 
 ---
 
-## What Was Delivered — Build 3.2.11A
+## What Was Delivered — Build 3.2.11B
 
 | File | Change |
 |---|---|
-| `preferredhome_api/core/config_constants.py` | Full data model update — see below |
-| `preferredhome_api/utils/helpers.py` | Import fix: `AC_TYPE_OPTIONS` → `COOLING_TYPE_OPTIONS` |
-
-**config_constants.py changes:**
-- `unitType` renamed to `propertyType` throughout
-- `acType` renamed to `coolingType` throughout
-- 11 new fields added to `LISTINGS_COLUMNS`: `numberOfFloors`, `heatingType`, `shortTermAvailable`, `rentersInsuranceRequired`, `petFee`, `storageRent`, `brokerFee`, `moveInFee`, `privateOutdoorSpaceTypes`, `storageTypes`, `roomTypes`
-- `BOOLEAN_FIELDS`: added `shortTermAvailable`, `rentersInsuranceRequired`
-- `NUMERIC_FIELDS`: added `numberOfFloors`, `petFee`, `storageRent`, `brokerFee`, `moveInFee`
-- `DROPDOWN_FIELDS`: updated to `propertyType`, `coolingType`, `heatingType`, `numberOfFloors`
-- `CATEGORY_FIELDS`: added `privateOutdoorSpaceTypes`, `storageTypes`, `roomTypes`
-- `CATEGORY_DEFINITIONS`: full replacement with expanded option lists
-- `CARD_FIELDS`: `unitType` → `propertyType`
-- `BASELINE_COMPARED_FIELDS`: `acType` → `coolingType`
-- New constants: `PROPERTY_TYPE_OPTIONS`, `COOLING_TYPE_OPTIONS`, `HEATING_TYPE_OPTIONS`, `NUMBER_OF_FLOORS_OPTIONS`
-- `PARKING_OPTIONS`: updated to 10-value list
+| `app/(tabs)/add.tsx` | New fields, renamed fields, updated option arrays, COSTS Monthly/Upfront grouping, FEATURES restructure |
+| `app/edit.tsx` | Same as add.tsx plus rawToDraft parsing for all new fields. ISSUE 1 resolved. |
+| `lib/listingsNormalize.ts` | `unitType` → `propertyType`, `petFee` and `storageRent` added to fees total |
 
 ---
 
-## Immediate Next Step — Build 3.2.11B
+## Issues Resolved This Build
 
-Build 3.2.11B is the mobile forms and display update. It must be started in a new session.
+| Issue | Resolution |
+|---|---|
+| ISSUE 1 — Edit page showed only Building Name | Fixed. `rawToDraft()` now correctly reads `propertyType`, `coolingType`, and all 11 new fields from the raw API response. |
 
-**Repo:** `twhisker65/PreferredHome-mobile`
-**Files in scope:** `app/(tabs)/add.tsx`, `app/edit.tsx`, `lib/listingsNormalize.ts`, `components/ViewPanel.tsx`
-**Build brief PDF:** `BUILD_3_2_11B_INSTRUCTIONS.pdf` — bring this to the next session.
+---
 
-**Before starting Part B session:**
-1. Commit `modal.tsx` deletion to the mobile repo in GitHub Desktop
-2. Push mobile repo to GitHub
-3. Commit both changed API files to the API repo (if not already done)
-4. Push API repo to GitHub
-5. Sync the Claude Project
+## Deferred Items — Carry Forward
+
+| Item | Target Build |
+|---|---|
+| `components/ViewPanel.tsx` — display new fields | To be scheduled |
+| `app/(tabs)/compare.tsx` — display new fields | To be scheduled |
+| ISSUE 2 — API `totalMonthly` omits fees for some listings | Build 3.2.13 |
+
+---
+
+## Immediate Next Step
+
+Decide where ViewPanel and Compare fit in the roadmap relative to the remaining scheduled builds (3.2.12 through 3.2.17). Options to discuss at next session start.
 
 ---
 
