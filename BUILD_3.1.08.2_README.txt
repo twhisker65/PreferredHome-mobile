@@ -1,7 +1,0 @@
-Build 3.1.08.2 HOTFIX
-
-Fix:
-- app/(tabs)/add.tsx: remove undefined reference effectiveKeyboardType in Field component; use keyboardType prop directly.
-
-Result:
-- Add screen no longer throws 'Property effectiveKeyboardType doesn't exist' render error.

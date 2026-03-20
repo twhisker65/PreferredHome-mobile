@@ -1,3 +1,0 @@
-Build 3.1.08.1 HOTFIX
-- Fix syntax error in app/(tabs)/add.tsx: broken JSX closing tag for Modal (</Modal).
-- Restores bundling / app load.
