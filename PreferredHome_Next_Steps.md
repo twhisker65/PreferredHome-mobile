@@ -1,61 +1,70 @@
 # PreferredHome — Next Steps
-**Build 3.2.10 | March 2026**
-
-Build 3.2.10 + Hotfix 3.2.10.1 is complete and stable. All project documents have been converted to `.md` format and are ready for the repo root.
+**Build 3.2.11A | March 2026**
 
 ---
 
-## Step 1 — Drop Updated Documents Into Repo Root
+## Build 3.2.11A — Confirmed Stable
 
-Copy all files below into the repo root. They overwrite the previous versions.
+Build 3.2.11A is confirmed stable. All test steps passed.
 
-| File | Replaces |
+---
+
+## Test Checklist — Completed
+
+| Step | Result |
 |---|---|
-| `PreferredHome_Dev_Control_Protocols.md` | Previous PDF (V15) |
-| `PreferredHome_Drift_Log.md` | Previous PDF |
-| `PreferredHome_Roadmap.md` | Previous PDF (V6) |
-| `PreferredHome_Data_Architecture.md` | Previous PDF (V5) |
-| `PreferredHome_Assistant_Briefing.md` | Previous PDF |
-| `PreferredHome_Next_Steps.md` | Previous PDF |
-| `PreferredHome_Project_Architecture.md` | Previous PDF (V6) |
-| `PreferredHome_Project_Strategy.md` | Previous PDF (V3) |
-
-Remove the old `.pdf` versions of these files from the repo root once the `.md` files are in place.
+| `/health` endpoint returns healthy response | PASS |
+| `/listings` endpoint returns all listings with new fields present | PASS |
+| Existing listings display correctly on Listings screen | PASS |
+| View panel opens without error | PASS |
+| No data loss on existing listings | PASS |
+| `modal.tsx` deleted — bundler error cleared | PASS |
 
 ---
 
-## Step 2 — Commit in GitHub Desktop
+## What Was Delivered — Build 3.2.11A
 
-```
-Convert all governing documents from PDF to MD format for reliable project knowledge indexing
-```
-
-Push to GitHub (Push origin).
-
----
-
-## Step 3 — Sync the Claude Project
-
-In the Claude Project, sync the GitHub connection. From this point forward, Claude reads all governing documents automatically from the repo — no uploads needed. Bring only build instructions and any images to each session.
-
----
-
-## Step 4 — Start Build 3.2.11
-
-Open a new chat session. Bring only the build instructions for 3.2.11.
-
----
-
-## Up Next — Build 3.2.11
-
-| Build | Scope |
+| File | Change |
 |---|---|
-| 3.2.11 | All new data fields — pet fee, property type, garage, yard, basement, floors. Also resolves ISSUE 1 (Edit page shows only Building Name). |
-| 3.2.12 | Field visibility rules — property type drives which fields show on all screens. |
-| 3.2.13 | Auto-calculations — Total Monthly + Total One-Time Upfront. API totalMonthly fix. |
-| 3.2.14 | ZIP to City/State auto-fill + Listing Site auto-detect from URL. |
-| 3.2.15 | Commute Calculation + Walk / Transit / Bike Scores. |
-| 3.2.16 | Add/Edit Unification + efficiency cleanup. |
-| 3.2.17 | Canonical Data Model. |
-| 3.2.18 | UI Polish. |
-| 3.2.19 | APK — Android local testing. |
+| `preferredhome_api/core/config_constants.py` | Full data model update — see below |
+| `preferredhome_api/utils/helpers.py` | Import fix: `AC_TYPE_OPTIONS` → `COOLING_TYPE_OPTIONS` |
+
+**config_constants.py changes:**
+- `unitType` renamed to `propertyType` throughout
+- `acType` renamed to `coolingType` throughout
+- 11 new fields added to `LISTINGS_COLUMNS`: `numberOfFloors`, `heatingType`, `shortTermAvailable`, `rentersInsuranceRequired`, `petFee`, `storageRent`, `brokerFee`, `moveInFee`, `privateOutdoorSpaceTypes`, `storageTypes`, `roomTypes`
+- `BOOLEAN_FIELDS`: added `shortTermAvailable`, `rentersInsuranceRequired`
+- `NUMERIC_FIELDS`: added `numberOfFloors`, `petFee`, `storageRent`, `brokerFee`, `moveInFee`
+- `DROPDOWN_FIELDS`: updated to `propertyType`, `coolingType`, `heatingType`, `numberOfFloors`
+- `CATEGORY_FIELDS`: added `privateOutdoorSpaceTypes`, `storageTypes`, `roomTypes`
+- `CATEGORY_DEFINITIONS`: full replacement with expanded option lists
+- `CARD_FIELDS`: `unitType` → `propertyType`
+- `BASELINE_COMPARED_FIELDS`: `acType` → `coolingType`
+- New constants: `PROPERTY_TYPE_OPTIONS`, `COOLING_TYPE_OPTIONS`, `HEATING_TYPE_OPTIONS`, `NUMBER_OF_FLOORS_OPTIONS`
+- `PARKING_OPTIONS`: updated to 10-value list
+
+---
+
+## Immediate Next Step — Build 3.2.11B
+
+Build 3.2.11B is the mobile forms and display update. It must be started in a new session.
+
+**Repo:** `twhisker65/PreferredHome-mobile`
+**Files in scope:** `app/(tabs)/add.tsx`, `app/edit.tsx`, `lib/listingsNormalize.ts`, `components/ViewPanel.tsx`
+**Build brief PDF:** `BUILD_3_2_11B_INSTRUCTIONS.pdf` — bring this to the next session.
+
+**Before starting Part B session:**
+1. Commit `modal.tsx` deletion to the mobile repo in GitHub Desktop
+2. Push mobile repo to GitHub
+3. Commit both changed API files to the API repo (if not already done)
+4. Push API repo to GitHub
+5. Sync the Claude Project
+
+---
+
+## Session Close Steps
+
+1. Drop `PreferredHome_Next_Steps.md` and `PreferredHome_Assistant_Briefing.md` into the repo root (overwrite previous versions)
+2. Commit in GitHub Desktop
+3. Push to GitHub
+4. Sync the Claude Project

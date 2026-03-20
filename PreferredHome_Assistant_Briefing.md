@@ -1,5 +1,5 @@
 # PreferredHome — Assistant Briefing
-**Build 3.2.10 | March 2026**
+**Build 3.2.11A | March 2026**
 
 ---
 
@@ -23,18 +23,21 @@
 
 | Item | Status |
 |---|---|
-| Stable baseline | Build 3.2.10 + Hotfix 3.2.10.1 — confirmed stable. |
-| ISSUE 1 (carried fwd) | Edit page shows only Building Name. Root cause: edit.tsx passes ListingUI to rawToDraft() instead of raw API response. Target: 3.2.11. |
-| ISSUE 2 (carried fwd) | API totalMonthly omits fees for some listings. Workaround: compare.tsx uses local baseRent + fees. Permanent fix: Build 3.2.13. |
+| Stable baseline | Build 3.2.11A — confirmed stable. |
+| ISSUE 1 (carried fwd) | Edit page shows only Building Name. Root cause: `edit.tsx` passes `ListingUI` to `rawToDraft()` instead of raw API response. **Target: 3.2.11B.** |
+| ISSUE 2 (carried fwd) | API `totalMonthly` omits fees for some listings. Workaround: `compare.tsx` uses local `baseRent + fees`. Permanent fix: Build 3.2.13. |
+| `modal.tsx` | Deleted from mobile repo. Was a leftover Expo template stub — never used in PreferredHome. |
 
 ---
 
-## Build 3.2.10 Session Summary
+## Build 3.2.11A Session Summary
 
-| Build | Change |
+| File | Change |
 |---|---|
-| 3.2.10 | Tap-to-contact links — phone opens dialer, email opens mail app, address opens Maps, URL opens browser. ViewPanel only. |
-| 3.2.10.1 HOTFIX | Maps link corrected to use street/city/state/zip only — unit number excluded from Maps query. |
+| `preferredhome_api/core/config_constants.py` | Full data model update — 11 new fields, `unitType` → `propertyType`, `acType` → `coolingType`, expanded option lists |
+| `preferredhome_api/utils/helpers.py` | Surgical import fix — `AC_TYPE_OPTIONS` → `COOLING_TYPE_OPTIONS`; matching field name update in `get_comparison_color()` |
+
+**Google Sheet:** All 11 new columns confirmed present in the `listings` tab before the build. Column order matches `LISTINGS_COLUMNS` exactly.
 
 ---
 
@@ -43,9 +46,19 @@
 | ID | Warning |
 |---|---|
 | DRIFT 1 | No Unit section — unit fields appear at end of PROPERTY section only. |
-| DRIFT 5 | Apply boolStr() to every file that sends a payload to the API. |
+| DRIFT 5 | Apply `boolStr()` to every file that sends a payload to the API. |
 | DRIFT 6 | No structural changes to any screen without explicit authorisation. |
 | DRIFT 7 | Read the original spec before touching any form structure. |
+
+---
+
+## Immediate Next Build — 3.2.11B
+
+**Repo:** `twhisker65/PreferredHome-mobile`
+**Files:** `app/(tabs)/add.tsx`, `app/edit.tsx`, `lib/listingsNormalize.ts`, `components/ViewPanel.tsx`
+**Scope:** Update mobile forms, normalization, and view panel to support all new and changed fields from 3.2.11A.
+**Also resolves:** ISSUE 1 — Edit page showing only Building Name.
+**Build brief:** `BUILD_3_2_11B_INSTRUCTIONS.pdf`
 
 ---
 
@@ -53,9 +66,9 @@
 
 | Build | Scope |
 |---|---|
-| 3.2.11 | All new data fields — pet fee, property type, garage, yard, basement, floors. Also resolves ISSUE 1. |
+| 3.2.11B | Mobile forms and display update for all new fields. Resolves ISSUE 1. |
 | 3.2.12 | Field visibility rules — property type drives which fields show on all screens. |
-| 3.2.13 | Auto-calculations — Total Monthly + Total One-Time Upfront. API totalMonthly fix (ISSUE 2). |
+| 3.2.13 | Auto-calculations — Total Monthly + Total One-Time Upfront. API `totalMonthly` fix (ISSUE 2). |
 | 3.2.14 | ZIP to City/State auto-fill + Listing Site auto-detect from URL pattern match. |
 | 3.2.15 | Commute Calculation + Walk / Transit / Bike Scores. |
 | 3.2.16 | Add/Edit Unification + efficiency cleanup. |
@@ -75,7 +88,7 @@
 5. Restate Thomas's request precisely.
 6. Ask clarifying questions.
 7. Summarise all tasks.
-8. Perform Code-Start Gate — read in-scope files, state working vs missing, produce Begin Build Brief with Do Not Touch list, produce Pre-Test Declaration, wait for confirmation.
+8. Perform Code-Start Gate — read all in-scope files, state working vs missing, produce Begin Build Brief with Do Not Touch list, produce Pre-Test Declaration, wait for confirmation.
 9. Produce Session Confirmation Checklist widget — wait for Thomas to complete it.
 10. Analyse both repos for compatibility.
 11. Declare readiness. DO NOT write any code until Thomas explicitly says go ahead.
