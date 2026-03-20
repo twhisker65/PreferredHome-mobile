@@ -1,3 +1,8 @@
+// lib/listingsNormalize.ts — Build 3.2.11B
+// Changes from 3.2.09:
+// - unitType renamed to propertyType throughout.
+// - petFee and storageRent added to fees total.
+
 import type { ListingStatus, ListingUI } from "./types";
 
 function str(v: any): string {
@@ -43,8 +48,8 @@ export function normalizeListing(raw: any): ListingUI {
   if (unit) addressParts.push(unit);
   const addressLine = addressParts.length ? addressParts.join(", ") : "—";
 
-  // --- Unit details ---
-  const unitType = str(raw.unitType) || "Unit";
+  // --- Property details ---
+  const propertyType = str(raw.propertyType) || "Unit";
   const beds = num(raw.bedrooms);
   const baths = num(raw.bathrooms);
   const sqft = num(raw.squareFootage);
@@ -52,7 +57,7 @@ export function normalizeListing(raw: any): ListingUI {
   const bdText = beds !== null ? `${beds} bd` : "— bd";
   const baText = baths !== null ? `${baths} ba` : "— ba";
   const sqftText = sqft !== null ? `${sqft} sqft` : "— sqft";
-  const unitSummary = [unitType, bdText, baText, sqftText].join(" · ");
+  const unitSummary = [propertyType, bdText, baText, sqftText].join(" · ");
 
   // --- Costs ---
   const baseRent = num(raw.baseRent);
@@ -61,8 +66,10 @@ export function normalizeListing(raw: any): ListingUI {
   const adminFee = num(raw.adminFee) ?? 0;
   const utilityFee = num(raw.utilityFee) ?? 0;
   const otherFee = num(raw.otherFee) ?? 0;
+  const petFee = num(raw.petFee) ?? 0;
+  const storageRent = num(raw.storageRent) ?? 0;
 
-  const fees = parkingFee + amenityFee + adminFee + utilityFee + otherFee;
+  const fees = parkingFee + amenityFee + adminFee + utilityFee + otherFee + petFee + storageRent;
   const hasFees = fees > 0;
 
   const priceSummary =

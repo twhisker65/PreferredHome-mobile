@@ -1,13 +1,24 @@
-// app/(tabs)/add.tsx — Build 3.2.09
-// Changes from 3.2.06:
-// - Import useCallback + useFocusEffect.
-// - Import loadProfileToggles + ProfileToggles from profileStorage.
-// - Added toggles state. Loaded via useFocusEffect on every screen focus.
-// - Schools Section gated by toggles.children.
-// - Pet Amenities MultiRow gated by toggles.pets.
-// - Parking Type SelectRow gated by toggles.car.
-// - Parking Fee Field gated by toggles.car.
-// All form logic, save logic, ZIP auto-fill, and picker logic unchanged.
+// app/(tabs)/add.tsx — Build 3.2.11B
+// Changes from 3.2.09:
+// - unitType renamed to propertyType throughout. Default changed to "Apartment".
+// - acType renamed to coolingType throughout.
+// - 11 new fields added: numberOfFloors, heatingType, shortTermAvailable,
+//   rentersInsuranceRequired, petFee, storageRent, brokerFee, moveInFee,
+//   privateOutdoorSpaceTypes, storageTypes, roomTypes.
+// - Option arrays updated: PROPERTY_TYPES, COOLING_TYPES, HEATING_TYPES,
+//   PARKING, UNIT_FEATURES, BUILDING_AMENITIES, PRIVATE_OUTDOOR_SPACE,
+//   STORAGE_TYPES, ROOM_TYPES, UTILITIES, CLOSE_BY.
+// - PROPERTY section: propertyType moved to position 2; numberOfFloors added
+//   after floorNumber; shortTermAvailable and rentersInsuranceRequired added
+//   after furnished; floorNumber/bedrooms/bathrooms/squareFootage changed to
+//   decimal-pad.
+// - COSTS section: visual Monthly / Upfront sub-labels added; petFee (pets
+//   gated), storageRent, brokerFee, moveInFee added.
+// - FEATURES section: coolingType replaces acType; heatingType, roomTypes,
+//   privateOutdoorSpaceTypes, storageTypes added; laundry and parkingType
+//   moved up per new section order.
+// - handleSave payload updated with all new and renamed fields.
+// All toggle gating, ZIP auto-fill, picker logic, and sub-components unchanged.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -48,29 +59,40 @@ type Draft = {
   neighborhood: string;
   unitNumber: string;
   floorNumber: string;
+  numberOfFloors: string;
   bedrooms: string;
   bathrooms: string;
   squareFootage: string;
   topFloor: boolean;
   cornerUnit: boolean;
-  unitType: string;
+  propertyType: string;
   furnished: boolean;
+  shortTermAvailable: boolean;
+  rentersInsuranceRequired: boolean;
   baseRent: string;
   amenityFee: string;
   adminFee: string;
   utilityFee: string;
   parkingFee: string;
   otherFee: string;
+  petFee: string;
+  storageRent: string;
   securityDeposit: string;
   applicationFee: string;
+  brokerFee: string;
+  moveInFee: string;
   utilitiesIncluded: string[];
   unitFeatures: string[];
   buildingAmenities: string[];
   petAmenities: string[];
   closeBy: string[];
-  acType: string;
+  coolingType: string;
+  heatingType: string;
   laundry: string;
   parkingType: string;
+  roomTypes: string[];
+  privateOutdoorSpaceTypes: string[];
+  storageTypes: string[];
   commuteTime: string;
   walkScore: string;
   transitScore: string;
@@ -116,29 +138,40 @@ const BLANK_DRAFT: Draft = {
   neighborhood: "",
   unitNumber: "",
   floorNumber: "",
+  numberOfFloors: "",
   bedrooms: "",
   bathrooms: "",
   squareFootage: "",
   topFloor: false,
   cornerUnit: false,
-  unitType: "Rental",
+  propertyType: "Apartment",
   furnished: false,
+  shortTermAvailable: false,
+  rentersInsuranceRequired: false,
   baseRent: "",
   amenityFee: "",
   adminFee: "",
   utilityFee: "",
   parkingFee: "",
   otherFee: "",
+  petFee: "",
+  storageRent: "",
   securityDeposit: "",
   applicationFee: "",
+  brokerFee: "",
+  moveInFee: "",
   utilitiesIncluded: [],
   unitFeatures: [],
   buildingAmenities: [],
   petAmenities: [],
   closeBy: [],
-  acType: "None",
+  coolingType: "None",
+  heatingType: "None",
   laundry: "None",
   parkingType: "None",
+  roomTypes: [],
+  privateOutdoorSpaceTypes: [],
+  storageTypes: [],
   commuteTime: "",
   walkScore: "",
   transitScore: "",
@@ -174,15 +207,19 @@ const BLANK_DRAFT: Draft = {
 };
 
 const STATUS = ["New", "Contacted", "Scheduled", "Viewed", "Shortlisted", "Applied", "Approved", "Signed", "Rejected", "Archived"];
-const UNIT_TYPES = ["Rental", "Condo", "Co-op", "Townhouse", "House"];
-const AC_TYPES = ["None", "Central", "Window", "Split", "Other"];
+const PROPERTY_TYPES = ["Apartment", "Condo", "Co-op", "Townhouse", "House", "Other"];
+const COOLING_TYPES = ["Central Air", "Wall Unit", "Window Unit", "None"];
+const HEATING_TYPES = ["Forced Air", "Baseboard", "Radiant", "Steam", "Electric", "Natural Gas", "Oil", "Propane", "None"];
 const LAUNDRY = ["None", "In-Unit", "On Floor", "In Building"];
-const PARKING = ["None", "Covered", "Uncovered", "Street"];
-const UTILITIES = ["Gas", "Electric", "Internet", "Water", "Sewage", "Trash", "Parking"];
-const UNIT_FEATURES = ["Hardwood Floors", "Air Conditioning", "Dishwasher", "Microwave", "Balcony/Terrace"];
-const BUILDING_AMENITIES = ["Extra Storage", "Rooftop Space", "Common Lounge", "Barbecue Area", "Firepits", "Gym", "Pool"];
+const PARKING = ["Shared Garage", "Shared Lot", "Covered Space", "Attached Garage", "Detached Garage", "Driveway", "Carport", "Street", "None", "Other"];
+const UTILITIES = ["Electric", "Gas", "Heat", "Hot Water", "Water", "Sewer", "Trash", "Internet", "Cable", "Parking", "Lawn Care", "Snow Removal", "Pool Maintenance"];
+const UNIT_FEATURES = ["Hardwood Floors", "Dishwasher", "Microwave", "Fireplace", "Views", "Large Windows"];
+const BUILDING_AMENITIES = ["Rooftop Space", "Common Lounge", "Barbecue Area", "Firepits", "Gym", "Pool", "Doorman", "Elevator", "Game Room", "Theater Room", "Playground", "Tennis Court"];
 const PET_AMENITIES = ["Pet Washing", "Dog Park"];
-const CLOSE_BY = ["Subway", "Bus Stop", "Grocery Store", "Park", "Restaurants", "Pharmacy", "Coffee Shop", "Gym", "School"];
+const PRIVATE_OUTDOOR_SPACE = ["Balcony", "Patio", "Deck", "Porch", "Private Yard", "Fenced Yard", "Other"];
+const STORAGE_TYPES = ["Closet", "Walk-in Closet", "Basement", "Attic", "Garage", "Shed", "Locker", "Pantry", "Outdoor Storage", "Bike Storage", "Other"];
+const ROOM_TYPES = ["Living Room", "Dining Room", "Kitchen", "Eat-in Kitchen", "Foyer", "Den", "Family Room", "TV Room", "Office", "Library", "Sunroom", "Mudroom", "Laundry Room", "Finished Basement", "Bonus Room", "Playroom", "Other"];
+const CLOSE_BY = ["Subway", "Bus Stop", "Grocery Store", "Park", "Restaurants", "Pharmacy", "Coffee Shop", "Gym", "School", "Hospital", "Library", "Dog Park", "Farmer's Market", "Shopping Mall", "Highway Access"];
 
 const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1));
 const MINUTES = ["00", "15", "30", "45"];
@@ -357,9 +394,10 @@ export default function AddScreen() {
   }, [draft.zipCode]);
 
   const inputOrder = [
-    "buildingName", "streetAddress", "zipCode", "neighborhood", "unitNumber", "floorNumber",
-    "bedrooms", "bathrooms", "squareFootage",
-    "baseRent", "amenityFee", "adminFee", "utilityFee", "parkingFee", "otherFee", "securityDeposit", "applicationFee",
+    "buildingName", "streetAddress", "zipCode", "neighborhood", "unitNumber",
+    "floorNumber", "numberOfFloors", "bedrooms", "bathrooms", "squareFootage",
+    "baseRent", "utilityFee", "amenityFee", "parkingFee", "storageRent", "petFee",
+    "adminFee", "otherFee", "securityDeposit", "applicationFee", "brokerFee", "moveInFee",
     "commuteTime", "walkScore", "transitScore", "bikeScore",
     "elementarySchoolName", "elementaryGrades", "elementaryRating", "elementaryDistance",
     "middleSchoolName", "middleGrades", "middleRating", "middleDistance",
@@ -434,29 +472,40 @@ export default function AddScreen() {
         neighborhood: draft.neighborhood,
         unitNumber: draft.unitNumber,
         floorNumber: draft.floorNumber ? Number(draft.floorNumber) : null,
+        numberOfFloors: draft.numberOfFloors ? Number(draft.numberOfFloors) : null,
         bedrooms: draft.bedrooms ? Number(draft.bedrooms) : null,
         bathrooms: draft.bathrooms ? Number(draft.bathrooms) : null,
         squareFootage: draft.squareFootage ? Number(draft.squareFootage) : null,
         topFloor: boolStr(draft.topFloor),
         cornerUnit: boolStr(draft.cornerUnit),
-        unitType: draft.unitType,
+        propertyType: draft.propertyType,
         furnished: boolStr(draft.furnished),
+        shortTermAvailable: boolStr(draft.shortTermAvailable),
+        rentersInsuranceRequired: boolStr(draft.rentersInsuranceRequired),
         baseRent: draft.baseRent ? Number(draft.baseRent) : null,
         amenityFee: draft.amenityFee ? Number(draft.amenityFee) : null,
         adminFee: draft.adminFee ? Number(draft.adminFee) : null,
         utilityFee: draft.utilityFee ? Number(draft.utilityFee) : null,
         parkingFee: draft.parkingFee ? Number(draft.parkingFee) : null,
         otherFee: draft.otherFee ? Number(draft.otherFee) : null,
+        petFee: draft.petFee ? Number(draft.petFee) : null,
+        storageRent: draft.storageRent ? Number(draft.storageRent) : null,
         securityDeposit: draft.securityDeposit ? Number(draft.securityDeposit) : null,
         applicationFee: draft.applicationFee ? Number(draft.applicationFee) : null,
+        brokerFee: draft.brokerFee ? Number(draft.brokerFee) : null,
+        moveInFee: draft.moveInFee ? Number(draft.moveInFee) : null,
         utilitiesIncluded: draft.utilitiesIncluded.join(","),
         unitFeatures: draft.unitFeatures.join(","),
         buildingAmenities: draft.buildingAmenities.join(","),
         petAmenities: draft.petAmenities.join(","),
         closeBy: draft.closeBy.join(","),
-        acType: draft.acType,
+        coolingType: draft.coolingType,
+        heatingType: draft.heatingType,
         laundry: draft.laundry,
         parkingType: draft.parkingType,
+        roomTypes: draft.roomTypes.join(","),
+        privateOutdoorSpaceTypes: draft.privateOutdoorSpaceTypes.join(","),
+        storageTypes: draft.storageTypes.join(","),
         commuteTime: draft.commuteTime ? Number(draft.commuteTime) : null,
         walkScore: draft.walkScore ? Number(draft.walkScore) : null,
         transitScore: draft.transitScore ? Number(draft.transitScore) : null,
@@ -512,7 +561,7 @@ export default function AddScreen() {
           {/* ── PROPERTY ── */}
           <Section title="Property" open={open.property} onToggle={() => toggleSection("property")}>
             <SelectRow label="Status" value={draft.status} onPress={() => openSingle("Status", STATUS, draft.status, (v) => setDraft((d) => ({ ...d, status: v })))} />
-            <SelectRow label="Unit Type" value={draft.unitType} onPress={() => openSingle("Unit Type", UNIT_TYPES, draft.unitType, (v) => setDraft((d) => ({ ...d, unitType: v })))} />
+            <SelectRow label="Property Type" value={draft.propertyType} onPress={() => openSingle("Property Type", PROPERTY_TYPES, draft.propertyType, (v) => setDraft((d) => ({ ...d, propertyType: v })))} />
             <Toggle label="Preferred" value={draft.preferred} onValueChange={(v) => setDraft((d) => ({ ...d, preferred: v }))} />
             <Field label="Building Name" fieldKey="buildingName" inputRefs={inputRefs} onNext={focusNext} value={draft.buildingName} onChangeText={(t) => setDraft((d) => ({ ...d, buildingName: t }))} />
             <Field label="Street Address" fieldKey="streetAddress" inputRefs={inputRefs} onNext={focusNext} value={draft.streetAddress} onChangeText={(t) => setDraft((d) => ({ ...d, streetAddress: t }))} placeholder="Street only" />
@@ -525,43 +574,58 @@ export default function AddScreen() {
             ) : null}
             <Field label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={(t) => setDraft((d) => ({ ...d, neighborhood: t }))} />
             <Field label="Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={(t) => setDraft((d) => ({ ...d, unitNumber: t }))} />
-            <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="number-pad" />
-            <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bedrooms: t }))} keyboardType="number-pad" />
+            <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="decimal-pad" />
+            <Field label="Number of Floors" fieldKey="numberOfFloors" inputRefs={inputRefs} onNext={focusNext} value={draft.numberOfFloors} onChangeText={(t) => setDraft((d) => ({ ...d, numberOfFloors: t }))} keyboardType="decimal-pad" />
+            <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bedrooms: t }))} keyboardType="decimal-pad" />
             <Field label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bathrooms: t }))} keyboardType="decimal-pad" />
-            <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={(t) => setDraft((d) => ({ ...d, squareFootage: t }))} keyboardType="number-pad" />
+            <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={(t) => setDraft((d) => ({ ...d, squareFootage: t }))} keyboardType="decimal-pad" />
             <Toggle label="Top Floor" value={draft.topFloor} onValueChange={(v) => setDraft((d) => ({ ...d, topFloor: v }))} />
             <Toggle label="Corner Unit" value={draft.cornerUnit} onValueChange={(v) => setDraft((d) => ({ ...d, cornerUnit: v }))} />
             <Toggle label="Furnished" value={draft.furnished} onValueChange={(v) => setDraft((d) => ({ ...d, furnished: v }))} />
+            <Toggle label="Short Term Available" value={draft.shortTermAvailable} onValueChange={(v) => setDraft((d) => ({ ...d, shortTermAvailable: v }))} />
+            <Toggle label="Renters Insurance Required" value={draft.rentersInsuranceRequired} onValueChange={(v) => setDraft((d) => ({ ...d, rentersInsuranceRequired: v }))} />
           </Section>
 
           {/* ── COSTS ── */}
           <Section title="Costs" open={open.costs} onToggle={() => toggleSection("costs")}>
-            <Field label="Monthly Rent" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={(t) => setDraft((d) => ({ ...d, baseRent: t }))} keyboardType="number-pad" />
-            <Field label="Amenity Fee" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={(t) => setDraft((d) => ({ ...d, amenityFee: t }))} keyboardType="number-pad" />
-            <Field label="Admin Fee" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={(t) => setDraft((d) => ({ ...d, adminFee: t }))} keyboardType="number-pad" />
+            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginBottom: 2 }}>MONTHLY</Text>
+            <Field label="Base Rent" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={(t) => setDraft((d) => ({ ...d, baseRent: t }))} keyboardType="number-pad" />
             <Field label="Utility Fee" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={(t) => setDraft((d) => ({ ...d, utilityFee: t }))} keyboardType="number-pad" />
+            <Field label="Amenity Fee" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={(t) => setDraft((d) => ({ ...d, amenityFee: t }))} keyboardType="number-pad" />
             {toggles.car && (
               <Field label="Parking Fee" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={(t) => setDraft((d) => ({ ...d, parkingFee: t }))} keyboardType="number-pad" />
             )}
+            <Field label="Storage Rent" fieldKey="storageRent" inputRefs={inputRefs} onNext={focusNext} value={draft.storageRent} onChangeText={(t) => setDraft((d) => ({ ...d, storageRent: t }))} keyboardType="number-pad" />
+            {toggles.pets && (
+              <Field label="Pet Fee" fieldKey="petFee" inputRefs={inputRefs} onNext={focusNext} value={draft.petFee} onChangeText={(t) => setDraft((d) => ({ ...d, petFee: t }))} keyboardType="number-pad" />
+            )}
+            <Field label="Admin Fee" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={(t) => setDraft((d) => ({ ...d, adminFee: t }))} keyboardType="number-pad" />
             <Field label="Other Fee" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={(t) => setDraft((d) => ({ ...d, otherFee: t }))} keyboardType="number-pad" />
+            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 6, marginBottom: 2 }}>UPFRONT</Text>
             <Field label="Security Deposit" fieldKey="securityDeposit" inputRefs={inputRefs} onNext={focusNext} value={draft.securityDeposit} onChangeText={(t) => setDraft((d) => ({ ...d, securityDeposit: t }))} keyboardType="number-pad" />
             <Field label="Application Fee" fieldKey="applicationFee" inputRefs={inputRefs} onNext={focusNext} value={draft.applicationFee} onChangeText={(t) => setDraft((d) => ({ ...d, applicationFee: t }))} keyboardType="number-pad" />
+            <Field label="Broker Fee" fieldKey="brokerFee" inputRefs={inputRefs} onNext={focusNext} value={draft.brokerFee} onChangeText={(t) => setDraft((d) => ({ ...d, brokerFee: t }))} keyboardType="number-pad" />
+            <Field label="Move-in Fee" fieldKey="moveInFee" inputRefs={inputRefs} onNext={focusNext} value={draft.moveInFee} onChangeText={(t) => setDraft((d) => ({ ...d, moveInFee: t }))} keyboardType="number-pad" />
           </Section>
 
           {/* ── FEATURES ── */}
           <Section title="Features" open={open.features} onToggle={() => toggleSection("features")}>
             <MultiRow label="Utilities Included" values={draft.utilitiesIncluded} onPress={() => openMulti("Utilities Included", UTILITIES, draft.utilitiesIncluded, (v) => setDraft((d) => ({ ...d, utilitiesIncluded: v })))} />
             <MultiRow label="Unit Features" values={draft.unitFeatures} onPress={() => openMulti("Unit Features", UNIT_FEATURES, draft.unitFeatures, (v) => setDraft((d) => ({ ...d, unitFeatures: v })))} />
+            <SelectRow label="Cooling Type" value={draft.coolingType} onPress={() => openSingle("Cooling Type", COOLING_TYPES, draft.coolingType, (v) => setDraft((d) => ({ ...d, coolingType: v })))} />
+            <SelectRow label="Heating Type" value={draft.heatingType} onPress={() => openSingle("Heating Type", HEATING_TYPES, draft.heatingType, (v) => setDraft((d) => ({ ...d, heatingType: v })))} />
+            <SelectRow label="Laundry" value={draft.laundry} onPress={() => openSingle("Laundry", LAUNDRY, draft.laundry, (v) => setDraft((d) => ({ ...d, laundry: v })))} />
+            <MultiRow label="Rooms" values={draft.roomTypes} onPress={() => openMulti("Rooms", ROOM_TYPES, draft.roomTypes, (v) => setDraft((d) => ({ ...d, roomTypes: v })))} />
+            <MultiRow label="Private Outdoor Space" values={draft.privateOutdoorSpaceTypes} onPress={() => openMulti("Private Outdoor Space", PRIVATE_OUTDOOR_SPACE, draft.privateOutdoorSpaceTypes, (v) => setDraft((d) => ({ ...d, privateOutdoorSpaceTypes: v })))} />
+            <MultiRow label="Storage" values={draft.storageTypes} onPress={() => openMulti("Storage", STORAGE_TYPES, draft.storageTypes, (v) => setDraft((d) => ({ ...d, storageTypes: v })))} />
             <MultiRow label="Building Amenities" values={draft.buildingAmenities} onPress={() => openMulti("Building Amenities", BUILDING_AMENITIES, draft.buildingAmenities, (v) => setDraft((d) => ({ ...d, buildingAmenities: v })))} />
             {toggles.pets && (
               <MultiRow label="Pet Amenities" values={draft.petAmenities} onPress={() => openMulti("Pet Amenities", PET_AMENITIES, draft.petAmenities, (v) => setDraft((d) => ({ ...d, petAmenities: v })))} />
             )}
-            <MultiRow label="Close By" values={draft.closeBy} onPress={() => openMulti("Close By", CLOSE_BY, draft.closeBy, (v) => setDraft((d) => ({ ...d, closeBy: v })))} />
-            <SelectRow label="AC Type" value={draft.acType} onPress={() => openSingle("AC Type", AC_TYPES, draft.acType, (v) => setDraft((d) => ({ ...d, acType: v })))} />
-            <SelectRow label="Laundry" value={draft.laundry} onPress={() => openSingle("Laundry", LAUNDRY, draft.laundry, (v) => setDraft((d) => ({ ...d, laundry: v })))} />
             {toggles.car && (
               <SelectRow label="Parking Type" value={draft.parkingType} onPress={() => openSingle("Parking Type", PARKING, draft.parkingType, (v) => setDraft((d) => ({ ...d, parkingType: v })))} />
             )}
+            <MultiRow label="Close By" values={draft.closeBy} onPress={() => openMulti("Close By", CLOSE_BY, draft.closeBy, (v) => setDraft((d) => ({ ...d, closeBy: v })))} />
           </Section>
 
           {/* ── TRANSPORTATION ── */}
