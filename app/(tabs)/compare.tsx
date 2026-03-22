@@ -1,13 +1,11 @@
-// app/(tabs)/compare.tsx — Build 3.2.12.4
-// Changes from 3.2.12.1:
-// - Clear button restored to the right side of the mode-toggle row.
-//   Card/table icons remain centered. Tapping Clear deselects all listings.
-// - 7 rows added to CARD_ROWS (were already in TABLE_ROWS):
-//   Utilities Included, Unit Features, Rooms, Outdoor Space, Storage,
-//   Building Amenities, Close By — inserted in TABLE_ROWS order.
-// - LABEL_W increased from 100 to 120 to prevent label truncation in table view.
-// All other logic, layout constants, frozen panes, scroll sync, and row
-// definitions are unchanged.
+// app/(tabs)/compare.tsx — Build 3.2.12.4.1
+// Hotfix — three issues from 3.2.12.4 testing:
+// 1. LABEL_W increased from 120 to 150 — "Building Amenities" still truncated at 120.
+// 2. ProfilePanel onClose now reloads toggles — Pet Amenities and Parking were hidden
+//    even with toggles ON because profile panel close did not refresh toggle state.
+// 3. rowHeights converted from useRef to useState — label column heights were not
+//    updating to match multi-select data rows because ref changes do not trigger re-renders.
+// All other logic unchanged.
 
 import React, { useCallback, useRef, useState } from "react";
 import {
@@ -32,7 +30,7 @@ import { loadCriteriaData, loadProfileToggles, type CriteriaData, type ProfileTo
 import type { ListingUI } from "../../lib/types";
 
 // ── Layout constants ──────────────────────────────────────────────
-const LABEL_W    = 120;   // increased from 100 — prevents label truncation
+const LABEL_W    = 150;   // increased from 120 — fits "Building Amenities" without truncation
 const COL_W      = 118;
 const MIN_ROW_H  = 40;
 
@@ -443,7 +441,13 @@ export default function CompareTab() {
       )}
 
       {activeSubPanel === "profile" && (
-        <ProfilePanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+        <ProfilePanel
+          topOffset={topBarHeight}
+          onClose={() => {
+            setActiveSubPanel(null);
+            loadProfileToggles().then(setToggles);
+          }}
+        />
       )}
       {activeSubPanel === "criteria" && (
         <CriteriaPanel
@@ -464,7 +468,8 @@ export default function CompareTab() {
 // ── Table view ────────────────────────────────────────────────────
 
 function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; criteria: CriteriaData; toggles: ProfileToggles }) {
-  const rowHeights = useRef<Record<string, number>>({});
+  // useState (not useRef) so height changes trigger label column re-render
+  const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
   const labelScrollRef  = useRef<ScrollView>(null);
   const dataScrollRef   = useRef<ScrollView>(null);
   const syncingLabel    = useRef(false);
@@ -496,7 +501,7 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
               paddingHorizontal: 8,
               paddingVertical: 9,
               justifyContent: "center",
-              minHeight: rowHeights.current[row.key] ? rowHeights.current[row.key] : MIN_ROW_H,
+              minHeight: rowHeights[row.key] ?? MIN_ROW_H,
               borderBottomWidth: 1,
               borderBottomColor: colors.border,
               backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
@@ -551,16 +556,17 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
               key={row.key}
               style={{
                 flexDirection: "row",
-                minHeight: rowHeights.current[row.key] ?? MIN_ROW_H,
+                minHeight: rowHeights[row.key] ?? MIN_ROW_H,
                 borderBottomWidth: 1,
                 borderBottomColor: colors.border,
                 backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
               }}
               onLayout={(e) => {
                 const h = e.nativeEvent.layout.height;
-                if (h !== rowHeights.current[row.key]) {
-                  rowHeights.current[row.key] = h;
-                }
+                setRowHeights((prev) => {
+                  if (prev[row.key] === h) return prev;
+                  return { ...prev, [row.key]: h };
+                });
               }}
             >
               {listings.map((listing) => {
