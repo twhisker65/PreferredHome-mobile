@@ -1,16 +1,15 @@
-// components/ViewPanel.tsx — Build 3.2.12
-// Changes from 3.2.10:
-// - Property type show/hide: Unit #, Floor Number, Top Floor, Corner Unit hidden
-//   for House / Townhouse. Shown for Apartment, Condo, Co-op.
-// - raw.acType corrected to raw.coolingType throughout.
-// - petFee now gated behind toggles.pets (matches Add / Edit behaviour).
-// - New fields added to COSTS: storageRent, petFee, brokerFee, moveInFee.
-// - New fields added to PROPERTY display: floorNumber (apt/condo/coop only),
-//   numberOfFloors (all types).
-// - New fields added to FEATURES: heatingType, roomTypes,
-//   privateOutdoorSpaceTypes, storageTypes.
-// - LISTING section: shortTermAvailable and rentersInsuranceRequired added.
-// All tap-to-contact links, animation, toggle loading, and existing layout unchanged.
+// components/ViewPanel.tsx — Build 3.2.13
+// Changes from 3.2.12.1:
+// - COSTS section redesigned as 2-column layout: MONTHLY (left) | MOVE-IN (right).
+// - Monthly column: Base Rent + all fees listed individually + Total row.
+// - Move-In column: all upfront costs listed individually + Total row.
+// - Both "Total" rows appear on the same horizontal line.
+// - Values right-aligned within each column (label left, amount right).
+// - totalMonthly and totalUpfront calculated locally — no longer uses API totalMonthly field.
+// - New sub-component CostTwoCol added for the new layout.
+// - secDepNum, appFeeNum, totalStartup, totalMo variables removed (replaced by local calc).
+// All other sections (Features, Transportation, Schools, Listing, Timeline, Notes),
+// animation, toggle loading, and tap-to-contact links are unchanged.
 
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -146,6 +145,36 @@ function TwoCol({
   );
 }
 
+// CostTwoCol — label left, amount right-aligned within each half-column
+function CostTwoCol({
+  left,
+  right,
+}: {
+  left: [string, string];
+  right: [string, string];
+}) {
+  return (
+    <View style={{ flexDirection: "row", marginBottom: 3 }}>
+      <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingRight: 8 }}>
+        {left[0] ? (
+          <>
+            <Text style={styles.label}>{left[0]}</Text>
+            <Text style={styles.value}>{left[1] || "—"}</Text>
+          </>
+        ) : null}
+      </View>
+      <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingLeft: 8 }}>
+        {right[0] ? (
+          <>
+            <Text style={styles.label}>{right[0]}</Text>
+            <Text style={styles.value}>{right[1] || "—"}</Text>
+          </>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 function CommaField({ label, value }: { label: string; value: string }) {
   if (!value || value === "—") return null;
   return (
@@ -273,7 +302,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
   const propType = str(raw.propertyType);
   const isAptCondoCoop = ["Apartment", "Condo", "Co-op"].includes(propType);
 
-  // ── Field values — PROPERTY ──────────────────────────────────────
+  // ── PROPERTY ──────────────────────────────────────────────────────
   const buildingName = str(raw.buildingName) || listing.buildingName;
   const street    = str(raw.streetAddress);
   const city      = str(raw.city);
@@ -283,7 +312,6 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
   const floorNum  = str(raw.floorNumber);
   const numFloors = str(raw.numberOfFloors);
 
-  // Unit # only in address for apt/condo/coop
   const addressParts = [
     street,
     [city, stateVal, zip].filter(Boolean).join(", "),
@@ -298,22 +326,19 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
   const hood      = str(raw.neighborhood);
   const unitLine  = [propType, beds ? `${beds} bd` : null, baths ? `${baths} ba` : null, sqft ? `${sqft} sqft` : null, hood].filter(Boolean).join("  ·  ");
 
-  const isPreferred = listing.preferred;
-  const isTopFloor  = bool(raw.topFloor);
-  const isCorner    = bool(raw.cornerUnit);
-  const isFurnished = bool(raw.furnished);
-  const isShortTerm = bool(raw.shortTermAvailable);
+  const isPreferred  = listing.preferred;
+  const isTopFloor   = bool(raw.topFloor);
+  const isCorner     = bool(raw.cornerUnit);
+  const isFurnished  = bool(raw.furnished);
+  const isShortTerm  = bool(raw.shortTermAvailable);
   const isRentersIns = bool(raw.rentersInsuranceRequired);
 
-  // ── COSTS ──────────────────────────────────────────────────────
+  // ── COSTS — formatted display strings ─────────────────────────────
   const baseRent    = fmt$(raw.baseRent);
   const secDep      = fmt$(raw.securityDeposit);
   const amenity     = fmt$(raw.amenityFee);
   const appFee      = fmt$(raw.applicationFee);
   const adminFee    = fmt$(raw.adminFee);
-  const secDepNum   = num(raw.securityDeposit) ?? 0;
-  const appFeeNum   = num(raw.applicationFee) ?? 0;
-  const totalStartup = "$" + Math.round(secDepNum + appFeeNum).toLocaleString();
   const utilFee     = fmt$(raw.utilityFee);
   const parkFee     = fmt$(raw.parkingFee);
   const otherFee    = fmt$(raw.otherFee);
@@ -321,30 +346,48 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
   const petFeeAmt   = fmt$(raw.petFee);
   const brokerFee   = fmt$(raw.brokerFee);
   const moveInFee   = fmt$(raw.moveInFee);
-  const totalMo     = fmt$(raw.totalMonthly);
 
-  // ── FEATURES ───────────────────────────────────────────────────
-  const utilities    = fmtComma(raw.utilitiesIncluded);
-  const unitFeat     = fmtComma(raw.unitFeatures);
-  const bldgAmen     = fmtComma(raw.buildingAmenities);
-  const petAmen      = fmtComma(raw.petAmenities);
-  const closeBy      = fmtComma(raw.closeBy);
-  const coolingType  = str(raw.coolingType) || "—";
-  const heatingType  = str(raw.heatingType) || "—";
-  const laundry      = str(raw.laundry) || "—";
-  const parking      = str(raw.parkingType) || "—";
-  const roomTypes    = fmtComma(raw.roomTypes);
+  // ── COSTS — local auto-calculations ───────────────────────────────
+  const calcTotalMonthly = "$" + Math.round(
+    (num(raw.baseRent)        ?? 0) +
+    (num(raw.parkingFee)      ?? 0) +
+    (num(raw.amenityFee)      ?? 0) +
+    (num(raw.adminFee)        ?? 0) +
+    (num(raw.utilityFee)      ?? 0) +
+    (num(raw.storageRent)     ?? 0) +
+    (num(raw.petFee)          ?? 0) +
+    (num(raw.otherFee)        ?? 0)
+  ).toLocaleString();
+
+  const calcTotalUpfront = "$" + Math.round(
+    (num(raw.securityDeposit) ?? 0) +
+    (num(raw.applicationFee)  ?? 0) +
+    (num(raw.brokerFee)       ?? 0) +
+    (num(raw.moveInFee)       ?? 0)
+  ).toLocaleString();
+
+  // ── FEATURES ──────────────────────────────────────────────────────
+  const utilities      = fmtComma(raw.utilitiesIncluded);
+  const unitFeat       = fmtComma(raw.unitFeatures);
+  const bldgAmen       = fmtComma(raw.buildingAmenities);
+  const petAmen        = fmtComma(raw.petAmenities);
+  const closeBy        = fmtComma(raw.closeBy);
+  const coolingType    = str(raw.coolingType) || "—";
+  const heatingType    = str(raw.heatingType) || "—";
+  const laundry        = str(raw.laundry) || "—";
+  const parking        = str(raw.parkingType) || "—";
+  const roomTypes      = fmtComma(raw.roomTypes);
   const privateOutdoor = fmtComma(raw.privateOutdoorSpaceTypes);
-  const storageTypes = fmtComma(raw.storageTypes);
+  const storageTypes   = fmtComma(raw.storageTypes);
 
-  // ── TRANSPORTATION ─────────────────────────────────────────────
+  // ── TRANSPORTATION ─────────────────────────────────────────────────
   const commute      = str(raw.commuteTime);
   const walkScore    = fmtScore(raw.walkScore);
   const transitScore = fmtScore(raw.transitScore);
   const bikeScore    = fmtScore(raw.bikeScore);
   const hasScores    = walkScore !== null || transitScore !== null || bikeScore !== null;
 
-  // ── SCHOOLS ────────────────────────────────────────────────────
+  // ── SCHOOLS ────────────────────────────────────────────────────────
   const elemName   = str(raw.elementarySchoolName);
   const elemGrades = str(raw.elementaryGrades);
   const elemRating = num(raw.elementaryRating);
@@ -359,7 +402,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
   const highDist   = str(raw.highDistance);
   const hasSchools = !!(elemName || midName || highName);
 
-  // ── LISTING ────────────────────────────────────────────────────
+  // ── LISTING ────────────────────────────────────────────────────────
   const site          = str(raw.listingSite) || "—";
   const url           = str(raw.listingUrl);
   const contact       = str(raw.contactName) || "—";
@@ -369,36 +412,48 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
   const noBrdApproval = bool(raw.noBoardApproval);
   const noBrkFee      = bool(raw.noBrokerFee);
 
-  // ── TIMELINE ───────────────────────────────────────────────────
+  // ── TIMELINE ───────────────────────────────────────────────────────
   const dateAvail = fmtDate(raw.dateAvailable);
   const contacted = fmtDate(raw.contactedDate);
   const viewing   = str(raw.viewingAppointment)
-    ? fmtDate(str(raw.viewingAppointment).split("T")[0]) + (str(raw.viewingAppointment).split("T")[1] ? " · " + str(raw.viewingAppointment).split("T")[1] : "")
+    ? (() => {
+        const parts = str(raw.viewingAppointment).split("T");
+        const datePart = fmtDate(parts[0]);
+        const timePart = parts[1] ? parts[1].substring(0, 5) : "";
+        return timePart ? `${datePart} ${timePart}` : datePart;
+      })()
     : "—";
   const applied   = fmtDate(raw.appliedDate);
 
-  // ── NOTES ──────────────────────────────────────────────────────
+  // ── NOTES ──────────────────────────────────────────────────────────
   const pros = str(raw.pros);
   const cons = str(raw.cons);
 
   return (
     <>
-      {/* Dim overlay */}
-      {visible && (
-        <Pressable
-          style={StyleSheet.absoluteFillObject}
-          onPress={onClose}
-        />
-      )}
+      {/* Backdrop */}
+      <Pressable
+        onPress={onClose}
+        style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 40,
+        }}
+      />
 
+      {/* Panel */}
       <Animated.View
         style={[
           styles.panel,
           {
             top: topOffset,
+            bottom: 0,
             left: PANEL_LEFT,
             right: 0,
-            bottom: 0,
+            zIndex: 50,
             transform: [{ translateX }],
           },
         ]}
@@ -406,45 +461,37 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={onClose} style={styles.closeBtn}>
-            <Text style={{ color: colors.primaryBlue, fontSize: 15, fontWeight: "700" }}>✕</Text>
+            <Text style={{ color: colors.primaryBlue, fontSize: 22, lineHeight: 24 }}>‹</Text>
           </Pressable>
-          <Text style={styles.headerTitle} numberOfLines={1}>{buildingName}</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {buildingName}
+          </Text>
         </View>
 
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* ── ADDRESS ────────────────────────────────────────── */}
+        {/* Content */}
+        <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 40 }}>
+
+          {/* ── PROPERTY ─────────────────────────────────── */}
           {mapsAddress ? (
             <Pressable
-              onPress={() =>
-                Linking.openURL(
-                  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsAddress)}`
-                )
-              }
+              onPress={() => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(mapsAddress)}`)}
+              style={{ marginBottom: 3 }}
             >
-              <Text style={[styles.value, { marginBottom: 3, color: colors.primaryBlue }]}>
-                {fullAddress}
-              </Text>
+              <Text style={[styles.value, { color: colors.primaryBlue }]}>{fullAddress}</Text>
             </Pressable>
           ) : (
             <Text style={[styles.value, { marginBottom: 3 }]}>{fullAddress}</Text>
           )}
 
-          {!!unitLine && (
-            <Text style={[styles.value, { marginBottom: 3 }]}>{unitLine}</Text>
-          )}
+          <Text style={[styles.value, { color: colors.textSecondary, marginBottom: 4 }]}>
+            {unitLine}
+          </Text>
 
-          {/* Number of Floors — all types */}
-          {!!numFloors && (
-            <FieldRow label="Floors:" value={numFloors} />
-          )}
-
-          {/* Floor Number — apt/condo/coop only */}
           {isAptCondoCoop && !!floorNum && (
             <FieldRow label="Floor #:" value={floorNum} />
+          )}
+          {!!numFloors && (
+            <FieldRow label="# of Floors:" value={numFloors} />
           )}
 
           {/* Boolean badges */}
@@ -483,52 +530,42 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
 
           {/* ── COSTS ────────────────────────────────────────── */}
           <SectionHead title="Costs" />
-          <TwoCol
-            left={["Base Rent", baseRent]}
-            right={["Security Deposit", secDep]}
-          />
-          <TwoCol
-            left={["Amenity Fee", amenity]}
-            right={["Application Fee", appFee]}
-          />
-          <TwoCol
-            left={["Admin Fee", adminFee]}
-            right={["Total Startup", totalStartup, colors.primaryBlue]}
-          />
-          <TwoCol
-            left={["Utility Fee", utilFee]}
-            right={["Storage Rent", storageRent]}
-          />
+
+          {/* Column headers */}
+          <View style={{ flexDirection: "row", marginBottom: 6 }}>
+            <Text style={{ flex: 1, color: colors.textSecondary, fontSize: 10, fontWeight: "700", letterSpacing: 0.8 }}>
+              MONTHLY
+            </Text>
+            <Text style={{ flex: 1, color: colors.textSecondary, fontSize: 10, fontWeight: "700", letterSpacing: 0.8 }}>
+              MOVE-IN
+            </Text>
+          </View>
+
+          {/* Fee rows — left = Monthly fees, right = Move-In costs */}
+          <CostTwoCol left={["Base Rent", baseRent]}     right={["Security Deposit", secDep]} />
+          <CostTwoCol left={["Amenity Fee", amenity]}    right={["Application Fee", appFee]} />
+          <CostTwoCol left={["Admin Fee", adminFee]}     right={["Broker Fee", brokerFee]} />
+          <CostTwoCol left={["Utility Fee", utilFee]}    right={["Move-in Fee", moveInFee]} />
+          <CostTwoCol left={["Storage Rent", storageRent]} right={["", ""]} />
           {toggles.pets && (
-            <TwoCol
-              left={["Pet Fee", petFeeAmt]}
-              right={["", ""]}
-            />
+            <CostTwoCol left={["Pet Fee", petFeeAmt]} right={["", ""]} />
           )}
           {toggles.car && (
-            <TwoCol
-              left={["Parking Fee", parkFee]}
-              right={["", ""]}
-            />
+            <CostTwoCol left={["Parking Fee", parkFee]} right={["", ""]} />
           )}
-          <TwoCol
-            left={["Other Fee", otherFee]}
-            right={["", ""]}
-          />
-          <TwoCol
-            left={["Broker Fee", brokerFee]}
-            right={["Move-in Fee", moveInFee]}
-          />
+          <CostTwoCol left={["Other Fee", otherFee]}     right={["", ""]} />
 
-          {/* Total Monthly */}
+          {/* Total row — both on the same horizontal line */}
           <View style={{ height: 1, backgroundColor: colors.border, marginTop: 4, marginBottom: 6 }} />
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-            <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }}>
-              Total Monthly
-            </Text>
-            <Text style={{ color: colors.primaryBlue, fontSize: 13, fontWeight: "900" }}>
-              {totalMo}
-            </Text>
+          <View style={{ flexDirection: "row" }}>
+            <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingRight: 8 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }}>Total</Text>
+              <Text style={{ color: colors.primaryBlue, fontSize: 13, fontWeight: "900" }}>{calcTotalMonthly}</Text>
+            </View>
+            <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingLeft: 8 }}>
+              <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }}>Total</Text>
+              <Text style={{ color: colors.primaryBlue, fontSize: 13, fontWeight: "900" }}>{calcTotalUpfront}</Text>
+            </View>
           </View>
 
           {/* ── FEATURES ─────────────────────────────────────── */}
@@ -564,11 +601,9 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
             <Text style={[styles.value, { color: colors.textSecondary }]}>—</Text>
           ) : (
             <>
-              {!!commute && (
-                <FieldRow label="Commute:" value={`${commute} min`} />
-              )}
+              {!!commute && <FieldRow label="Commute:" value={`${commute} min`} />}
               {hasScores && (
-                <View style={{ flexDirection: "row", marginTop: 8, marginBottom: 4 }}>
+                <View style={{ flexDirection: "row", marginTop: 8 }}>
                   {walkScore !== null && <ScoreBadge score={walkScore} label="Walk" />}
                   {transitScore !== null && <ScoreBadge score={transitScore} label="Transit" />}
                   {bikeScore !== null && <ScoreBadge score={bikeScore} label="Bike" />}
@@ -582,15 +617,14 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
             <>
               <SectionHead title="Schools" />
               <SchoolRow rating={elemRating} name={elemName} grades={elemGrades} distance={elemDist} />
-              <SchoolRow rating={midRating} name={midName} grades={midGrades} distance={midDist} />
+              <SchoolRow rating={midRating}  name={midName}  grades={midGrades}  distance={midDist} />
               <SchoolRow rating={highRating} name={highName} grades={highGrades} distance={highDist} />
             </>
           )}
 
           {/* ── LISTING ───────────────────────────────────────── */}
           <SectionHead title="Listing" />
-          <FieldRow label="Site:" value={site} />
-
+          <FieldRow label="Source:" value={site} />
           {url ? (
             <Pressable
               onPress={() => Linking.openURL(url)}
@@ -602,9 +636,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
           ) : (
             <FieldRow label="URL:" value="—" />
           )}
-
           <FieldRow label="Contact:" value={contact} />
-
           {phone !== "—" ? (
             <Pressable
               onPress={() => Linking.openURL(`tel:${phone}`)}
@@ -616,7 +648,6 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
           ) : (
             <FieldRow label="Phone:" value={phone} />
           )}
-
           {email !== "—" ? (
             <Pressable
               onPress={() => Linking.openURL(`mailto:${email}`)}
@@ -628,9 +659,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
           ) : (
             <FieldRow label="Email:" value={email} />
           )}
-
           <FieldRow label="Lease:" value={lease} />
-
           <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 4, marginBottom: 4 }}>
             <BoolBadge label="No Board Approval" value={noBrdApproval} />
             <BoolBadge label="No Broker Fee" value={noBrkFee} />
@@ -675,6 +704,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
               )}
             </>
           )}
+
         </ScrollView>
       </Animated.View>
     </>

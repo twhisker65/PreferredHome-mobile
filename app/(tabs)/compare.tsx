@@ -1,11 +1,8 @@
-// app/(tabs)/compare.tsx — Build 3.2.12.4.1
-// Hotfix — three issues from 3.2.12.4 testing:
-// 1. LABEL_W increased from 120 to 150 — "Building Amenities" still truncated at 120.
-// 2. ProfilePanel onClose now reloads toggles — Pet Amenities and Parking were hidden
-//    even with toggles ON because profile panel close did not refresh toggle state.
-// 3. rowHeights converted from useRef to useState — label column heights were not
-//    updating to match multi-select data rows because ref changes do not trigger re-renders.
-// All other logic unchanged.
+// app/(tabs)/compare.tsx — Build 3.2.13
+// Change from 3.2.12.4.1:
+// - Removed petFee, storageRent, brokerFee, moveInFee rows from TABLE_ROWS and CARD_ROWS.
+//   Compare now shows only Base Rent and Total Rent — no individual fee rows.
+// All other logic, layout, and functionality unchanged.
 
 import React, { useCallback, useRef, useState } from "react";
 import {
@@ -30,7 +27,7 @@ import { loadCriteriaData, loadProfileToggles, type CriteriaData, type ProfileTo
 import type { ListingUI } from "../../lib/types";
 
 // ── Layout constants ──────────────────────────────────────────────
-const LABEL_W    = 150;   // increased from 120 — fits "Building Amenities" without truncation
+const LABEL_W    = 150;
 const COL_W      = 118;
 const MIN_ROW_H  = 40;
 
@@ -158,22 +155,6 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
     case "topFloor":        return bool(rawBool(raw.topFloor));
     case "cornerUnit":      return bool(rawBool(raw.cornerUnit));
     case "furnished":       return bool(rawBool(raw.furnished));
-    case "petFee": {
-      const v = rawNum(raw.petFee);
-      return plain(fmtCurrency(v));
-    }
-    case "storageRent": {
-      const v = rawNum(raw.storageRent);
-      return plain(fmtCurrency(v));
-    }
-    case "brokerFee": {
-      const v = rawNum(raw.brokerFee);
-      return plain(fmtCurrency(v));
-    }
-    case "moveInFee": {
-      const v = rawNum(raw.moveInFee);
-      return plain(fmtCurrency(v));
-    }
     case "coolingType": {
       const v = rawStr(raw.coolingType);
       return v ? pill(v, acColor(v)) : plain("—");
@@ -235,14 +216,11 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
 }
 
 // ── Row definitions ───────────────────────────────────────────────
+// Individual fee rows removed in Build 3.2.13 — only Base Rent and Total Rent remain.
 
 const TABLE_ROWS: Array<{ label: string; key: string }> = [
   { label: "Base Rent",            key: "baseRent" },
   { label: "Total Rent",           key: "totalMonthly" },
-  { label: "Pet Fee",              key: "petFee" },           // pets gated
-  { label: "Storage Rent",         key: "storageRent" },
-  { label: "Broker Fee",           key: "brokerFee" },
-  { label: "Move-in Fee",          key: "moveInFee" },
   { label: "Property Type",        key: "propertyType" },
   { label: "Unit #",               key: "unitNumber" },       // apt/condo/coop gated
   { label: "Floor Number",         key: "floorNumber" },      // apt/condo/coop gated
@@ -276,10 +254,6 @@ const TABLE_ROWS: Array<{ label: string; key: string }> = [
 const CARD_ROWS: Array<{ label: string; key: string }> = [
   { label: "Base Rent",            key: "baseRent" },
   { label: "Total Rent",           key: "totalMonthly" },
-  { label: "Pet Fee",              key: "petFee" },           // pets gated
-  { label: "Storage Rent",         key: "storageRent" },
-  { label: "Broker Fee",           key: "brokerFee" },
-  { label: "Move-in Fee",          key: "moveInFee" },
   { label: "Property Type",        key: "propertyType" },
   { label: "Unit #",               key: "unitNumber" },       // apt/condo/coop gated (per card)
   { label: "Floor Number",         key: "floorNumber" },      // apt/condo/coop gated (per card)
@@ -468,12 +442,11 @@ export default function CompareTab() {
 // ── Table view ────────────────────────────────────────────────────
 
 function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; criteria: CriteriaData; toggles: ProfileToggles }) {
-  // useState (not useRef) so height changes trigger label column re-render
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
-  const labelScrollRef  = useRef<ScrollView>(null);
-  const dataScrollRef   = useRef<ScrollView>(null);
-  const syncingLabel    = useRef(false);
-  const syncingData     = useRef(false);
+  const labelScrollRef = useRef<ScrollView>(null);
+  const dataScrollRef  = useRef<ScrollView>(null);
+  const syncingLabel   = useRef(false);
+  const syncingData    = useRef(false);
 
   // Table shows apt-only rows if at least one listing is apt/condo/coop
   const showAptFields = listings.some((l) =>
@@ -493,7 +466,7 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
       >
         {/* Header spacer */}
         <View style={{ height: 44, borderBottomWidth: 2, borderBottomColor: colors.border }} />
-        {visibleRows.map((row, idx) => (
+        {visibleRows.map((row) => (
           <View
             key={row.key}
             style={{
@@ -504,7 +477,6 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
               minHeight: rowHeights[row.key] ?? MIN_ROW_H,
               borderBottomWidth: 1,
               borderBottomColor: colors.border,
-              backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
             }}
           >
             <Text style={{ color: colors.textPrimary, fontSize: 11, fontWeight: "700" }}>
@@ -609,7 +581,6 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
 // ── Card view ─────────────────────────────────────────────────────
 
 function CompareCard({ listing, criteria, toggles }: { listing: ListingUI; criteria: CriteriaData; toggles: ProfileToggles }) {
-  // Cards filter apt-only rows per individual listing's property type
   const isAptCondoCoop = ["Apartment", "Condo", "Co-op"].includes(rawStr(listing.raw?.propertyType));
   const visibleRows = filterRows(CARD_ROWS, toggles, isAptCondoCoop);
 

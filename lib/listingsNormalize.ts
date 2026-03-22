@@ -1,7 +1,7 @@
-// lib/listingsNormalize.ts — Build 3.2.11B
-// Changes from 3.2.09:
-// - unitType renamed to propertyType throughout.
-// - petFee and storageRent added to fees total.
+// lib/listingsNormalize.ts — Build 3.2.13
+// Change from 3.2.11B:
+// - priceSummary now always shows fee amount even when fees = 0.
+//   e.g. "$2,500/mo +$0 fees" instead of "$2,500/mo".
 
 import type { ListingStatus, ListingUI } from "./types";
 
@@ -70,11 +70,11 @@ export function normalizeListing(raw: any): ListingUI {
   const storageRent = num(raw.storageRent) ?? 0;
 
   const fees = parkingFee + amenityFee + adminFee + utilityFee + otherFee + petFee + storageRent;
-  const hasFees = fees > 0;
 
+  // Always show fee amount — even when $0
   const priceSummary =
     baseRent !== null && Number.isFinite(baseRent)
-      ? `$${Math.round(baseRent).toLocaleString()}/mo${hasFees ? ` +$${Math.round(fees).toLocaleString()} fees` : ""}`
+      ? `$${Math.round(baseRent).toLocaleString()}/mo +$${Math.round(fees).toLocaleString()} fees`
       : "—";
 
   // --- Status / Preferred ---
