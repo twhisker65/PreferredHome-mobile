@@ -1,19 +1,53 @@
 # PreferredHome — Data Architecture
-**Version V5 | March 2026**
+**Version V6 | March 2026**
 
-Single source of truth for all fields, sections, types, and Google Sheet structure.
+Single source of truth for all fields, sections, types, visibility rules, and Google Sheet structure.
+
+---
+
+## Field Renames — Permanent Record
+
+| Old Name (code) | New Name (code) | Completed |
+|---|---|---|
+| `unitType` | `propertyType` | Build 3.2.11A |
+| `acType` | `coolingType` | Build 3.2.11A |
+
+---
+
+## Field Visibility Rules
+
+### Property Type — Listing-Level Toggle
+
+Property Type is field position 2 (after Status) on every listing. It controls field visibility per listing, unlike Lifestyle Toggles which apply globally across all listings.
+
+| Field | Apartment / Condo / Co-op | House / Townhouse |
+|---|---|---|
+| Apartment / Unit # | Show | Hide |
+| Floor Number | Show | Hide |
+| Top Floor | Show | Hide |
+| Corner Unit | Show | Hide |
+| Number of Floors | Show | Show |
+
+### Lifestyle Toggles — Profile-Level (Global, All Listings)
+
+Lifestyle Toggles are set once in the Profile panel and apply to every listing simultaneously.
+
+| Toggle | Fields Shown When ON |
+|---|---|
+| Children | Schools section (Add, Edit, ViewPanel, Compare) |
+| Pets | Pet Fee (Costs), Pet Amenities (Features) |
+| Car | Parking Fee (Costs), Parking Type (Features) |
 
 ---
 
 ## Section 1 — PROPERTY
 
-All fields in one PROPERTY collapsible section on Add and Edit screens. No sub-sections.
+All fields in one PROPERTY collapsible section on Add and Edit screens. No sub-sections. Unit fields appear at the end of the PROPERTY section only — no separate Unit sub-section ever.
 
 | UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
 |---|---|---|---|---|
 | Status | status | Status | Drop | New, Contacted, Scheduled, Viewed, Shortlisted, Applied, Approved, Signed, Rejected, Archived. |
-| Property Type | propertyType | Property Type | Drop | Apartment, House, Townhouse, Duplex, Condo. Default: Apartment. Drives field visibility — Build 3.2.12. |
-| Unit Type | unitType | Unit Type | Drop | Rental, Condo, Co-op. Default: Rental. |
+| Property Type | propertyType | Property Type | Drop | Apartment, Condo, Co-op, Townhouse, House. Default: Apartment. Position 2 — drives field visibility per listing. Build 3.2.12. |
 | Preferred | preferred | Preferred | Bool | TRUE / FALSE. Drives Preferred grouping in Listings. Default: FALSE. |
 | Building Name | buildingName | Building Name | Text | Primary display name on listing card. Required to save. |
 | Street Address | streetAddress | Street Address | Text | Street only — no city/state/zip here. |
@@ -21,41 +55,47 @@ All fields in one PROPERTY collapsible section on Add and Edit screens. No sub-s
 | City | city | City | Text | Add: read-only, auto-filled from ZIP. Edit: editable. |
 | State | state | State | Text | Add: read-only, auto-filled from ZIP. Edit: editable. |
 | Neighborhood | neighborhood | Neighborhood | Text | |
-| Apartment / Unit # | unitNumber | Unit # | Text | |
-| Floor Number | floorNumber | Floor Number | Int | |
+| Apartment / Unit # | unitNumber | Unit # | Text | Apartment / Condo / Co-op only — hidden for House / Townhouse. Build 3.2.12. |
+| Floor Number | floorNumber | Floor Number | Int | Apartment / Condo / Co-op only — hidden for House / Townhouse. Build 3.2.12. |
+| Number of Floors | numberOfFloors | Number of Floors | Num | Decimal-pad. Shown for all property types. Build 3.2.11. |
 | Bedrooms | bedrooms | Bedrooms | Num | Integer. |
 | Bathrooms | bathrooms | Bathrooms | Num | Decimal allowed (e.g. 1.5). |
 | Square Footage | squareFootage | Square Footage | Num | If empty — dash on listing card. |
-| Floors (House) | floors | Floors | Num | Integer. House/Townhouse/Duplex only — Build 3.2.11. |
-| Garage | garage | Garage | Bool | TRUE / FALSE. House/Townhouse/Duplex/Condo — Build 3.2.11. |
-| Garage Spaces | garageSpaces | Garage Spaces | Num | Integer. Shown when Garage = TRUE — Build 3.2.11. |
-| Yard | yard | Yard | Bool | TRUE / FALSE. House/Townhouse/Duplex only — Build 3.2.11. |
-| Basement | basement | Basement | Bool | TRUE / FALSE. House/Townhouse/Duplex only — Build 3.2.11. |
-| Basement Finished | basementFinished | Basement Finished | Bool | TRUE / FALSE. Shown when Basement = TRUE — Build 3.2.11. |
-| Top Floor | topFloor | Top Floor | Bool | TRUE / FALSE. Apartment/Condo/Co-op only. |
-| Corner Unit | cornerUnit | Corner Unit | Bool | TRUE / FALSE. Apartment/Condo/Co-op only. |
+| Top Floor | topFloor | Top Floor | Bool | TRUE / FALSE. Apartment / Condo / Co-op only — hidden for House / Townhouse. Build 3.2.12. |
+| Corner Unit | cornerUnit | Corner Unit | Bool | TRUE / FALSE. Apartment / Condo / Co-op only — hidden for House / Townhouse. Build 3.2.12. |
 | Furnished | furnished | Furnished | Bool | TRUE / FALSE. |
+| Short Term Available | shortTermAvailable | Short Term Available | Bool | TRUE / FALSE. Build 3.2.11. |
+| Renters Insurance Required | rentersInsuranceRequired | Renters Insurance Required | Bool | TRUE / FALSE. Build 3.2.11. |
 
 ---
 
 ## Section 2 — COSTS
 
+Split into two visual sub-groups: MONTHLY and UPFRONT. Sub-group labels are display-only dividers, not sections.
+
+### MONTHLY
+
 | UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
 |---|---|---|---|---|
 | Monthly Rent | baseRent | Monthly Rent | Curr | Core stat — shown on listing card. |
-| Pet Fee | petFee | Pet Fee | Curr | Monthly pet fee. Pets profile toggle gated — Build 3.2.11. |
+| Pet Fee | petFee | Pet Fee | Curr | Pets lifestyle toggle gated. Build 3.2.11. |
+| Storage Rent | storageRent | Storage Rent | Curr | Always visible. Build 3.2.11. |
 | Amenity Fee | amenityFee | Amenity Fee | Curr | |
 | Admin Fee | adminFee | Admin Fee | Curr | |
 | Utility Fee | utilityFee | Utility Fee | Curr | |
-| Parking Fee | parkingFee | Parking Fee | Curr | Car profile toggle gated. |
+| Parking Fee | parkingFee | Parking Fee | Curr | Car lifestyle toggle gated. |
 | Other Fee | otherFee | Other Fee | Curr | |
-| Total Monthly | totalMonthly | Total Monthly | Calc | baseRent + petFee + amenityFee + adminFee + utilityFee + parkingFee + otherFee. API calculated. |
-| Security Deposit | securityDeposit | Security Deposit | Curr | |
-| Broker Fee | brokerFee | Broker Fee | Curr | Build 3.2.11. |
-| First Month | firstMonth | First Month | Curr | Build 3.2.11. |
-| Last Month | lastMonth | Last Month | Curr | Build 3.2.11. |
+| Total Monthly | totalMonthly | Total Monthly | Calc | baseRent + petFee + storageRent + amenityFee + adminFee + utilityFee + parkingFee + otherFee. API calculated. ISSUE 2 — fix in Build 3.2.13. |
+
+### UPFRONT
+
+| UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
+|---|---|---|---|---|
+| Security Deposit | securityDeposit | Security Deposit | Curr | Covers first / last month concept. |
 | Application Fee | applicationFee | Application Fee | Curr | |
-| Total One-Time Upfront | totalUpfront | Total Upfront | Calc | securityDeposit + brokerFee + firstMonth + lastMonth + applicationFee. Build 3.2.13. |
+| Broker Fee | brokerFee | Broker Fee | Curr | Build 3.2.11. |
+| Move-in Fee | moveInFee | Move-in Fee | Curr | Build 3.2.11. |
+| Total One-Time Upfront | totalUpfront | Total Upfront | Calc | securityDeposit + applicationFee + brokerFee + moveInFee. API calculated. Build 3.2.13. |
 
 ---
 
@@ -67,14 +107,16 @@ Multi-select fields store comma-delimited arrays in Google Sheets.
 |---|---|---|---|---|
 | Utilities Included | utilitiesIncluded | Utilities Included | Multi | Gas, Electric, Internet, Water, Sewage, Trash, Parking. |
 | Unit Features | unitFeatures | Unit Features | Multi | Hardwood Floors, Air Conditioning, Dishwasher, Microwave, Balcony/Terrace. |
-| Outdoor Space | outdoorSpace | Outdoor Space | Multi | Patio, Deck, Balcony, Porch, Yard. Build 3.2.11. |
+| Private Outdoor Space | privateOutdoorSpaceTypes | Private Outdoor Space | Multi | Patio, Deck, Balcony, Porch, Yard. Build 3.2.11. |
 | Building Amenities | buildingAmenities | Building Amenities | Multi | Extra Storage, Rooftop Space, Common Lounge, Barbecue Area, Firepits, Gym, Pool. |
-| Pet Amenities | petAmenities | Pet Amenities | Multi | Pet Washing, Dog Park. Pets profile toggle gated. |
+| Pet Amenities | petAmenities | Pet Amenities | Multi | Pet Washing, Dog Park. Pets lifestyle toggle gated. |
 | Close By | closeBy | Close By | Multi | Subway, Bus Stop, Grocery Store, Park, Restaurants, Pharmacy, Coffee Shop, Gym, School. |
-| Rooms | rooms | Rooms | Multi | Living Room, Dining Room, Office, Bonus Room. Build 3.2.11. |
-| AC Type | acType | AC Type | Drop | None, Central, Window, Split, Other. |
+| Room Types | roomTypes | Room Types | Multi | Living Room, Dining Room, Office, Bonus Room. Build 3.2.11. |
+| Storage Types | storageTypes | Storage Types | Multi | Build 3.2.11. |
+| Cooling Type | coolingType | Cooling Type | Drop | None, Central, Window, Split, Other. Renamed from acType — Build 3.2.11A. |
+| Heating Type | heatingType | Heating Type | Drop | Forced Air, Baseboard, Radiant, Steam, Electric, Natural Gas, Oil, Propane, None. Build 3.2.11. |
 | Laundry | laundry | Laundry | Drop | None, In-Unit, On Floor, In Building. |
-| Parking Type | parkingType | Parking Type | Drop | None, Covered, Uncovered, Street, Garage. Car profile toggle gated. |
+| Parking Type | parkingType | Parking Type | Drop | None, Covered, Uncovered, Street, Garage. Car lifestyle toggle gated. |
 
 ---
 
@@ -91,7 +133,7 @@ Multi-select fields store comma-delimited arrays in Google Sheets.
 
 ## Section 5 — SCHOOLS
 
-Children profile toggle gated. Three sub-groups: Elementary, Middle, High School.
+Children lifestyle toggle gated — entire section hidden when Children is OFF. Three sub-groups: Elementary, Middle, High School.
 
 | UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
 |---|---|---|---|---|
@@ -114,8 +156,8 @@ Children profile toggle gated. Three sub-groups: Elementary, Middle, High School
 
 | UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
 |---|---|---|---|---|
-| Listing Site | listingSite | Listing Site | Drop | Zillow, StreetEasy, Apartments.com, Realtor.com, Trulia, Compass, Other. |
-| Listing URL | listingUrl | Listing URL | Text | https://... |
+| Listing Site | listingSite | Listing Site | Drop | Zillow, StreetEasy, Apartments.com, Realtor.com, Trulia, Compass, Other. Auto-detect from URL — Build 3.2.14. |
+| Listing URL | listingUrl | Listing URL | Text | https://... Tap opens browser (Build 3.2.10). |
 | Photo URL | photoUrl | Photo URL | Text | https://... |
 | Contact Name | contactName | Contact Name | Text | |
 | Contact Phone | contactPhone | Contact Phone | Text | Tap opens dialer (Build 3.2.10). |
@@ -149,11 +191,11 @@ Children profile toggle gated. Three sub-groups: Elementary, Middle, High School
 
 ## Section 9 — SYSTEM FIELDS (not shown in UI)
 
-| UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
-|---|---|---|---|---|
-| ID | id | ID | Text | Auto-generated by API on POST. UUID-style short ID. |
-| Total Monthly | totalMonthly | Total Monthly | Calc | baseRent + petFee + amenityFee + adminFee + utilityFee + parkingFee + otherFee. |
-| Total Upfront | totalUpfront | Total Upfront | Calc | securityDeposit + brokerFee + firstMonth + lastMonth + applicationFee. |
+| Field Name (code) | Sheet Column | Type | Parameters / Notes |
+|---|---|---|---|
+| id | ID | Text | Auto-generated by API on POST. UUID-style short ID. |
+| totalMonthly | Total Monthly | Calc | baseRent + petFee + storageRent + amenityFee + adminFee + utilityFee + parkingFee + otherFee. |
+| totalUpfront | Total Upfront | Calc | securityDeposit + applicationFee + brokerFee + moveInFee. |
 
 ---
 
@@ -176,19 +218,15 @@ Children profile toggle gated. Three sub-groups: Elementary, Middle, High School
 
 ## Section 11 — Status Flow (10-Status Listing Lifecycle)
 
-| Status | Pill Color | Meaning | Exit / Side Path |
-|---|---|---|---|
-| New | #FFFFFF | Listing saved. No action taken yet. | Not interested → Rejected |
-| Contacted | #EAB308 | Reached out to landlord/agent. | No response → Rejected |
-| Scheduled | #F97316 | Viewing appointment confirmed. | Cancelled / pass → Rejected |
-| Viewed | #7C3AED | In-person or virtual viewing done. | Did not like → Rejected |
-| Shortlisted | #2563EB | Liked after viewing. Under active consideration. | Decided against → Rejected |
-| Applied | #0D9488 | Application submitted. | Rejected by landlord → Rejected |
-| Approved | #10B981 | Application approved by landlord. | Changed mind → Rejected |
-| Signed | #D97706 | Lease signed. This listing is chosen. | — |
-| Rejected | #EF4444 | Not moving forward for any reason. | Can move to Archived |
-| Archived | #475569 | Removed from active view. Historical record. | Terminal state. |
-
-**Flow:** New → Contacted → Scheduled → Viewed → Shortlisted → Applied → Approved → Signed (main forward path). Any status → Rejected at any point. Rejected → Archived to clean up.
-
-**Terminology:** Candidates = all active listings. Preferred = heart-flagged boolean subset. Shortlisted = post-viewing liked status.
+| Status | Pill Color | Meaning |
+|---|---|---|
+| New | Blue | Listing saved. No action taken yet. |
+| Contacted | Blue | Reached out to landlord or agent. |
+| Scheduled | Blue | Viewing appointment booked. |
+| Viewed | Blue | In-person visit completed. |
+| Shortlisted | Amber | Strong candidate — under active consideration. |
+| Applied | Blue | Application submitted. |
+| Approved | Green | Application approved. |
+| Signed | Teal | Lease signed. |
+| Rejected | Red | Not proceeding — rejected or withdrew. |
+| Archived | Grey | Removed from active view. Not deleted. |

@@ -1,5 +1,5 @@
 # PreferredHome — Product Roadmap
-**Version V6 | March 2026**
+**Version V7 | March 2026**
 
 ---
 
@@ -22,6 +22,7 @@
 | 3.2.08 / .1–.2 | Compare screen: side-by-side listing comparison. Selection logic. Centralised compare state. |
 | 3.2.09 / .1–.5 | Profile toggle wiring: Children, Pets, Car drive field visibility on Add, Edit, ViewPanel, Compare. |
 | 3.2.10 / .1 | Tap-to-contact links: phone opens dialer, email opens mail, address opens Maps, URL opens browser. |
+| 3.2.11 / .1–.2 | All new data fields: propertyType, numberOfFloors, heatingType, shortTermAvailable, rentersInsuranceRequired, petFee, storageRent, brokerFee, moveInFee, roomTypes, privateOutdoorSpaceTypes, storageTypes. Field renames: unitType → propertyType, acType → coolingType. ISSUE 1 resolved. |
 
 ---
 
@@ -29,9 +30,8 @@
 
 | Build | Scope |
 |---|---|
-| 3.2.11 | All new data fields — pet fee, property type (Apartment / House / Townhouse / Duplex / Condo), garage (yes/no + spaces), yard, basement, floors, outdoor space, rooms, broker fee, first/last month. Also resolves ISSUE 1 (Edit page shows only Building Name). |
-| 3.2.12 | Field visibility rules — property type drives which fields show on all screens. |
-| 3.2.13 | Auto-calculations — Total Monthly (rent + all fees) and Total One-Time Upfront (deposit + broker + first + last). API totalMonthly fix (ISSUE 2). |
+| 3.2.12 | Property Type visibility rules on Add, Edit, ViewPanel, Compare. Display all new 3.2.11 fields on ViewPanel and Compare. |
+| 3.2.13 | Auto-calculations — Total Monthly (baseRent + all fees) and Total One-Time Upfront (deposit + application + broker + move-in). API totalMonthly fix (ISSUE 2). |
 | 3.2.14 | ZIP to City/State auto-fill + Listing Site auto-detect from URL pattern match (zillow.com → Zillow, etc.). |
 | 3.2.15 | Commute Calculation + Walk / Transit / Bike Scores via backend API calls. Stored as listing fields. |
 | 3.2.16 | Add/Edit Unification — single shared form component. Efficiency cleanup. |
@@ -43,7 +43,7 @@
 
 ## 4.0 — Platform Reset
 
-Migrate from Google Sheets to PostgreSQL and formal backend services. All 3.2.x debt items and field additions must be complete before this begins.
+Migrate from Google Sheets to PostgreSQL and formal backend services. All 3.2.x builds must be complete before this begins.
 
 ---
 
@@ -51,7 +51,7 @@ Migrate from Google Sheets to PostgreSQL and formal backend services. All 3.2.x 
 
 | Feature | Description |
 |---|---|
-| Notifications / Reminders | Tour reminders, follow-up reminders for Contacted status, lease deadline alerts. |
+| Notifications / Reminders | Tour reminders, follow-up prompts for Contacted status, lease deadline alerts. |
 | Photo Support | Attach and display listing photos from device camera or library. |
 | Criteria Scoring | Score each listing automatically against Criteria settings. |
 | Login / Sync | User accounts. Cloud data sync across devices. |
@@ -59,9 +59,10 @@ Migrate from Google Sheets to PostgreSQL and formal backend services. All 3.2.x 
 | Import / Export | Backup and restore listing data. Export to CSV or PDF. |
 | Themes | Light, dark, and custom color themes. |
 | Help Center | In-app guidance and FAQ. |
-| User-Defined Lists | Thomas defines custom dropdown options per field. |
+| User-Defined Lists | User defines custom dropdown options per field. |
 | Buying Mode | Switch app context from renting to home buying workflow. |
 | Map View | Map display of listing locations on the Listings screen. |
+| Manual Sort | User-defined sort order for listings on the Listings screen. |
 
 ---
 
@@ -69,6 +70,6 @@ Migrate from Google Sheets to PostgreSQL and formal backend services. All 3.2.x 
 
 | Format | Example | Notes |
 |---|---|---|
-| X.X.YY | 3.2.07 | Standard build — two-digit patch always. |
-| X.X.YY.N | 3.2.07.1 | Hotfix — minimum fix only. HOTFIX suffix after build number. |
-| X.X.YY_FULL_REBUILD | 3.2.07_FULL_REBUILD | Entire repo replaced. |
+| X.X.YY | 3.2.12 | Standard build — two-digit patch always. |
+| X.X.YY.N | 3.2.12.1 | Hotfix — minimum fix only. |
+| X.X.YY_FULL_REBUILD | 3.2.12_FULL_REBUILD | Entire repo replaced. |
