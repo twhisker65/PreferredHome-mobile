@@ -1,5 +1,5 @@
 # PreferredHome — Assistant Briefing
-**Closing Out Build 3.2.12.3 | March 2026**
+**Closing Out Build 3.2.12.4.1 | March 2026**
 
 ---
 
@@ -23,7 +23,7 @@
 
 | Item | Status |
 |---|---|
-| Stable Baseline | Build 3.2.12.3 — confirmed stable. All 11 test items passed. |
+| Stable Baseline | Build 3.2.12.4.1 — confirmed stable. All 6 test items passed. |
 | ISSUE 2 (carried fwd) | API `totalMonthly` omits fees for some listings. Workaround: `compare.tsx` uses local `baseRent + fees`. Permanent fix: Build 3.2.13. |
 
 ---
@@ -36,6 +36,8 @@
 | 3.2.12.1 | add.tsx, edit.tsx, ViewPanel.tsx, compare.tsx | Superseded | Folder structure fixed. Edit screen still crashed — fetchListing invented. Option arrays wrong. Compare Clear button missing. |
 | 3.2.12.2 | edit.tsx only | Confirmed stable | fetchListing replaced with getListings + find. Option arrays restored. Costs order restored. |
 | 3.2.12.3 | add.tsx only | Confirmed stable | 8 option arrays restored. Costs field order restored. Identical fix to edit.tsx. |
+| 3.2.12.4 | compare.tsx | Superseded | Clear button restored. 7 CARD_ROWS added. LABEL_W 100→120. Label still truncated, toggle reload missing, rowHeights ref not re-rendering. |
+| 3.2.12.4.1 | compare.tsx | Confirmed stable | LABEL_W 120→150. ProfilePanel onClose reloads toggles. rowHeights converted from useRef to useState. |
 
 ---
 
@@ -46,7 +48,7 @@
 | `app/(tabs)/add.tsx` | 3.2.12.3 | Option arrays correct. Costs order correct. Fully stable. |
 | `app/edit.tsx` | 3.2.12.2 | Fully correct. |
 | `components/ViewPanel.tsx` | 3.2.12.1 | All tests passed — stable. |
-| `app/(tabs)/compare.tsx` | 3.2.12.1 | Clear button missing, CARD_ROWS missing 7 rows, label truncation — fix pending in 3.2.12.4. |
+| `app/(tabs)/compare.tsx` | 3.2.12.4.1 | Clear button, 7 CARD_ROWS, label width, toggle reload, row height alignment — all confirmed stable. |
 
 ---
 
@@ -65,6 +67,11 @@
 | petFee gated in ViewPanel | Stable — 3.2.12.1 |
 | Option arrays correct on Add | Stable — 3.2.12.3 |
 | Costs field order correct on Add | Stable — 3.2.12.3 |
+| Compare Clear button | Stable — 3.2.12.4.1 |
+| Compare CARD_ROWS — 7 added rows | Stable — 3.2.12.4.1 |
+| Compare label truncation fix (LABEL_W 150) | Stable — 3.2.12.4.1 |
+| Compare toggle reload on ProfilePanel close | Stable — 3.2.12.4.1 |
+| Compare label row height alignment | Stable — 3.2.12.4.1 |
 
 ---
 
@@ -92,14 +99,9 @@
 
 ---
 
-## Immediate Next Step — Build 3.2.12.4
+## Immediate Next Step — Build 3.2.13
 
-**Scope:** `app/(tabs)/compare.tsx` only.
-
-**Three changes:**
-1. Restore the Clear button — right side of the mode-toggle row (card/table icons centered, Clear on the right).
-2. Add 7 missing rows to CARD_ROWS — Utilities Included, Unit Features, Rooms, Outdoor Space, Storage, Building Amenities, Close By. Already present in TABLE_ROWS; follow TABLE_ROWS order.
-3. Fix label truncation in table view — increase `LABEL_W` from `100` to the width needed to fit the longest label ("Building Amenities"). Value to use: `120`.
+**Scope:** Auto-calculations — Total Monthly + Total One-Time Upfront. API `totalMonthly` fix (ISSUE 2).
 
 ---
 
@@ -107,7 +109,6 @@
 
 | Build | Scope |
 |---|---|
-| 3.2.12.4 | Compare Clear button, CARD_ROWS 7 missing rows, label truncation fix |
 | 3.2.13 | Auto-calculations — Total Monthly + Total One-Time Upfront. API totalMonthly fix (ISSUE 2) |
 | 3.2.14 | ZIP to City/State auto-fill + Listing Site auto-detect from URL pattern |
 | 3.2.15 | Commute Calculation + Walk / Transit / Bike Scores via backend API calls |
