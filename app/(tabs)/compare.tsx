@@ -1,13 +1,15 @@
-// app/(tabs)/compare.tsx — Build 3.2.09.2
-// Changes from 3.2.08.2:
-// - Import loadProfileToggles + ProfileToggles from profileStorage.
-// - Added toggles state in CompareTab; loaded in useFocusEffect alongside criteria.
-// - TABLE_ROWS and CARD_ROWS extended with petAmenities, elemSchool, middleSchool, highSchool.
-// - getCellData extended with cases for petAmenities and school composite rows.
-// - CompareTable and CompareCard receive toggles prop; each filters its row list at render time.
-// - rowHeights changed from index-based array to key-based Record to handle dynamic row count.
-// - Parking row hidden when car=false. Pet Amenities shown when pets=true. Schools shown when children=true.
-// All layout constants, color logic, frozen panes, and onLayout sync logic unchanged.
+// app/(tabs)/compare.tsx — Build 3.2.12
+// Changes from 3.2.09.2:
+// - "Unit Type" row renamed to "Property Type" with key "propertyType".
+// - "AC Type" row renamed to "Cooling Type" with key "coolingType".
+// - Property-type-gated rows added: unitNumber, floorNumber, topFloor, cornerUnit.
+//   Hidden when all selected listings are House / Townhouse.
+//   For card view: hidden per card. For table view: hidden if no listing is apt/condo/coop.
+// - New rows added: Pet Fee (pets gated), Storage Rent, Broker Fee, Move-in Fee,
+//   Number of Floors, Heating Type, Room Types, Private Outdoor Space, Storage.
+// - filterRows updated to handle property-type gating.
+// - getCellData updated with all new cases.
+// All layout constants, frozen panes, onLayout sync logic, and other logic unchanged.
 
 import React, { useCallback, useRef, useState } from "react";
 import {
@@ -60,89 +62,89 @@ function rawStr(v: any): string {
   return String(v ?? "").trim();
 }
 
-function joinMultiLines(v: any): string {
-  if (Array.isArray(v)) return v.filter(Boolean).join("\n") || "—";
-  const s = rawStr(v);
-  if (!s) return "—";
-  return s.split(",").map((x: string) => x.trim()).filter(Boolean).join("\n") || "—";
-}
-
 function fmtCurrency(v: number | null): string {
   if (v === null) return "—";
-  return `$${Math.round(v).toLocaleString()}/mo`;
+  return "$" + Math.round(v).toLocaleString();
 }
 
-// ── Color logic ───────────────────────────────────────────────────
-
-function lteColor(value: number | null, criteriaStr: string): string {
-  if (!criteriaStr) return CC.grey;
-  if (value === null) return CC.grey;
-  const limit = parseFloat(criteriaStr);
-  if (isNaN(limit)) return CC.grey;
-  return value <= limit ? CC.green : CC.red;
+function joinMultiLines(v: any): string {
+  const s = rawStr(v);
+  if (!s) return "—";
+  return s.split(",").map((x: string) => x.trim()).filter(Boolean).join(", ");
 }
 
-function gteColor(value: number | null, criteriaStr: string): string {
-  if (!criteriaStr) return CC.grey;
-  if (value === null) return CC.grey;
-  const limit = parseFloat(criteriaStr);
-  if (isNaN(limit)) return CC.grey;
-  return value >= limit ? CC.green : CC.red;
+// ── Color helpers ─────────────────────────────────────────────────
+
+function lteColor(v: number | null, threshold: number | null): string {
+  if (v === null || threshold === null || threshold === 0) return CC.grey;
+  return v <= threshold ? CC.green : CC.red;
+}
+
+function gteColor(v: number | null, threshold: number | null): string {
+  if (v === null || threshold === null || threshold === 0) return CC.grey;
+  return v >= threshold ? CC.green : CC.red;
 }
 
 function acColor(v: string): string {
-  const s = v.toLowerCase();
-  if (s === "central") return CC.green;
-  if (!s || s === "none") return CC.red;
-  return CC.yellow;
+  if (!v || v === "None") return CC.grey;
+  return CC.green;
 }
 
 function laundryColor(v: string): string {
-  const s = v.toLowerCase();
-  if (s === "in-unit") return CC.green;
-  if (!s || s === "none") return CC.red;
+  if (!v || v === "None") return CC.grey;
+  if (v === "In-Unit") return CC.green;
   return CC.yellow;
 }
 
 function parkingColor(v: string): string {
-  const s = v.toLowerCase();
-  if (s === "covered") return CC.green;
-  if (!s || s === "none") return CC.red;
-  return CC.yellow;
+  if (!v || v === "None") return CC.grey;
+  return CC.green;
 }
 
-// ── Cell data resolver ────────────────────────────────────────────
+// ── Cell data type ────────────────────────────────────────────────
 
 type CellData = {
   text: string;
-  color: string | null;
-  isBool: boolean;
-  boolValue: boolean;
-  isMulti: boolean;
+  color?: string;
+  isBool?: boolean;
+  boolValue?: boolean;
+  isMulti?: boolean;
 };
+
+function plain(text: string): CellData { return { text }; }
+function pill(text: string, color: string): CellData { return { text, color }; }
+function bool(value: boolean): CellData { return { isBool: true, boolValue: value, text: "" }; }
+function multi(text: string): CellData { return { text, isMulti: true }; }
+
+// ── getCellData ───────────────────────────────────────────────────
 
 function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): CellData {
   const raw = listing.raw ?? {};
-  const plain = (text: string): CellData => ({ text, color: null, isBool: false, boolValue: false, isMulti: false });
-  const pill  = (text: string, color: string): CellData => ({ text, color, isBool: false, boolValue: false, isMulti: false });
-  const bool  = (val: boolean): CellData => ({ text: "", color: null, isBool: true, boolValue: val, isMulti: false });
-  const multi = (text: string): CellData => ({ text, color: null, isBool: false, boolValue: false, isMulti: true });
-
   switch (key) {
     case "baseRent": {
-      const v = listing.baseRent;
+      const v = rawNum(raw.baseRent);
       return pill(fmtCurrency(v), lteColor(v, criteria.maxBaseRent));
     }
     case "totalMonthly": {
       const apiTotal = rawNum(raw.totalMonthly);
-      const localTotal = listing.baseRent !== null
+      const localTotal = (listing.baseRent !== undefined && listing.fees !== undefined)
         ? (listing.baseRent ?? 0) + (listing.fees ?? 0)
         : null;
       const v = (apiTotal !== null && apiTotal > 0) ? apiTotal : localTotal;
       return pill(fmtCurrency(v), lteColor(v, criteria.maxTotalMonthly));
     }
-    case "unitType":
-      return plain(rawStr(raw.unitType) || "—");
+    case "propertyType":
+      return plain(rawStr(raw.propertyType) || "—");
+    case "unitNumber":
+      return plain(rawStr(raw.unitNumber) || "—");
+    case "floorNumber": {
+      const v = rawNum(raw.floorNumber);
+      return plain(v !== null ? String(v) : "—");
+    }
+    case "numberOfFloors": {
+      const v = rawNum(raw.numberOfFloors);
+      return plain(v !== null ? String(v) : "—");
+    }
     case "bedrooms": {
       const v = rawNum(raw.bedrooms);
       return plain(v !== null ? String(v) : "—");
@@ -160,9 +162,29 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
     case "topFloor":        return bool(rawBool(raw.topFloor));
     case "cornerUnit":      return bool(rawBool(raw.cornerUnit));
     case "furnished":       return bool(rawBool(raw.furnished));
-    case "acType": {
-      const v = rawStr(raw.acType);
+    case "petFee": {
+      const v = rawNum(raw.petFee);
+      return plain(fmtCurrency(v));
+    }
+    case "storageRent": {
+      const v = rawNum(raw.storageRent);
+      return plain(fmtCurrency(v));
+    }
+    case "brokerFee": {
+      const v = rawNum(raw.brokerFee);
+      return plain(fmtCurrency(v));
+    }
+    case "moveInFee": {
+      const v = rawNum(raw.moveInFee);
+      return plain(fmtCurrency(v));
+    }
+    case "coolingType": {
+      const v = rawStr(raw.coolingType);
       return v ? pill(v, acColor(v)) : plain("—");
+    }
+    case "heatingType": {
+      const v = rawStr(raw.heatingType);
+      return v ? plain(v) : plain("—");
     }
     case "laundry": {
       const v = rawStr(raw.laundry);
@@ -174,6 +196,9 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
     }
     case "utilitiesIncluded": return multi(joinMultiLines(raw.utilitiesIncluded));
     case "unitFeatures":      return multi(joinMultiLines(raw.unitFeatures));
+    case "roomTypes":         return multi(joinMultiLines(raw.roomTypes));
+    case "privateOutdoorSpaceTypes": return multi(joinMultiLines(raw.privateOutdoorSpaceTypes));
+    case "storageTypes":      return multi(joinMultiLines(raw.storageTypes));
     case "buildingAmenities": return multi(joinMultiLines(raw.buildingAmenities));
     case "petAmenities":      return multi(joinMultiLines(raw.petAmenities));
     case "closeBy":           return multi(joinMultiLines(raw.closeBy));
@@ -214,63 +239,90 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
 }
 
 // ── Row definitions ───────────────────────────────────────────────
-// All rows are defined here. Toggle-gated rows are filtered at render time.
 
 const TABLE_ROWS: Array<{ label: string; key: string }> = [
-  { label: "Base Rent",          key: "baseRent" },
-  { label: "Total Rent",         key: "totalMonthly" },
-  { label: "Unit Type",          key: "unitType" },
-  { label: "Bedrooms",           key: "bedrooms" },
-  { label: "Bathrooms",          key: "bathrooms" },
-  { label: "Square Footage",     key: "squareFootage" },
-  { label: "No Board Approval",  key: "noBoardApproval" },
-  { label: "No Broker Fee",      key: "noBrokerFee" },
-  { label: "Top Floor",          key: "topFloor" },
-  { label: "Corner Unit",        key: "cornerUnit" },
-  { label: "Furnished",          key: "furnished" },
-  { label: "AC Type",            key: "acType" },
-  { label: "Laundry",            key: "laundry" },
-  { label: "Parking",            key: "parkingType" },     // car gated
-  { label: "Utilities Included", key: "utilitiesIncluded" },
-  { label: "Unit Features",      key: "unitFeatures" },
-  { label: "Building Amenities", key: "buildingAmenities" },
-  { label: "Pet Amenities",      key: "petAmenities" },    // pets gated
-  { label: "Close By",           key: "closeBy" },
-  { label: "Commute Time",       key: "commuteTime" },
-  { label: "Elem. School",       key: "elemSchool" },      // children gated
-  { label: "Middle School",      key: "middleSchool" },    // children gated
-  { label: "High School",        key: "highSchool" },      // children gated
+  { label: "Base Rent",            key: "baseRent" },
+  { label: "Total Rent",           key: "totalMonthly" },
+  { label: "Pet Fee",              key: "petFee" },           // pets gated
+  { label: "Storage Rent",         key: "storageRent" },
+  { label: "Broker Fee",           key: "brokerFee" },
+  { label: "Move-in Fee",          key: "moveInFee" },
+  { label: "Property Type",        key: "propertyType" },
+  { label: "Unit #",               key: "unitNumber" },       // apt/condo/coop gated
+  { label: "Floor Number",         key: "floorNumber" },      // apt/condo/coop gated
+  { label: "Number of Floors",     key: "numberOfFloors" },
+  { label: "Bedrooms",             key: "bedrooms" },
+  { label: "Bathrooms",            key: "bathrooms" },
+  { label: "Square Footage",       key: "squareFootage" },
+  { label: "No Board Approval",    key: "noBoardApproval" },
+  { label: "No Broker Fee",        key: "noBrokerFee" },
+  { label: "Top Floor",            key: "topFloor" },         // apt/condo/coop gated
+  { label: "Corner Unit",          key: "cornerUnit" },       // apt/condo/coop gated
+  { label: "Furnished",            key: "furnished" },
+  { label: "Cooling Type",         key: "coolingType" },
+  { label: "Heating Type",         key: "heatingType" },
+  { label: "Laundry",              key: "laundry" },
+  { label: "Parking",              key: "parkingType" },      // car gated
+  { label: "Utilities Included",   key: "utilitiesIncluded" },
+  { label: "Unit Features",        key: "unitFeatures" },
+  { label: "Rooms",                key: "roomTypes" },
+  { label: "Outdoor Space",        key: "privateOutdoorSpaceTypes" },
+  { label: "Storage",              key: "storageTypes" },
+  { label: "Building Amenities",   key: "buildingAmenities" },
+  { label: "Pet Amenities",        key: "petAmenities" },     // pets gated
+  { label: "Close By",             key: "closeBy" },
+  { label: "Commute Time",         key: "commuteTime" },
+  { label: "Elem. School",         key: "elemSchool" },       // children gated
+  { label: "Middle School",        key: "middleSchool" },     // children gated
+  { label: "High School",          key: "highSchool" },       // children gated
 ];
 
 const CARD_ROWS: Array<{ label: string; key: string }> = [
-  { label: "Base Rent",          key: "baseRent" },
-  { label: "Total Rent",         key: "totalMonthly" },
-  { label: "Unit Type",          key: "unitType" },
-  { label: "Bedrooms",           key: "bedrooms" },
-  { label: "Bathrooms",          key: "bathrooms" },
-  { label: "Square Footage",     key: "squareFootage" },
-  { label: "No Board Approval",  key: "noBoardApproval" },
-  { label: "No Broker Fee",      key: "noBrokerFee" },
-  { label: "Top Floor",          key: "topFloor" },
-  { label: "Corner Unit",        key: "cornerUnit" },
-  { label: "Furnished",          key: "furnished" },
-  { label: "AC Type",            key: "acType" },
-  { label: "Laundry",            key: "laundry" },
-  { label: "Parking",            key: "parkingType" },     // car gated
-  { label: "Pet Amenities",      key: "petAmenities" },    // pets gated
-  { label: "Commute Time",       key: "commuteTime" },
-  { label: "Elem. School",       key: "elemSchool" },      // children gated
-  { label: "Middle School",      key: "middleSchool" },    // children gated
-  { label: "High School",        key: "highSchool" },      // children gated
+  { label: "Base Rent",            key: "baseRent" },
+  { label: "Total Rent",           key: "totalMonthly" },
+  { label: "Pet Fee",              key: "petFee" },           // pets gated
+  { label: "Storage Rent",         key: "storageRent" },
+  { label: "Broker Fee",           key: "brokerFee" },
+  { label: "Move-in Fee",          key: "moveInFee" },
+  { label: "Property Type",        key: "propertyType" },
+  { label: "Unit #",               key: "unitNumber" },       // apt/condo/coop gated (per card)
+  { label: "Floor Number",         key: "floorNumber" },      // apt/condo/coop gated (per card)
+  { label: "Number of Floors",     key: "numberOfFloors" },
+  { label: "Bedrooms",             key: "bedrooms" },
+  { label: "Bathrooms",            key: "bathrooms" },
+  { label: "Square Footage",       key: "squareFootage" },
+  { label: "No Board Approval",    key: "noBoardApproval" },
+  { label: "No Broker Fee",        key: "noBrokerFee" },
+  { label: "Top Floor",            key: "topFloor" },         // apt/condo/coop gated (per card)
+  { label: "Corner Unit",          key: "cornerUnit" },       // apt/condo/coop gated (per card)
+  { label: "Furnished",            key: "furnished" },
+  { label: "Cooling Type",         key: "coolingType" },
+  { label: "Heating Type",         key: "heatingType" },
+  { label: "Laundry",              key: "laundry" },
+  { label: "Parking",              key: "parkingType" },      // car gated
+  { label: "Pet Amenities",        key: "petAmenities" },     // pets gated
+  { label: "Commute Time",         key: "commuteTime" },
+  { label: "Elem. School",         key: "elemSchool" },       // children gated
+  { label: "Middle School",        key: "middleSchool" },     // children gated
+  { label: "High School",          key: "highSchool" },       // children gated
 ];
 
-// ── Helper to filter rows by toggles ─────────────────────────────
+// ── Property type keys that are apt/condo/coop only ───────────────
+const APT_ONLY_KEYS = new Set(["unitNumber", "floorNumber", "topFloor", "cornerUnit"]);
 
-function filterRows<T extends { key: string }>(rows: T[], toggles: ProfileToggles): T[] {
+// ── Helper to filter rows by toggles and property type ────────────
+
+function filterRows<T extends { key: string }>(
+  rows: T[],
+  toggles: ProfileToggles,
+  showAptFields: boolean
+): T[] {
   return rows.filter((r) => {
     if (r.key === "parkingType" && !toggles.car)      return false;
+    if (r.key === "petFee" && !toggles.pets)          return false;
     if (r.key === "petAmenities" && !toggles.pets)    return false;
     if ((r.key === "elemSchool" || r.key === "middleSchool" || r.key === "highSchool") && !toggles.children) return false;
+    if (APT_ONLY_KEYS.has(r.key) && !showAptFields)   return false;
     return true;
   });
 }
@@ -301,175 +353,236 @@ function BoolCell({ value, small = false }: { value: boolean; small?: boolean })
   );
 }
 
-function HDoubleRule() {
+function VDoubleSep() {
   return (
-    <View>
-      <View style={{ height: 1, backgroundColor: colors.border }} />
-      <View style={{ height: 2 }} />
-      <View style={{ height: 1, backgroundColor: colors.border }} />
-    </View>
+    <View style={{ width: 3, backgroundColor: colors.border, alignSelf: "stretch" }} />
   );
 }
 
-function VDoubleSep() {
+// ── Main tab component ────────────────────────────────────────────
+
+export default function CompareTab() {
+  const insets = useSafeAreaInsets();
+  const { listings, loading } = useListings();
+
+  const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
+  const [criteria, setCriteria]     = useState<CriteriaData>({ maxBaseRent: 0, maxTotalMonthly: 0, minSqFt: 0, maxCommuteTime: 0 });
+  const [toggles, setToggles]       = useState<ProfileToggles>({ children: false, pets: false, car: false });
+  const [mode, setMode]             = useState<"cards" | "table">("cards");
+  const [menuOpen, setMenuOpen]     = useState(false);
+  const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
+
+  const topBarHeight = insets.top + 52;
+
+  useFocusEffect(
+    useCallback(() => {
+      loadCompareIds().then((ids) => setCompareIds(new Set(ids)));
+      loadCriteriaData().then(setCriteria);
+      loadProfileToggles().then(setToggles);
+    }, [])
+  );
+
+  const selectedListings = listings.filter((l) => compareIds.has(l.id));
+
   return (
-    <View style={{ flexDirection: "row" }}>
-      <View style={{ width: 1, backgroundColor: colors.border }} />
-      <View style={{ width: 2 }} />
-      <View style={{ width: 1, backgroundColor: colors.border }} />
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <TopBar title="Compare" onPressMenu={() => setMenuOpen(true)} />
+
+      {/* Mode toggle */}
+      <View style={{ flexDirection: "row", justifyContent: "center", paddingVertical: 8, gap: 16 }}>
+        <Pressable onPress={() => setMode("cards")}>
+          <Ionicons name="grid" size={22} color={mode === "cards" ? colors.primaryBlue : colors.textSecondary} />
+        </Pressable>
+        <Pressable onPress={() => setMode("table")}>
+          <Ionicons name="list" size={22} color={mode === "table" ? colors.primaryBlue : colors.textSecondary} />
+        </Pressable>
+      </View>
+
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator />
+        </View>
+      ) : selectedListings.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 32 }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 14, textAlign: "center" }}>
+            No listings selected for comparison.{"\n"}Tap the compare icon on a listing to add it.
+          </Text>
+        </View>
+      ) : mode === "cards" ? (
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+          {selectedListings.map((l) => (
+            <CompareCard key={l.id} listing={l} criteria={criteria} toggles={toggles} />
+          ))}
+        </ScrollView>
+      ) : (
+        <View style={{ flex: 1, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 16 }}>
+          <CompareTable listings={selectedListings} criteria={criteria} toggles={toggles} />
+        </View>
+      )}
+
+      {/* Menu */}
+      {menuOpen && (
+        <MenuPanel
+          topOffset={topBarHeight}
+          onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }}
+          onClose={() => setMenuOpen(false)}
+        />
+      )}
+
+      {activeSubPanel === "profile" && (
+        <ProfilePanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
+      {activeSubPanel === "criteria" && (
+        <CriteriaPanel
+          topOffset={topBarHeight}
+          onClose={() => {
+            setActiveSubPanel(null);
+            loadCriteriaData().then(setCriteria);
+          }}
+        />
+      )}
+      {activeSubPanel === "settings" && (
+        <SettingsPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+      )}
     </View>
   );
 }
 
 // ── Table view ────────────────────────────────────────────────────
-// Styled like CompareCard: rounded corners, surrounding border, shaded header.
-// Frozen header syncs horizontally with body via ref.
-// Unified rows — label cell + VDoubleSep + data cells in one flexDirection:"row"
-// so React Native sizes each row to its tallest cell automatically.
-// No height state, no onLayout, no measurement.
 
 function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; criteria: CriteriaData; toggles: ProfileToggles }) {
-  const headerScrollRef = useRef<ScrollView>(null);
+  const rowHeights = useRef<Record<string, number>>({});
+  const labelScrollRef  = useRef<ScrollView>(null);
+  const dataScrollRef   = useRef<ScrollView>(null);
+  const syncingLabel    = useRef(false);
+  const syncingData     = useRef(false);
 
-  function syncHeader(e: any) {
-    headerScrollRef.current?.scrollTo({
-      x: e.nativeEvent.contentOffset.x,
-      animated: false,
-    });
-  }
+  // Table shows apt-only rows if at least one listing is apt/condo/coop
+  const showAptFields = listings.some((l) =>
+    ["Apartment", "Condo", "Co-op"].includes(rawStr(l.raw?.propertyType))
+  );
 
-  const visibleRows = filterRows(TABLE_ROWS, toggles);
-  // 4px accounts for VDoubleSep (1px + 2px gap + 1px)
-  const contentW = LABEL_W + 4 + COL_W * listings.length;
+  const visibleRows = filterRows(TABLE_ROWS, toggles, showAptFields);
 
   return (
-    <View style={{
-      flex: 1,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: colors.border,
-      overflow: "hidden",
-      backgroundColor: colors.card,
-    }}>
+    <View style={{ flex: 1, flexDirection: "row" }}>
+      {/* Frozen label column */}
+      <ScrollView
+        ref={labelScrollRef}
+        scrollEnabled={false}
+        style={{ width: LABEL_W }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header spacer */}
+        <View style={{ height: 44, borderBottomWidth: 2, borderBottomColor: colors.border }} />
+        {visibleRows.map((row, idx) => (
+          <View
+            key={row.key}
+            style={{
+              width: LABEL_W,
+              paddingHorizontal: 8,
+              paddingVertical: 9,
+              justifyContent: "center",
+              minHeight: rowHeights.current[row.key] ?? MIN_ROW_H,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.border,
+              backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
+            }}
+          >
+            <Text style={{ color: colors.textPrimary, fontSize: 11, fontWeight: "700" }}>
+              {row.label}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
 
-      {/* ── FROZEN HEADER — fixed 80px, names wrap to 2 lines ── */}
-      <View style={{ height: 80 }}>
+      <VDoubleSep />
+
+      {/* Scrollable data columns */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <ScrollView
-          horizontal
-          ref={headerScrollRef}
-          scrollEnabled={false}
-          showsHorizontalScrollIndicator={false}
-          style={{ flex: 1 }}
+          ref={dataScrollRef}
+          showsVerticalScrollIndicator={false}
+          onScroll={(e) => {
+            if (syncingData.current) return;
+            syncingLabel.current = true;
+            labelScrollRef.current?.scrollTo({ y: e.nativeEvent.contentOffset.y, animated: false });
+            setTimeout(() => { syncingLabel.current = false; }, 50);
+          }}
+          scrollEventThrottle={16}
         >
-          <View style={{
-            flexDirection: "row",
-            height: 80,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-            backgroundColor: "rgba(255,255,255,0.025)",
-          }}>
-            <View style={{ width: LABEL_W, paddingHorizontal: 8, justifyContent: "center" }}>
-              <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "900" }}>
-                Criteria
-              </Text>
-            </View>
-
-            <VDoubleSep />
-
+          {/* Building name header row */}
+          <View style={{ flexDirection: "row", borderBottomWidth: 2, borderBottomColor: colors.border }}>
             {listings.map((l) => (
               <View
                 key={l.id}
                 style={{
                   width: COL_W,
+                  height: 44,
                   paddingHorizontal: 8,
+                  justifyContent: "center",
                   borderLeftWidth: 1,
                   borderLeftColor: colors.border,
-                  justifyContent: "center",
                 }}
               >
-                <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "900" }} numberOfLines={2}>
+                <Text style={{ color: colors.textPrimary, fontSize: 11, fontWeight: "900" }} numberOfLines={2}>
                   {l.buildingName}
                 </Text>
               </View>
             ))}
           </View>
-        </ScrollView>
-      </View>
 
-      <HDoubleRule />
-
-      {/* ── BODY — vertical scroll wraps horizontal scroll ── */}
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          onScroll={syncHeader}
-          scrollEventThrottle={16}
-        >
-          <View style={{ width: contentW }}>
-            {visibleRows.map((row, rowIdx) => (
-              <View
-                key={row.key}
-                style={{
-                  flexDirection: "row",
-                  borderBottomWidth: 1,
-                  borderBottomColor: colors.border,
-                  backgroundColor: rowIdx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
-                  minHeight: MIN_ROW_H,
-                }}
-              >
-                {/* Label cell */}
-                <View
-                  style={{
-                    width: LABEL_W,
-                    paddingHorizontal: 8,
-                    paddingVertical: 9,
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ color: colors.textPrimary, fontSize: 11, fontWeight: "700" }}>
-                    {row.label}
-                  </Text>
-                </View>
-
-                <VDoubleSep />
-
-                {/* Data cells — one per listing */}
-                {listings.map((listing) => {
-                  const cell = getCellData(row.key, listing, criteria);
-                  return (
-                    <View
-                      key={listing.id}
-                      style={{
-                        width: COL_W,
-                        paddingHorizontal: 8,
-                        paddingVertical: 9,
-                        justifyContent: "center",
-                        borderLeftWidth: 1,
-                        borderLeftColor: colors.border,
-                      }}
-                    >
-                      {cell.isBool ? (
-                        <BoolCell value={cell.boolValue} small />
-                      ) : cell.color ? (
-                        <CPill text={cell.text} color={cell.color} small />
-                      ) : (
-                        <Text
-                          style={{ color: colors.textSecondary, fontSize: 11 }}
-                          numberOfLines={cell.isMulti ? 0 : 4}
-                        >
-                          {cell.text}
-                        </Text>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            ))}
-          </View>
+          {/* Data rows */}
+          {visibleRows.map((row, idx) => (
+            <View
+              key={row.key}
+              style={{
+                flexDirection: "row",
+                minHeight: rowHeights.current[row.key] ?? MIN_ROW_H,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
+                backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
+              }}
+              onLayout={(e) => {
+                const h = e.nativeEvent.layout.height;
+                if (h !== rowHeights.current[row.key]) {
+                  rowHeights.current[row.key] = h;
+                }
+              }}
+            >
+              {listings.map((listing) => {
+                const cell = getCellData(row.key, listing, criteria);
+                return (
+                  <View
+                    key={listing.id}
+                    style={{
+                      width: COL_W,
+                      paddingHorizontal: 8,
+                      paddingVertical: 9,
+                      justifyContent: "center",
+                      borderLeftWidth: 1,
+                      borderLeftColor: colors.border,
+                    }}
+                  >
+                    {cell.isBool ? (
+                      <BoolCell value={cell.boolValue!} small />
+                    ) : cell.color ? (
+                      <CPill text={cell.text} color={cell.color} small />
+                    ) : (
+                      <Text
+                        style={{ color: colors.textSecondary, fontSize: 11 }}
+                        numberOfLines={cell.isMulti ? 0 : 4}
+                      >
+                        {cell.text}
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          ))}
         </ScrollView>
       </ScrollView>
-
     </View>
   );
 }
@@ -477,7 +590,9 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
 // ── Card view ─────────────────────────────────────────────────────
 
 function CompareCard({ listing, criteria, toggles }: { listing: ListingUI; criteria: CriteriaData; toggles: ProfileToggles }) {
-  const visibleRows = filterRows(CARD_ROWS, toggles);
+  // Cards filter apt-only rows per individual listing's property type
+  const isAptCondoCoop = ["Apartment", "Condo", "Co-op"].includes(rawStr(listing.raw?.propertyType));
+  const visibleRows = filterRows(CARD_ROWS, toggles, isAptCondoCoop);
 
   return (
     <View
@@ -520,11 +635,11 @@ function CompareCard({ listing, criteria, toggles }: { listing: ListingUI; crite
             </Text>
             <View style={{ alignItems: "flex-end", maxWidth: "56%" }}>
               {cell.isBool ? (
-                <BoolCell value={cell.boolValue} />
+                <BoolCell value={cell.boolValue!} />
               ) : cell.color ? (
                 <CPill text={cell.text} color={cell.color} />
               ) : (
-                <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "600", textAlign: "right" }}>
+                <Text style={{ color: colors.textPrimary, fontSize: 13 }} numberOfLines={cell.isMulti ? 0 : 3}>
                   {cell.text}
                 </Text>
               )}
@@ -532,179 +647,6 @@ function CompareCard({ listing, criteria, toggles }: { listing: ListingUI; crite
           </View>
         );
       })}
-    </View>
-  );
-}
-
-// ── Icon toggle ───────────────────────────────────────────────────
-
-function IconToggle({
-  icon,
-  active,
-  onPress,
-}: {
-  icon: React.ComponentProps<typeof Ionicons>["name"];
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={10}
-      style={({ pressed }) => ({
-        width: 44,
-        height: 34,
-        borderRadius: 12,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: pressed ? "rgba(255,255,255,0.03)" : "transparent",
-      })}
-    >
-      <Ionicons name={icon} size={24} color={active ? colors.primaryBlue : colors.textSecondary} />
-    </Pressable>
-  );
-}
-
-// ── Main screen ───────────────────────────────────────────────────
-
-export default function CompareTab() {
-  const insets = useSafeAreaInsets();
-  const topBarHeight = insets.top + 53;
-
-  const { listings, loading } = useListings();
-
-  const [compareIds, setCompareIds] = useState<string[]>([]);
-  const [criteria, setCriteria] = useState<CriteriaData>({
-    minSqFt: "",
-    maxBaseRent: "",
-    maxTotalMonthly: "",
-    maxCommuteTime: "",
-  });
-  const [toggles, setToggles] = useState<ProfileToggles>({ children: false, pets: false, car: false });
-  const [mode, setMode] = useState<"cards" | "table">("cards");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadCompareIds().then(setCompareIds);
-      loadCriteriaData().then(setCriteria);
-      loadProfileToggles().then(setToggles);
-    }, [])
-  );
-
-  const selectedListings = listings.filter((l) => compareIds.includes(l.id));
-
-  const missingCriteria: string[] = [];
-  if (!criteria.maxBaseRent)     missingCriteria.push("Max Base Rent");
-  if (!criteria.maxTotalMonthly) missingCriteria.push("Max Total Monthly");
-  if (!criteria.minSqFt)         missingCriteria.push("Min Square Footage");
-  if (!criteria.maxCommuteTime)  missingCriteria.push("Max Commute Time");
-
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <TopBar onPressMenu={() => setMenuOpen(true)} />
-
-      {/* Missing criteria banner */}
-      {missingCriteria.length > 0 && selectedListings.length > 0 && (
-        <Pressable
-          onPress={() => setActiveSubPanel("criteria")}
-          style={({ pressed }) => ({
-            backgroundColor: pressed ? `${colors.primaryBlue}30` : `${colors.primaryBlue}20`,
-            borderBottomWidth: 1,
-            borderBottomColor: `${colors.primaryBlue}66`,
-            paddingVertical: 8,
-            paddingHorizontal: 14,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-          })}
-        >
-          <Ionicons name="alert-circle-outline" size={14} color={colors.primaryBlue} />
-          <Text
-            style={{ color: colors.primaryBlue, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, flex: 1 }}
-            numberOfLines={2}
-          >
-            CRITERIA NOT SET: {missingCriteria.join(", ")} — TAP TO SET
-          </Text>
-          <Ionicons name="chevron-forward" size={12} color={colors.primaryBlue} />
-        </Pressable>
-      )}
-
-      {/* Mode toggle + Clear button */}
-      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 18, paddingTop: 10, paddingBottom: 4 }}>
-        <IconToggle icon="grid-outline" active={mode === "cards"} onPress={() => setMode("cards")} />
-        <IconToggle icon="list-outline" active={mode === "table"} onPress={() => setMode("table")} />
-        {selectedListings.length > 0 && (
-          <Pressable
-            onPress={() => { saveCompareIds([]); setCompareIds([]); }}
-            style={({ pressed }) => ({
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: colors.border,
-              backgroundColor: pressed ? colors.cardHover : "transparent",
-            })}
-          >
-            <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "700" }}>Clear</Text>
-          </Pressable>
-        )}
-      </View>
-
-      {/* Content */}
-      {loading ? (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator />
-          <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Loading...</Text>
-        </View>
-      ) : selectedListings.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 36 }}>
-          <Ionicons name="git-compare-outline" size={48} color={colors.textSecondary} />
-          <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "800", marginTop: 16, textAlign: "center" }}>
-            No listings selected
-          </Text>
-          <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 8, textAlign: "center", lineHeight: 20 }}>
-            Go to Listings and tap the compare icon on up to 3 listings to compare them here.
-          </Text>
-        </View>
-      ) : mode === "cards" ? (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-          {selectedListings.map((l) => (
-            <CompareCard key={l.id} listing={l} criteria={criteria} toggles={toggles} />
-          ))}
-        </ScrollView>
-      ) : (
-        <View style={{ flex: 1, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 16 }}>
-          <CompareTable listings={selectedListings} criteria={criteria} toggles={toggles} />
-        </View>
-      )}
-
-      {/* Menu */}
-      {menuOpen && (
-        <MenuPanel
-          topOffset={topBarHeight}
-          onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }}
-          onClose={() => setMenuOpen(false)}
-        />
-      )}
-
-      {/* Sub-panels */}
-      {activeSubPanel === "profile" && (
-        <ProfilePanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
-      )}
-      {activeSubPanel === "criteria" && (
-        <CriteriaPanel
-          topOffset={topBarHeight}
-          onClose={() => {
-            setActiveSubPanel(null);
-            loadCriteriaData().then(setCriteria);
-          }}
-        />
-      )}
-      {activeSubPanel === "settings" && (
-        <SettingsPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
-      )}
     </View>
   );
 }
