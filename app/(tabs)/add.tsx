@@ -199,14 +199,14 @@ const COOLING_TYPES = ["Central Air", "Wall Unit", "Window Unit", "None"];
 const HEATING_TYPES = ["Forced Air", "Baseboard", "Radiant", "Steam", "Electric", "Natural Gas", "Oil", "Propane", "None"];
 const LAUNDRY = ["None", "In-Unit", "On Floor", "In Building"];
 const PARKING = ["Shared Garage", "Shared Lot", "Covered Space", "Attached Garage", "Detached Garage", "Driveway", "Carport", "Street", "None", "Other"];
-const UTILITIES = ["Electric", "Gas", "Heat", "Hot Water", "Water", "Sewer", "Internet", "Cable", "Trash"];
-const UNIT_FEATURES = ["Hardwood Floors", "Carpet", "Tile Floors", "Central A/C", "Window A/C", "In-Unit Laundry", "Dishwasher", "Microwave", "Garbage Disposal", "Fireplace", "Exposed Brick", "High Ceilings", "Walk-in Closet", "Balcony/Terrace", "Private Entrance"];
-const BUILDING_AMENITIES = ["Extra Storage", "Rooftop Space", "Common Lounge", "Barbecue Area", "Firepits", "Gym", "Pool", "Doorman", "Virtual Doorman", "Package Room", "Bike Storage", "EV Charging", "Elevator", "Wheelchair Accessible"];
-const PRIVATE_OUTDOOR_SPACE = ["Patio", "Deck", "Balcony", "Porch", "Yard"];
-const PET_AMENITIES = ["Pet Washing", "Dog Park", "Dog Run"];
-const CLOSE_BY = ["Subway", "Bus Stop", "Grocery Store", "Park", "Restaurants", "Pharmacy", "Coffee Shop", "Gym", "School", "Highway"];
-const STORAGE_TYPES = ["Unit Storage", "Basement Storage", "Storage Unit", "Attic"];
-const ROOM_TYPES = ["Living Room", "Dining Room", "Office", "Bonus Room", "Sunroom", "Den", "Loft"];
+const UTILITIES = ["Electric", "Gas", "Heat", "Hot Water", "Water", "Sewer", "Trash", "Internet", "Cable", "Parking", "Lawn Care", "Snow Removal", "Pool Maintenance"];
+const UNIT_FEATURES = ["Hardwood Floors", "Dishwasher", "Microwave", "Fireplace", "Views", "Large Windows"];
+const BUILDING_AMENITIES = ["Rooftop Space", "Common Lounge", "Barbecue Area", "Firepits", "Gym", "Pool", "Doorman", "Elevator", "Game Room", "Theater Room", "Playground", "Tennis Court"];
+const PRIVATE_OUTDOOR_SPACE = ["Balcony", "Patio", "Deck", "Porch", "Private Yard", "Fenced Yard", "Other"];
+const PET_AMENITIES = ["Pet Washing", "Dog Park"];
+const CLOSE_BY = ["Subway", "Bus Stop", "Grocery Store", "Park", "Restaurants", "Pharmacy", "Coffee Shop", "Gym", "School", "Hospital", "Library", "Dog Park", "Farmer's Market", "Shopping Mall", "Highway Access"];
+const STORAGE_TYPES = ["Closet", "Walk-in Closet", "Basement", "Attic", "Garage", "Shed", "Locker", "Pantry", "Outdoor Storage", "Bike Storage", "Other"];
+const ROOM_TYPES = ["Living Room", "Dining Room", "Kitchen", "Eat-in Kitchen", "Foyer", "Den", "Family Room", "TV Room", "Office", "Library", "Sunroom", "Mudroom", "Laundry Room", "Finished Basement", "Bonus Room", "Playroom", "Other"];
 const LISTING_SITES = ["StreetEasy", "Zillow", "Apartments.com", "Realtor.com", "Craigslist", "Facebook Marketplace", "Direct", "Other"];
 const TIME_OPTIONS = [
   "6:00 AM","6:30 AM","7:00 AM","7:30 AM","8:00 AM","8:30 AM","9:00 AM","9:30 AM",
@@ -462,16 +462,16 @@ export default function AddTab() {
           <Section title="Costs" open={open.costs} onToggle={() => toggleSection("costs")}>
             <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginBottom: 2 }}>MONTHLY</Text>
             <Field label="Base Rent" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={(t) => setDraft((d) => ({ ...d, baseRent: t }))} keyboardType="number-pad" />
-            {toggles.pets && (
-              <Field label="Pet Fee" fieldKey="petFee" inputRefs={inputRefs} onNext={focusNext} value={draft.petFee} onChangeText={(t) => setDraft((d) => ({ ...d, petFee: t }))} keyboardType="number-pad" />
-            )}
-            <Field label="Storage Rent" fieldKey="storageRent" inputRefs={inputRefs} onNext={focusNext} value={draft.storageRent} onChangeText={(t) => setDraft((d) => ({ ...d, storageRent: t }))} keyboardType="number-pad" />
-            <Field label="Amenity Fee" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={(t) => setDraft((d) => ({ ...d, amenityFee: t }))} keyboardType="number-pad" />
-            <Field label="Admin Fee" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={(t) => setDraft((d) => ({ ...d, adminFee: t }))} keyboardType="number-pad" />
             <Field label="Utility Fee" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={(t) => setDraft((d) => ({ ...d, utilityFee: t }))} keyboardType="number-pad" />
+            <Field label="Amenity Fee" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={(t) => setDraft((d) => ({ ...d, amenityFee: t }))} keyboardType="number-pad" />
             {toggles.car && (
               <Field label="Parking Fee" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={(t) => setDraft((d) => ({ ...d, parkingFee: t }))} keyboardType="number-pad" />
             )}
+            <Field label="Storage Rent" fieldKey="storageRent" inputRefs={inputRefs} onNext={focusNext} value={draft.storageRent} onChangeText={(t) => setDraft((d) => ({ ...d, storageRent: t }))} keyboardType="number-pad" />
+            {toggles.pets && (
+              <Field label="Pet Fee" fieldKey="petFee" inputRefs={inputRefs} onNext={focusNext} value={draft.petFee} onChangeText={(t) => setDraft((d) => ({ ...d, petFee: t }))} keyboardType="number-pad" />
+            )}
+            <Field label="Admin Fee" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={(t) => setDraft((d) => ({ ...d, adminFee: t }))} keyboardType="number-pad" />
             <Field label="Other Fee" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={(t) => setDraft((d) => ({ ...d, otherFee: t }))} keyboardType="number-pad" />
             <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 6, marginBottom: 2 }}>UPFRONT</Text>
             <Field label="Security Deposit" fieldKey="securityDeposit" inputRefs={inputRefs} onNext={focusNext} value={draft.securityDeposit} onChangeText={(t) => setDraft((d) => ({ ...d, securityDeposit: t }))} keyboardType="number-pad" />
