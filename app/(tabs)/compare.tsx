@@ -1,15 +1,13 @@
-// app/(tabs)/compare.tsx — Build 3.2.12
-// Changes from 3.2.09.2:
-// - "Unit Type" row renamed to "Property Type" with key "propertyType".
-// - "AC Type" row renamed to "Cooling Type" with key "coolingType".
-// - Property-type-gated rows added: unitNumber, floorNumber, topFloor, cornerUnit.
-//   Hidden when all selected listings are House / Townhouse.
-//   For card view: hidden per card. For table view: hidden if no listing is apt/condo/coop.
-// - New rows added: Pet Fee (pets gated), Storage Rent, Broker Fee, Move-in Fee,
-//   Number of Floors, Heating Type, Room Types, Private Outdoor Space, Storage.
-// - filterRows updated to handle property-type gating.
-// - getCellData updated with all new cases.
-// All layout constants, frozen panes, onLayout sync logic, and other logic unchanged.
+// app/(tabs)/compare.tsx — Build 3.2.12.4
+// Changes from 3.2.12.1:
+// - Clear button restored to the right side of the mode-toggle row.
+//   Card/table icons remain centered. Tapping Clear deselects all listings.
+// - 7 rows added to CARD_ROWS (were already in TABLE_ROWS):
+//   Utilities Included, Unit Features, Rooms, Outdoor Space, Storage,
+//   Building Amenities, Close By — inserted in TABLE_ROWS order.
+// - LABEL_W increased from 100 to 120 to prevent label truncation in table view.
+// All other logic, layout constants, frozen panes, scroll sync, and row
+// definitions are unchanged.
 
 import React, { useCallback, useRef, useState } from "react";
 import {
@@ -34,7 +32,7 @@ import { loadCriteriaData, loadProfileToggles, type CriteriaData, type ProfileTo
 import type { ListingUI } from "../../lib/types";
 
 // ── Layout constants ──────────────────────────────────────────────
-const LABEL_W    = 100;
+const LABEL_W    = 120;   // increased from 100 — prevents label truncation
 const COL_W      = 118;
 const MIN_ROW_H  = 40;
 
@@ -300,7 +298,14 @@ const CARD_ROWS: Array<{ label: string; key: string }> = [
   { label: "Heating Type",         key: "heatingType" },
   { label: "Laundry",              key: "laundry" },
   { label: "Parking",              key: "parkingType" },      // car gated
+  { label: "Utilities Included",   key: "utilitiesIncluded" },
+  { label: "Unit Features",        key: "unitFeatures" },
+  { label: "Rooms",                key: "roomTypes" },
+  { label: "Outdoor Space",        key: "privateOutdoorSpaceTypes" },
+  { label: "Storage",              key: "storageTypes" },
+  { label: "Building Amenities",   key: "buildingAmenities" },
   { label: "Pet Amenities",        key: "petAmenities" },     // pets gated
+  { label: "Close By",             key: "closeBy" },
   { label: "Commute Time",         key: "commuteTime" },
   { label: "Elem. School",         key: "elemSchool" },       // children gated
   { label: "Middle School",        key: "middleSchool" },     // children gated
@@ -384,17 +389,25 @@ export default function CompareTab() {
 
   const selectedListings = listings.filter((l) => compareIds.has(l.id));
 
+  function handleClear() {
+    saveCompareIds([]);
+    setCompareIds(new Set());
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <TopBar title="Compare" onPressMenu={() => setMenuOpen(true)} />
 
-      {/* Mode toggle */}
-      <View style={{ flexDirection: "row", justifyContent: "center", paddingVertical: 8, gap: 16 }}>
+      {/* Mode toggle row — icons centered, Clear button on the right */}
+      <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", paddingVertical: 8, gap: 16 }}>
         <Pressable onPress={() => setMode("cards")}>
           <Ionicons name="grid" size={22} color={mode === "cards" ? colors.primaryBlue : colors.textSecondary} />
         </Pressable>
         <Pressable onPress={() => setMode("table")}>
           <Ionicons name="list" size={22} color={mode === "table" ? colors.primaryBlue : colors.textSecondary} />
+        </Pressable>
+        <Pressable onPress={handleClear} style={{ position: "absolute", right: 16 }}>
+          <Text style={{ color: colors.primaryBlue, fontSize: 13 }}>Clear</Text>
         </Pressable>
       </View>
 
@@ -483,7 +496,7 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
               paddingHorizontal: 8,
               paddingVertical: 9,
               justifyContent: "center",
-              minHeight: rowHeights.current[row.key] ?? MIN_ROW_H,
+              minHeight: rowHeights.current[row.key] ? rowHeights.current[row.key] : MIN_ROW_H,
               borderBottomWidth: 1,
               borderBottomColor: colors.border,
               backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
