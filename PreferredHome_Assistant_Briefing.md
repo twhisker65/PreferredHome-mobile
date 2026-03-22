@@ -1,5 +1,5 @@
 # PreferredHome — Assistant Briefing
-**Closing Out Build 3.2.12.2 | March 2026**
+**Closing Out Build 3.2.12.3 | March 2026**
 
 ---
 
@@ -23,7 +23,7 @@
 
 | Item | Status |
 |---|---|
-| Stable Baseline | Build 3.2.12.2 — confirmed stable. |
+| Stable Baseline | Build 3.2.12.3 — confirmed stable. All 11 test items passed. |
 | ISSUE 2 (carried fwd) | API `totalMonthly` omits fees for some listings. Workaround: `compare.tsx` uses local `baseRent + fees`. Permanent fix: Build 3.2.13. |
 
 ---
@@ -35,6 +35,7 @@
 | 3.2.12 | add.tsx, edit.tsx, ViewPanel.tsx, compare.tsx | Superseded | Wrong folder structure in ZIP — app/tabs/ instead of app/(tabs)/ |
 | 3.2.12.1 | add.tsx, edit.tsx, ViewPanel.tsx, compare.tsx | Superseded | Folder structure fixed. Edit screen still crashed — fetchListing invented. Option arrays wrong. Compare Clear button missing. |
 | 3.2.12.2 | edit.tsx only | Confirmed stable | fetchListing replaced with getListings + find. Option arrays restored. Costs order restored. |
+| 3.2.12.3 | add.tsx only | Confirmed stable | 8 option arrays restored. Costs field order restored. Identical fix to edit.tsx. |
 
 ---
 
@@ -42,18 +43,10 @@
 
 | File | Stable Build | Notes |
 |---|---|---|
-| `app/(tabs)/add.tsx` | 3.2.12.1 | Option arrays still wrong — fix pending in 3.2.12.3 |
-| `app/edit.tsx` | 3.2.12.2 | Fully correct |
-| `components/ViewPanel.tsx` | 3.2.12.1 | All tests passed — stable |
-| `app/(tabs)/compare.tsx` | 3.2.12.1 | Clear button missing, new rows absent from cards, label truncation — fix pending in 3.2.12.4 |
-
----
-
-## Build 3.2.12.2 — What Was Delivered
-
-| File | Change |
-|---|---|
-| `app/edit.tsx` | `fetchListing` (non-existent) replaced with `getListings().then(all.find by id)`. 8 option arrays restored to exact 3.2.11B values. Costs section field order restored to exact 3.2.11B sequence. |
+| `app/(tabs)/add.tsx` | 3.2.12.3 | Option arrays correct. Costs order correct. Fully stable. |
+| `app/edit.tsx` | 3.2.12.2 | Fully correct. |
+| `components/ViewPanel.tsx` | 3.2.12.1 | All tests passed — stable. |
+| `app/(tabs)/compare.tsx` | 3.2.12.1 | Clear button missing, CARD_ROWS missing 7 rows, label truncation — fix pending in 3.2.12.4. |
 
 ---
 
@@ -70,6 +63,8 @@
 | New fields visible in ViewPanel | Stable — 3.2.12.1 |
 | coolingType fix in ViewPanel | Stable — 3.2.12.1 |
 | petFee gated in ViewPanel | Stable — 3.2.12.1 |
+| Option arrays correct on Add | Stable — 3.2.12.3 |
+| Costs field order correct on Add | Stable — 3.2.12.3 |
 
 ---
 
@@ -97,19 +92,22 @@
 
 ---
 
-## Immediate Next Steps
+## Immediate Next Step — Build 3.2.12.4
 
-| Build | Scope | File |
-|---|---|---|
-| 3.2.12.3 | Restore option arrays + Costs field order | `app/(tabs)/add.tsx` only |
-| 3.2.12.4 | Restore Compare Clear button, add new rows to cards, fix label truncation | `app/(tabs)/compare.tsx` only |
+**Scope:** `app/(tabs)/compare.tsx` only.
+
+**Three changes:**
+1. Restore the Clear button — right side of the mode-toggle row (card/table icons centered, Clear on the right).
+2. Add 7 missing rows to CARD_ROWS — Utilities Included, Unit Features, Rooms, Outdoor Space, Storage, Building Amenities, Close By. Already present in TABLE_ROWS; follow TABLE_ROWS order.
+3. Fix label truncation in table view — increase `LABEL_W` from `100` to the width needed to fit the longest label ("Building Amenities"). Value to use: `120`.
 
 ---
 
-## Roadmap — Remaining Builds (Post Hotfix Series)
+## Roadmap — Remaining Builds
 
 | Build | Scope |
 |---|---|
+| 3.2.12.4 | Compare Clear button, CARD_ROWS 7 missing rows, label truncation fix |
 | 3.2.13 | Auto-calculations — Total Monthly + Total One-Time Upfront. API totalMonthly fix (ISSUE 2) |
 | 3.2.14 | ZIP to City/State auto-fill + Listing Site auto-detect from URL pattern |
 | 3.2.15 | Commute Calculation + Walk / Transit / Bike Scores via backend API calls |
@@ -128,22 +126,4 @@
 | DRIFT 5 | Apply `boolStr()` to every file that sends a payload to the API. Never apply it to only one file when the same pattern exists in others. |
 | DRIFT 6 | No structural changes to any screen without explicit authorisation from Thomas. If in doubt — ask first. |
 | DRIFT 7 | Read the original spec before touching any form structure. Never infer the structure from memory. |
-| DRIFT 8 | Never invent API functions. Read lib/api.ts before writing any import that references it. |
-| DRIFT 9 | Never rewrite option arrays. Read the current file before touching any constant. |
-| DRIFT 10 | Begin Build Brief and Session Confirmation Checklist required before every build — including hotfixes without exception. |
-
----
-
-## Key Conventions — Standing Rules
-
-| Rule | Detail |
-|---|---|
-| Boolean serialization | Always `"TRUE"` / `"FALSE"` all-caps strings in every file that sends a payload |
-| Property Type casing | Apartment, Condo, Co-op, Townhouse, House — exact casing locked |
-| Build numbering | Two-digit format e.g. 3.2.12. Hotfixes use a fourth digit e.g. 3.2.12.2 |
-| ZIP naming | `PreferredHome_Build_X_X_XX.zip` — underscores only, no dots, prefix mandatory |
-| Closing docs | Fixed filenames, overwrite each build: `PreferredHome_Next_Steps.md`, `PreferredHome_Assistant_Briefing.md` |
-| Closing doc timing | Produced only after Thomas confirms build stability. Never before. |
-| Delivery | Always a ZIP with correct folder structure. No individual files. No patch instructions. |
-| Commit message | Copyable code block in chat AND in README |
-| Expo restart | Copyable code block in chat AND in README |
+| DRIFT 8 | Never invent API functions. Read `lib/api.ts` before writing any import that references it. |
