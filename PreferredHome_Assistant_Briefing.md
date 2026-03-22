@@ -1,5 +1,5 @@
 # PreferredHome — Assistant Briefing
-**Closing Out Build 3.2.11B | March 2026**
+**Closing Out Build 3.2.12.2 | March 2026**
 
 ---
 
@@ -23,19 +23,53 @@
 
 | Item | Status |
 |---|---|
-| Stable Baseline | Build 3.2.11B — confirmed stable. |
-| ISSUE 1 | Resolved. Edit page was showing only Building Name. Fixed in Build 3.2.11B. |
+| Stable Baseline | Build 3.2.12.2 — confirmed stable. |
 | ISSUE 2 (carried fwd) | API `totalMonthly` omits fees for some listings. Workaround: `compare.tsx` uses local `baseRent + fees`. Permanent fix: Build 3.2.13. |
 
 ---
 
-## Build 3.2.11B — What Was Delivered
+## Build History — 3.2.12 Series
+
+| Build | File | Status | Notes |
+|---|---|---|---|
+| 3.2.12 | add.tsx, edit.tsx, ViewPanel.tsx, compare.tsx | Superseded | Wrong folder structure in ZIP — app/tabs/ instead of app/(tabs)/ |
+| 3.2.12.1 | add.tsx, edit.tsx, ViewPanel.tsx, compare.tsx | Superseded | Folder structure fixed. Edit screen still crashed — fetchListing invented. Option arrays wrong. Compare Clear button missing. |
+| 3.2.12.2 | edit.tsx only | Confirmed stable | fetchListing replaced with getListings + find. Option arrays restored. Costs order restored. |
+
+---
+
+## What Is Currently Stable — Per File
+
+| File | Stable Build | Notes |
+|---|---|---|
+| `app/(tabs)/add.tsx` | 3.2.12.1 | Option arrays still wrong — fix pending in 3.2.12.3 |
+| `app/edit.tsx` | 3.2.12.2 | Fully correct |
+| `components/ViewPanel.tsx` | 3.2.12.1 | All tests passed — stable |
+| `app/(tabs)/compare.tsx` | 3.2.12.1 | Clear button missing, new rows absent from cards, label truncation — fix pending in 3.2.12.4 |
+
+---
+
+## Build 3.2.12.2 — What Was Delivered
 
 | File | Change |
 |---|---|
-| `app/(tabs)/add.tsx` | 11 new fields added; `unitType` → `propertyType`; `acType` → `coolingType`; option arrays updated; PROPERTY section restructured; COSTS section split into MONTHLY / UPFRONT visual groups; FEATURES section reordered; handleSave payload updated |
-| `app/edit.tsx` | All changes from add.tsx; rawToDraft updated for all new and renamed fields; ISSUE 1 resolved |
-| `lib/listingsNormalize.ts` | `unitType` → `propertyType`; `petFee` and `storageRent` added to fees total |
+| `app/edit.tsx` | `fetchListing` (non-existent) replaced with `getListings().then(all.find by id)`. 8 option arrays restored to exact 3.2.11B values. Costs section field order restored to exact 3.2.11B sequence. |
+
+---
+
+## Confirmed Stable Features — 3.2.12 Series
+
+| Feature | Status |
+|---|---|
+| Property Type show/hide on Add | Stable — 3.2.12.1 |
+| Property Type show/hide on Edit | Stable — 3.2.12.2 |
+| Property Type show/hide on ViewPanel | Stable — 3.2.12.1 |
+| Property Type show/hide on Compare table | Stable — 3.2.12.1 |
+| shortTermAvailable + rentersInsuranceRequired moved to Listing section (Add) | Stable — 3.2.12.1 |
+| shortTermAvailable + rentersInsuranceRequired moved to Listing section (Edit) | Stable — 3.2.12.2 |
+| New fields visible in ViewPanel | Stable — 3.2.12.1 |
+| coolingType fix in ViewPanel | Stable — 3.2.12.1 |
+| petFee gated in ViewPanel | Stable — 3.2.12.1 |
 
 ---
 
@@ -48,92 +82,34 @@
 
 ---
 
-## New Fields — Build 3.2.11B
+## Locked Terminology
 
-| Field | Type | Section | Notes |
-|---|---|---|---|
-| `numberOfFloors` | Numeric | PROPERTY | Shown for all property types |
-| `shortTermAvailable` | Boolean | PROPERTY | After Furnished |
-| `rentersInsuranceRequired` | Boolean | PROPERTY | After Short Term Available |
-| `heatingType` | Select | FEATURES | After Cooling Type |
-| `petFee` | Numeric | COSTS — Monthly | Pets toggle gated |
-| `storageRent` | Numeric | COSTS — Monthly | Always visible |
-| `brokerFee` | Numeric | COSTS — Upfront | Always visible |
-| `moveInFee` | Numeric | COSTS — Upfront | Always visible |
-| `roomTypes` | Multi-select | FEATURES | |
-| `privateOutdoorSpaceTypes` | Multi-select | FEATURES | |
-| `storageTypes` | Multi-select | FEATURES | |
+- Property Type options: Apartment, Condo, Co-op, Townhouse, House — exactly 5, exact casing
+- Co-op is lowercase 'o' and lowercase 'p' — confirmed correct and locked
 
 ---
 
-## Removed Fields — Permanent Record
+## Open Issues — Carried Forward
 
-| Field | Reason |
-|---|---|
-| `unitType` | Renamed to `propertyType`. Unit Type as a separate field removed entirely. |
-| `firstMonth` | Folded into Security Deposit. Never built into live code. |
-| `lastMonth` | Folded into Security Deposit. Never built into live code. |
-| Duplex (Property Type option) | Removed — ambiguous property type. Not apartment, not house. |
-
----
-
-## Data Architecture — V6 Updates (This Session)
-
-Updated during pre-build planning session for Build 3.2.12. No code changes — document corrections only.
-
-| Change | Detail |
-|---|---|
-| Unit Type field removed | No longer exists in app or spec |
-| Duplex removed | Property Type options: Apartment, Condo, Co-op, Townhouse, House |
-| First Month / Last Month removed | Folded into Security Deposit |
-| Storage Rent and Move-in Fee added | These are the correct live fields |
-| Field renames documented | `unitType` → `propertyType`, `acType` → `coolingType` |
-| Property Type visibility rules added | Apartment/Condo/Co-op show Unit #, Floor Number, Top Floor, Corner Unit. House/Townhouse hide these. Number of Floors shown for all. |
-| Lifestyle toggle visibility rules added | Children: Schools section. Pets: Pet Fee + Pet Amenities. Car: Parking Fee + Parking Type. |
-| COSTS restructured | Split into MONTHLY and UPFRONT sub-groups with correct fields |
-
----
-
-## Build 3.2.12 — Scope Confirmed
-
-Field visibility rules — Property Type drives which fields show and hide on Add, Edit, ViewPanel, and Compare screens. Follows the same pattern as Lifestyle Toggles already built in 3.2.09.
-
-**Property Type — listing-level toggle (position 2 after Status)**
-
-| Field | Apartment / Condo / Co-op | House / Townhouse |
+| ID | Issue | Target |
 |---|---|---|
-| Apartment / Unit # | Show | Hide |
-| Floor Number | Show | Hide |
-| Top Floor | Show | Hide |
-| Corner Unit | Show | Hide |
-| Number of Floors | Show | Show |
-
-**Lifestyle Toggles — already built in 3.2.09, documented here for completeness**
-
-| Toggle | Fields Shown When ON |
-|---|---|
-| Children | Schools section |
-| Pets | Pet Fee, Pet Amenities |
-| Car | Parking Fee, Parking Type |
+| ISSUE 2 | API `totalMonthly` omits fees for some listings. Compare screen uses local calculation as workaround. | Build 3.2.13 |
 
 ---
 
-## Deferred Items
+## Immediate Next Steps
 
-| Item | Target |
-|---|---|
-| `components/ViewPanel.tsx` — display all new fields from 3.2.11 | To be scheduled |
-| `app/(tabs)/compare.tsx` — display new fields from 3.2.11 | To be scheduled |
-| ISSUE 2 — `totalMonthly` fee omission | Build 3.2.13 |
-| Add/Edit unification | Build 3.2.16 |
+| Build | Scope | File |
+|---|---|---|
+| 3.2.12.3 | Restore option arrays + Costs field order | `app/(tabs)/add.tsx` only |
+| 3.2.12.4 | Restore Compare Clear button, add new rows to cards, fix label truncation | `app/(tabs)/compare.tsx` only |
 
 ---
 
-## Roadmap — Remaining Builds
+## Roadmap — Remaining Builds (Post Hotfix Series)
 
 | Build | Scope |
 |---|---|
-| 3.2.12 | Field visibility rules — Property Type drives field show/hide on all screens |
 | 3.2.13 | Auto-calculations — Total Monthly + Total One-Time Upfront. API totalMonthly fix (ISSUE 2) |
 | 3.2.14 | ZIP to City/State auto-fill + Listing Site auto-detect from URL pattern |
 | 3.2.15 | Commute Calculation + Walk / Transit / Bike Scores via backend API calls |
@@ -152,6 +128,9 @@ Field visibility rules — Property Type drives which fields show and hide on Ad
 | DRIFT 5 | Apply `boolStr()` to every file that sends a payload to the API. Never apply it to only one file when the same pattern exists in others. |
 | DRIFT 6 | No structural changes to any screen without explicit authorisation from Thomas. If in doubt — ask first. |
 | DRIFT 7 | Read the original spec before touching any form structure. Never infer the structure from memory. |
+| DRIFT 8 | Never invent API functions. Read lib/api.ts before writing any import that references it. |
+| DRIFT 9 | Never rewrite option arrays. Read the current file before touching any constant. |
+| DRIFT 10 | Begin Build Brief and Session Confirmation Checklist required before every build — including hotfixes without exception. |
 
 ---
 
@@ -160,9 +139,9 @@ Field visibility rules — Property Type drives which fields show and hide on Ad
 | Rule | Detail |
 |---|---|
 | Boolean serialization | Always `"TRUE"` / `"FALSE"` all-caps strings in every file that sends a payload |
-| Build numbering | Two-digit format e.g. 3.2.12. Hotfixes use a fourth digit e.g. 3.2.12.1 |
+| Property Type casing | Apartment, Condo, Co-op, Townhouse, House — exact casing locked |
+| Build numbering | Two-digit format e.g. 3.2.12. Hotfixes use a fourth digit e.g. 3.2.12.2 |
 | ZIP naming | `PreferredHome_Build_X_X_XX.zip` — underscores only, no dots, prefix mandatory |
-| README naming | `README_X.X.XX.txt` — versioned, accumulates in repo |
 | Closing docs | Fixed filenames, overwrite each build: `PreferredHome_Next_Steps.md`, `PreferredHome_Assistant_Briefing.md` |
 | Closing doc timing | Produced only after Thomas confirms build stability. Never before. |
 | Delivery | Always a ZIP with correct folder structure. No individual files. No patch instructions. |

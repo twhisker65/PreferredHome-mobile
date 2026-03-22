@@ -1,11 +1,11 @@
 # PreferredHome — Next Steps
-**Closing Out Build 3.2.11B | March 2026**
+**Closing Out Build 3.2.12.2 | March 2026**
 
 ---
 
-## Build 3.2.11B — Confirmed Stable
+## Build 3.2.12.2 — Confirmed Stable
 
-Build 3.2.11B is confirmed stable. All test steps passed. This session was a planning and document correction session only — no code was written.
+Build 3.2.12.2 is confirmed stable. All test steps passed. Co-op casing confirmed correct and data corrected in Google Sheets.
 
 ---
 
@@ -13,20 +13,22 @@ Build 3.2.11B is confirmed stable. All test steps passed. This session was a pla
 
 | Item | Detail |
 |---|---|
-| Data Architecture updated to V6 | Unit Type removed, Duplex removed, First/Last Month removed, Storage Rent and Move-in Fee confirmed, field renames documented, property type and lifestyle visibility rules fully documented, COSTS restructured into MONTHLY / UPFRONT |
-| Drift Log updated | New entry added for the Data Architecture V5 sync gap — all discrepancies between spec and live code documented |
-| Assistant Briefing updated | Reflects all V6 changes and confirmed Build 3.2.12 scope |
-| Build 3.2.12 scope confirmed | Property Type visibility rules — same pattern as Lifestyle Toggles already built in 3.2.09 |
+| Build 3.2.12 delivered | Property type show/hide, new fields in ViewPanel and Compare, field move to Listing section |
+| Build 3.2.12 folder error | ZIP used app/tabs/ instead of app/(tabs)/ — routing conflict caused Edit crash |
+| Build 3.2.12.1 delivered | Folder structure corrected. Four files replaced. |
+| Build 3.2.12.1 remaining issues | Edit crash persisted (fetchListing), option arrays wrong, Compare Clear button missing, new rows absent from cards |
+| Build 3.2.12.2 delivered | edit.tsx only. fetchListing replaced. Option arrays restored. Costs order restored. |
+| Drift Log updated | 6 new entries added for violations across the 3.2.12 series |
+| Co-op casing confirmed | Correct casing is Co-op. Data in Google Sheets corrected by Thomas. |
 
 ---
 
 ## Session Close Steps
 
-1. Drop the following four files into the repo root (overwrite previous versions):
-   - `PreferredHome_Data_Architecture.md`
-   - `PreferredHome_Drift_Log.md`
+1. Drop the following files into the repo root (overwrite previous versions):
    - `PreferredHome_Assistant_Briefing.md`
    - `PreferredHome_Next_Steps.md`
+   - `PreferredHome_Drift_Log.md`
 2. Commit in GitHub Desktop using the commit message below
 3. Push to GitHub
 4. Sync the Claude Project
@@ -36,47 +38,37 @@ Build 3.2.11B is confirmed stable. All test steps passed. This session was a pla
 ## Commit Message
 
 ```
-Closing out Build 3.2.11B — Data Architecture V6, Drift Log updated, Build 3.2.12 scope confirmed
+Closing out Build 3.2.12.2 -- edit.tsx stable, closing docs updated, drift log updated
 ```
 
 ---
 
-## Immediate Next Step — Build 3.2.12
+## Immediate Next Step — Build 3.2.12.3
 
-**Scope:** Three tasks, all in the same files.
+**Scope:** `app/(tabs)/add.tsx` only.
 
-1. Property Type visibility rules on Add, Edit, ViewPanel, Compare
-2. Display all new 3.2.11 fields on ViewPanel
-3. Display all new 3.2.11 fields on Compare
+**What changes:**
+- Restore 8 option arrays to exact 3.2.11B values — same arrays just fixed in edit.tsx
+- Restore Costs section field order to exact 3.2.11B sequence — same order just fixed in edit.tsx
 
-**Property Type visibility rules to implement:**
+**Pattern:** Exact same fixes just applied to edit.tsx. Arrays and field order are identical between the two files.
 
-| Field | Apartment / Condo / Co-op | House / Townhouse |
-|---|---|---|
-| Apartment / Unit # | Show | Hide |
-| Floor Number | Show | Hide |
-| Top Floor | Show | Hide |
-| Corner Unit | Show | Hide |
-| Number of Floors | Show | Show |
+**Test checklist:**
+- [ ] 1. Open Add screen — no crash
+- [ ] 2. Open any multi-select picker (Rooms, Storage, Utilities, Unit Features, Building Amenities, Private Outdoor Space, Close By) — full option lists present
+- [ ] 3. Costs field order: Base Rent → Utility Fee → Amenity Fee → Storage Rent → Admin Fee → Other Fee → Security Deposit → Application Fee → Broker Fee → Move-in Fee
+- [ ] 4. Property Type show/hide still working correctly on Add
 
-**Pattern:** Same conditional logic already used for Lifestyle Toggles in Build 3.2.09. Read `propertyType` from draft state (Add/Edit) and from raw listing data (ViewPanel/Compare) and show/hide fields accordingly.
+---
 
-**New 3.2.11 fields to add to ViewPanel and Compare:**
+## Build 3.2.12.4 — After 3.2.12.3 is Stable
 
-| Field | Section |
-|---|---|
-| `numberOfFloors` | PROPERTY |
-| `shortTermAvailable` | PROPERTY |
-| `rentersInsuranceRequired` | PROPERTY |
-| `heatingType` | FEATURES |
-| `storageRent` | COSTS — Monthly |
-| `brokerFee` | COSTS — Upfront |
-| `moveInFee` | COSTS — Upfront |
-| `roomTypes` | FEATURES |
-| `privateOutdoorSpaceTypes` | FEATURES |
-| `storageTypes` | FEATURES |
+**Scope:** `app/(tabs)/compare.tsx` only.
 
-**Files in scope:** `app/(tabs)/add.tsx`, `app/edit.tsx`, `components/ViewPanel.tsx`, `app/(tabs)/compare.tsx`
+**What changes:**
+- Restore the Compare Clear button
+- Add new field rows (Rooms, Outdoor Space, Storage, Heating Type, etc.) to CARD_ROWS — they are already in TABLE_ROWS
+- Fix label truncation in the Compare table (label text wrapping)
 
 ---
 
@@ -85,12 +77,3 @@ Closing out Build 3.2.11B — Data Architecture V6, Drift Log updated, Build 3.2
 | ID | Issue | Target |
 |---|---|---|
 | ISSUE 2 | API `totalMonthly` omits fees for some listings. Compare screen uses local calculation as workaround. | Build 3.2.13 |
-
----
-
-## Deferred Items — Carried Forward
-
-| Item | Target |
-|---|---|
-| `components/ViewPanel.tsx` — display all new fields from 3.2.11 | To be scheduled |
-| `app/(tabs)/compare.tsx` — display new fields from 3.2.11 | To be scheduled |
