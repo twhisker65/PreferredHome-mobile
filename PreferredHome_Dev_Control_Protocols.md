@@ -1,5 +1,5 @@
 # PreferredHome — Dev Control Protocols
-**Version V16 | March 2026**
+**Version V17 | March 2026**
 
 ---
 
@@ -100,7 +100,7 @@ State only what to do. No explanatory descriptions embedded in steps. Every comm
 | Format | Example | Notes |
 |---|---|---|
 | X.X.YY | 3.2.07 | Standard build — two-digit patch always. |
-| X.X.YY.N | 3.2.07.1 | Hotfix — HOTFIX appears AFTER the build number. Each hotfix increments the digit. Never reuse. |
+| X.X.YY.N | 3.2.07.1 | Hotfix — each hotfix increments the digit. Never reuse. |
 | X.X.YY_FULL_REBUILD | 3.2.07_FULL_REBUILD | Entire repo replaced. |
 
 ---
@@ -212,13 +212,13 @@ Eight collapsible sections: PROPERTY, COSTS, FEATURES, TRANSPORTATION, SCHOOLS, 
 
 ## Section 26 — totalMonthly
 
-`totalMonthly` is auto-calculated by the API: `baseRent + amenityFee + adminFee + utilityFee + parkingFee + otherFee`. The API `totalMonthly` field is currently unreliable for some listings (ISSUE 2 — carried forward). Compare screen uses local `baseRent + fees` calculation as a workaround until the API fix is delivered in Build 3.2.13.
+`totalMonthly` is auto-calculated by the API: `baseRent + petFee + storageRent + amenityFee + adminFee + utilityFee + parkingFee + otherFee`. `totalUpfront` is auto-calculated by the API: `securityDeposit + applicationFee + brokerFee + moveInFee`. Both are injected at save time in `main.py`. Mobile calculates both locally for display — it does not rely on the API value.
 
 ---
 
 ## Section 27 — Code-Start Confirmation Gate
 
-Before writing any code Claude must: (1) Read all in-scope files. (2) Explicitly state what is currently working versus what is missing or broken. (3) Produce the Begin Build Brief (Section 4) including the Do Not Touch list. (4) Produce the Pre-Test Declaration (Section 33). (5) Wait for Thomas's explicit confirmation. This rule exists because Claude has repeatedly written code before confirming understanding. **There are no exceptions.**
+Before writing any code Claude must: (1) Read all in-scope files. (2) Explicitly state what is currently working versus what is missing or broken. (3) Produce the Begin Build Brief (Section 4) including the Do Not Touch list. (4) Produce the Pre-Test Declaration (Section 33). (5) Wait for Thomas's explicit confirmation. This rule exists because Claude has repeatedly written code before confirming understanding. **There are no exceptions. A question asked is not a go-ahead received. Claude produces nothing further after asking a question until Thomas explicitly replies.**
 
 ---
 
@@ -232,8 +232,6 @@ Claude generates the Do Not Touch list — Thomas does not provide it. Based on 
 
 | Build | Scope |
 |---|---|
-| 3.2.11 | All new data fields — pet fee, property type, garage, yard, basement, floors, and related fields. |
-| 3.2.12 | Field visibility rules — property type (home vs. apartment) drives which fields show on all screens. |
 | 3.2.13 | Auto-calculations — Total Monthly + Total One-Time Upfront. API totalMonthly fix. |
 | 3.2.14 | ZIP to City/State auto-fill + Listing Site auto-detect from URL pattern match. |
 | 3.2.15 | Commute Calculation + Walk / Transit / Bike Scores (backend API calls, stored fields). |
@@ -249,8 +247,7 @@ Claude generates the Do Not Touch list — Thomas does not provide it. Based on 
 
 | ID | Issue | Target |
 |---|---|---|
-| ISSUE 1 | Edit page shows only Building Name. Root cause: edit.tsx passes ListingUI to rawToDraft() instead of raw API response. | 3.2.11 |
-| ISSUE 2 | API totalMonthly omits fees for some listings. Compare screen uses local calculation as workaround. | 3.2.13 |
+| ISSUE 2 | API totalMonthly omits fees for some listings. Fix delivered in Build 3.2.13. Verify on next stable confirm. | 3.2.13 |
 
 ---
 
@@ -314,12 +311,44 @@ All governing documents live in the repo root with fixed filenames in `.md` form
 | `PreferredHome_Project_Strategy.md` | Product identity, target users, monetisation, marketing. |
 
 **Session close workflow:**
-1. Claude produces updated `.md` files.
+1. Claude produces updated `.md` files — complete files, never snippets or additions.
 2. Thomas drops them into the repo root — they overwrite the previous versions.
 3. Commit in GitHub Desktop.
 4. Push to GitHub.
 5. Sync the Claude Project.
 6. New session starts with everything current — no uploads, no missing documents.
+
+---
+
+## Section 36 — Dependency Check Rule (Shared File Rule)
+
+Before changing any file that is imported by other files, Claude must:
+
+1. Identify every file in both repos that imports from the file being changed.
+2. Read each of those importing files in full.
+3. List them explicitly in the Begin Build Brief under a heading "Files That Import This File."
+4. Confirm that no existing constant, function name, or export used by those files is being renamed, removed, or restructured.
+
+This rule applies to all shared files. It applies with highest priority to `config_constants.py`, which is imported by `helpers.py`, `sheets_storage.py`, and `main.py`. Any change to `config_constants.py` that breaks an existing import name is a hard protocol violation.
+
+Only values or names that are explicitly in scope may be changed. Every other name in the file is frozen.
+
+---
+
+## Section 37 — Punishment Protocol
+
+Thomas has four authorized responses to a protocol violation by Claude. All four may be applied simultaneously. Thomas decides. Claude executes without objection.
+
+1. **Full restart.** All code from the current build is discarded. Claude re-reads all in-scope files from zero and re-delivers the entire build. No code from the violating session is carried forward.
+2. **Drift Log entry.** The violation is recorded permanently in `PreferredHome_Drift_Log.md`. It is never removed. Claude must read it at every session start and name it explicitly.
+3. **Protocol update.** A new rule is added to these protocols specifically addressing the failure mode. Protocol version increments.
+4. **Extra confirmation gate.** For any file category where a violation occurred, Claude must produce a named dependency list and receive explicit written approval from Thomas before writing a single line of code touching that file. This gate is permanent for that file category.
+
+---
+
+## Section 38 — Complete Document Delivery Rule
+
+Every governing document — Drift Log, Protocols, Assistant Briefing, Next Steps, Data Architecture, Roadmap, Project Architecture, Project Strategy — must always be delivered as a complete file. Claude never delivers snippets, additions, append instructions, or partial files for Thomas to merge manually. Thomas does not merge documents. If a document needs updating, Claude produces the entire document from top to bottom with all changes already incorporated. This rule has no exceptions.
 
 ---
 
@@ -336,3 +365,4 @@ All governing documents live in the repo root with fixed filenames in `.md` form
 | V15 | Drift Log (Sec 5). Begin Build Brief + Do Not Touch list (Sec 4, 28). Session Confirmation Checklist widget (Sec 31). Diff Declaration (Sec 32). Pre-Test Declaration (Sec 33). |
 | V15.1 | All governing documents converted from PDF to .md format for reliable project knowledge indexing. Closing documents now produced as .md. Section 19 updated accordingly. |
 | V16 | Section 6 ZIP name corrected to underscore format: `PreferredHome_Build_X_X_XX.zip`. Dots removed from ZIP filename. |
+| V17 | Section 36 — Dependency Check Rule: read all importing files before changing any shared file. Section 37 — Punishment Protocol: four authorized responses to violations. Section 38 — Complete Document Delivery Rule: all documents delivered complete, never as snippets. Section 27 updated: a question asked is not a go-ahead received. All added following Build 3.2.13 violations. |

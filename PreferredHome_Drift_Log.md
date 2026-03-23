@@ -1,5 +1,5 @@
 # PreferredHome — All-Time Drift Log
-**Updated: Closing Out Build 3.2.12.2 | March 2026**
+**Updated: Build 3.2.13.1 | March 2026**
 
 ---
 
@@ -32,3 +32,6 @@ At the start of every session, Claude must read this document in full. Before to
 | 3.2.12 | Removed Compare Clear Button | Rewrote compare.tsx header section entirely instead of making surgical edits. The Clear button was part of the existing header and was removed by the rewrite. | Surgical edits only. Never rewrite a section that contains working UI that is not in scope. |
 | 3.2.12.1 | Protocol Violation — Begin Build Brief | Produced and delivered hotfix 3.2.12.1 code immediately upon identifying the folder structure error — without producing a Begin Build Brief, Session Confirmation Checklist, or waiting for Thomas's go-ahead. | Begin Build Brief and Session Confirmation Checklist are mandatory before every delivery — builds and hotfixes without exception. |
 | 3.2.12.1 | Protocol Violation — Screenshots | Thomas stated he was sending screenshots. Claude acknowledged it would wait, then in the same response began pre-empting the review by listing planned actions. | When waiting for information from Thomas, produce nothing further until the information arrives and has been reviewed together. |
+| 3.2.13 | Code-Start Violation — Section 27 | After asking Thomas for go-ahead to write the hotfix, Claude immediately started writing code in the same response without waiting for Thomas's answer. Thomas had not said proceed. | Section 27 is absolute. After asking a question, Claude produces nothing further until Thomas explicitly replies. A question is not a go-ahead. |
+| 3.2.13 | Out-of-Scope Constant Rename | Claude renamed `PARKING_OPTIONS` to `PARKING_TYPE_OPTIONS` in `config_constants.py` without any instruction to do so. This broke `helpers.py` which imports `PARKING_OPTIONS` by name, crashing the API immediately on Render. Claude had not read `helpers.py` before rewriting `config_constants.py`. | Section 36: Before changing any shared file, read every file that imports from it. List those files. Never rename, remove, or restructure any constant that was not broken and not in scope. |
+| 3.2.13 | Incomplete Document Delivery | After Thomas instructed Claude to deliver complete updated Drift Log and Protocols documents, Claude delivered snippet additions instead of complete files. Thomas never manually merges documents. | Every governing document delivered must be a complete file. No snippets. No append instructions. No partial files. Ever. |
