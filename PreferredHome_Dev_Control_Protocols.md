@@ -1,5 +1,5 @@
 # PreferredHome — Dev Control Protocols
-**Version V17 | March 2026**
+**Version V19 | March 2026**
 
 ---
 
@@ -95,13 +95,30 @@ State only what to do. No explanatory descriptions embedded in steps. Every comm
 
 ---
 
-## Section 11 — Build Numbering
+## Section 11 — Build Numbering and Commit Message Format
+
+### Build Number Format
 
 | Format | Example | Notes |
 |---|---|---|
 | X.X.YY | 3.2.07 | Standard build — two-digit patch always. |
 | X.X.YY.N | 3.2.07.1 | Hotfix — each hotfix increments the digit. Never reuse. |
 | X.X.YY_FULL_REBUILD | 3.2.07_FULL_REBUILD | Entire repo replaced. |
+
+### Commit Message Format
+
+All commit messages follow this exact pattern: `Build [number] [label] - [description]`
+
+| Type | Format | Example |
+|---|---|---|
+| Standard build | `Build X.X.YY - description` | `Build 3.2.14 - ZIP to City/State auto-fill, listing site auto-detect` |
+| Hotfix | `Build X.X.YY.N Hotfix - description` | `Build 3.2.13.2 Hotfix - Compare Total Rent now always calculated locally` |
+| Closeout | `Build X.X.YY Closeout - description` | `Build 3.2.13 Closeout - closing docs updated` |
+
+Rules:
+- Single dash between label and description. Never double dash.
+- `Hotfix` and `Closeout` labels are capitalised and appear immediately after the build number.
+- Description is lowercase, plain English, concise.
 
 ---
 
@@ -154,7 +171,7 @@ Field order within every section is frozen per the current Data Architecture doc
 
 ## Section 18 — No Invented UI
 
-Claude never creates UI sections, components, toggles, or screens that Thomas did not explicitly request. The Unit section violation (Builds 3.2.02 and 3.2.03) is the primary example. If Claude believes a new UI element would be useful, it states so in the Begin Build Brief before building and waits for explicit authorisation.
+Claude never creates UI sections, components, toggles, or screens that Thomas did not explicitly request. If Claude believes a new UI element would be useful, it states so in the Begin Build Brief before building and waits for explicit authorisation.
 
 ---
 
@@ -210,9 +227,9 @@ Eight collapsible sections: PROPERTY, COSTS, FEATURES, TRANSPORTATION, SCHOOLS, 
 
 ---
 
-## Section 26 — totalMonthly
+## Section 26 — Total Monthly and Total Upfront
 
-`totalMonthly` is auto-calculated by the API: `baseRent + petFee + storageRent + amenityFee + adminFee + utilityFee + parkingFee + otherFee`. `totalUpfront` is auto-calculated by the API: `securityDeposit + applicationFee + brokerFee + moveInFee`. Both are injected at save time in `main.py`. Mobile calculates both locally for display — it does not rely on the API value.
+`totalMonthly` and `totalUpfront` are always calculated locally from individual raw fee fields on every screen. No screen reads the stored `totalMonthly` or `totalUpfront` values from the sheet for display. The API calculates and stores both fields on POST and PUT (Build 3.2.13). The stored fields will be reviewed for removal in Build 3.2.18.
 
 ---
 
@@ -232,22 +249,21 @@ Claude generates the Do Not Touch list — Thomas does not provide it. Based on 
 
 | Build | Scope |
 |---|---|
-| 3.2.13 | Auto-calculations — Total Monthly + Total One-Time Upfront. API totalMonthly fix. |
 | 3.2.14 | ZIP to City/State auto-fill + Listing Site auto-detect from URL pattern match. |
-| 3.2.15 | Commute Calculation + Walk / Transit / Bike Scores (backend API calls, stored fields). |
+| 3.2.15 | Commute Calculation — calculated by API using Profile work address vs each listing address. |
 | 3.2.16 | Add/Edit Unification + efficiency cleanup. |
-| 3.2.17 | Canonical Data Model — one master field list across all screens and the API. |
-| 3.2.18 | UI Polish — spacing, typography, visual consistency. No functional changes. |
-| 3.2.19 | APK build for Android local testing before App Store submission. |
-| 5.0+ | Notifications, Photos, Criteria Scoring, Login/Sync, URL Import, Import/Export, Themes, Help Center, User-Defined Lists, Buying Mode, Map View. |
+| 3.2.17 | Neighborhood section — Transportation renamed, Neighborhood name + Near By moved in, safetyScore + noiseScore added. |
+| 3.2.18 | Canonical Data Model — buildingName → propertyName. One master field list. |
+| 3.2.19 | Card overhaul — tap-to-expand icons, status pill fix, rent line alignment. |
+| 3.2.20 | Sort — added to Filter panel. |
+| 3.2.21 | UI Polish — full page panels, spacing, typography. |
+| 3.2.22 | APK build for Android local testing. |
 
 ---
 
 ## Section 30 — Open Issues (Carried Forward)
 
-| ID | Issue | Target |
-|---|---|---|
-| ISSUE 2 | API totalMonthly omits fees for some listings. Fix delivered in Build 3.2.13. Verify on next stable confirm. | 3.2.13 |
+None. ISSUE 2 fully resolved in Build 3.2.13 series.
 
 ---
 
@@ -329,9 +345,7 @@ Before changing any file that is imported by other files, Claude must:
 3. List them explicitly in the Begin Build Brief under a heading "Files That Import This File."
 4. Confirm that no existing constant, function name, or export used by those files is being renamed, removed, or restructured.
 
-This rule applies to all shared files. It applies with highest priority to `config_constants.py`, which is imported by `helpers.py`, `sheets_storage.py`, and `main.py`. Any change to `config_constants.py` that breaks an existing import name is a hard protocol violation.
-
-Only values or names that are explicitly in scope may be changed. Every other name in the file is frozen.
+This rule applies with highest priority to `config_constants.py`, which is imported by `helpers.py`, `sheets_storage.py`, and `main.py`. Any change to `config_constants.py` that breaks an existing import name is a hard protocol violation. Only values or names explicitly in scope may be changed. Every other name is frozen.
 
 ---
 
@@ -339,16 +353,53 @@ Only values or names that are explicitly in scope may be changed. Every other na
 
 Thomas has four authorized responses to a protocol violation by Claude. All four may be applied simultaneously. Thomas decides. Claude executes without objection.
 
-1. **Full restart.** All code from the current build is discarded. Claude re-reads all in-scope files from zero and re-delivers the entire build. No code from the violating session is carried forward.
-2. **Drift Log entry.** The violation is recorded permanently in `PreferredHome_Drift_Log.md`. It is never removed. Claude must read it at every session start and name it explicitly.
-3. **Protocol update.** A new rule is added to these protocols specifically addressing the failure mode. Protocol version increments.
-4. **Extra confirmation gate.** For any file category where a violation occurred, Claude must produce a named dependency list and receive explicit written approval from Thomas before writing a single line of code touching that file. This gate is permanent for that file category.
+1. **Full restart.** All code discarded. Re-read all in-scope files from zero. Re-deliver entire build.
+2. **Drift Log entry.** Violation recorded permanently. Never removed. Named at every session start.
+3. **Protocol update.** New rule added. Protocol version increments.
+4. **Extra confirmation gate.** Named dependency list required. Explicit written approval from Thomas before writing any code touching that file. Permanent for that file category.
 
 ---
 
 ## Section 38 — Complete Document Delivery Rule
 
-Every governing document — Drift Log, Protocols, Assistant Briefing, Next Steps, Data Architecture, Roadmap, Project Architecture, Project Strategy — must always be delivered as a complete file. Claude never delivers snippets, additions, append instructions, or partial files for Thomas to merge manually. Thomas does not merge documents. If a document needs updating, Claude produces the entire document from top to bottom with all changes already incorporated. This rule has no exceptions.
+Every governing document must always be delivered as a complete file. Claude never delivers snippets, additions, append instructions, or partial files for Thomas to merge manually. Thomas does not merge documents. If a document needs updating, Claude produces the entire document from top to bottom with all changes already incorporated. This rule has no exceptions.
+
+---
+
+## Section 39 — PDF Document Format Standard
+
+All PreferredHome PDF documents produced by Claude must follow this format exactly, based on the approved V6 Roadmap PDF:
+
+**Header (every page):**
+- Top left: "PreferredHome" in bold blue (#2563EB), large — tagline "Capture. Compare. Decide." in italic muted text directly below
+- Top right: Document title in bold navy, version and date in blue below it
+- Navy rule (#1E3A8A) beneath the full header spanning page width
+
+**Body:**
+- Blue section headings (#2563EB), bold
+- Tables: navy header row with white bold text, alternating white / light grey rows, light grey grid lines
+- Body text: dark (#111827), 8.5pt
+- Notes and secondary text: italic, muted grey
+
+**Footer (every page):**
+- Thin rule above footer
+- Centered: `PreferredHome  |  Confidential  |  [Document Title]  |  Version X  |  [Date]    Page N`
+- Muted grey, 7.5pt
+
+**Delivery:**
+- Every governing document is delivered as both a `.md` file and a `.pdf` file
+- Both files are included in the same ZIP delivery
+- PDF is generated using ReportLab with the BaseDocTemplate + PageTemplate pattern to ensure header and footer appear on every page
+
+---
+
+## Section 40 — Dual Format Document Delivery
+
+Every governing document produced by Claude — Roadmap, Protocols, Data Architecture, Project Architecture, Project Strategy, Assistant Briefing, Next Steps — must be delivered as both:
+1. A complete `.md` file
+2. A complete `.pdf` file matching the Section 39 format standard
+
+Both files are included in the same ZIP. Claude never delivers one without the other. This rule has no exceptions.
 
 ---
 
@@ -363,6 +414,8 @@ Every governing document — Drift Log, Protocols, Assistant Briefing, Next Step
 | V13 | Section 27 — Code-Start Confirmation Gate. |
 | V14 | Section 27 reinforced. HOTFIX naming rule. Hotfix number reuse prohibition. |
 | V15 | Drift Log (Sec 5). Begin Build Brief + Do Not Touch list (Sec 4, 28). Session Confirmation Checklist widget (Sec 31). Diff Declaration (Sec 32). Pre-Test Declaration (Sec 33). |
-| V15.1 | All governing documents converted from PDF to .md format for reliable project knowledge indexing. Closing documents now produced as .md. Section 19 updated accordingly. |
-| V16 | Section 6 ZIP name corrected to underscore format: `PreferredHome_Build_X_X_XX.zip`. Dots removed from ZIP filename. |
-| V17 | Section 36 — Dependency Check Rule: read all importing files before changing any shared file. Section 37 — Punishment Protocol: four authorized responses to violations. Section 38 — Complete Document Delivery Rule: all documents delivered complete, never as snippets. Section 27 updated: a question asked is not a go-ahead received. All added following Build 3.2.13 violations. |
+| V15.1 | All governing documents converted from PDF to .md format. Closing documents now .md. |
+| V16 | Section 6 ZIP name corrected to underscore format. |
+| V17 | Section 36 — Dependency Check Rule. Section 37 — Punishment Protocol. Section 38 — Complete Document Delivery Rule. Section 27 updated: question asked is not a go-ahead. |
+| V18 | Section 11 updated — commit message format locked: single dash, Hotfix and Closeout labels capitalised. |
+| V19 | Section 39 — PDF Document Format Standard. Section 40 — Dual Format Document Delivery Rule. Both added to ensure every governing document is delivered as MD and PDF in correct format. |
