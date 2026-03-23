@@ -1,5 +1,5 @@
 # PreferredHome — Assistant Briefing
-**Closing Out Build 3.2.12.4.1 | March 2026**
+**Closing Out Build 3.2.13.2 | March 2026**
 
 ---
 
@@ -23,21 +23,18 @@
 
 | Item | Status |
 |---|---|
-| Stable Baseline | Build 3.2.12.4.1 — confirmed stable. All 6 test items passed. |
-| ISSUE 2 (carried fwd) | API `totalMonthly` omits fees for some listings. Workaround: `compare.tsx` uses local `baseRent + fees`. Permanent fix: Build 3.2.13. |
+| Stable Baseline | Build 3.2.13.2 — confirmed stable. All 5 test items passed. |
+| ISSUE 2 | Resolved. API now calculates and stores totalMonthly and totalUpfront on save (Build 3.2.13). Compare now ignores stored value entirely — always calculates locally (Build 3.2.13.2). All screens consistent. |
 
 ---
 
-## Build History — 3.2.12 Series
+## Build History — 3.2.13 Series
 
 | Build | File | Status | Notes |
 |---|---|---|---|
-| 3.2.12 | add.tsx, edit.tsx, ViewPanel.tsx, compare.tsx | Superseded | Wrong folder structure in ZIP — app/tabs/ instead of app/(tabs)/ |
-| 3.2.12.1 | add.tsx, edit.tsx, ViewPanel.tsx, compare.tsx | Superseded | Folder structure fixed. Edit screen still crashed — fetchListing invented. Option arrays wrong. Compare Clear button missing. |
-| 3.2.12.2 | edit.tsx only | Confirmed stable | fetchListing replaced with getListings + find. Option arrays restored. Costs order restored. |
-| 3.2.12.3 | add.tsx only | Confirmed stable | 8 option arrays restored. Costs field order restored. Identical fix to edit.tsx. |
-| 3.2.12.4 | compare.tsx | Superseded | Clear button restored. 7 CARD_ROWS added. LABEL_W 100→120. Label still truncated, toggle reload missing, rowHeights ref not re-rendering. |
-| 3.2.12.4.1 | compare.tsx | Confirmed stable | LABEL_W 120→150. ProfilePanel onClose reloads toggles. rowHeights converted from useRef to useState. |
+| 3.2.13 | listingsNormalize.ts, ViewPanel.tsx, compare.tsx, main.py, config_constants.py | Superseded | Mobile delivered correctly. API crashed on Render — PARKING_OPTIONS renamed without instruction. |
+| 3.2.13.1 | config_constants.py, main.py | Confirmed stable — API | PARKING_OPTIONS restored. API health confirmed. totalMonthly + totalUpfront now calculated and stored on save. |
+| 3.2.13.2 | compare.tsx | Confirmed stable — Mobile | Compare Total Rent now always calculated locally from raw fee fields. Matches ViewPanel and listing cards exactly. |
 
 ---
 
@@ -47,28 +44,41 @@
 |---|---|---|
 | `app/(tabs)/add.tsx` | 3.2.12.3 | Option arrays correct. Costs order correct. Fully stable. |
 | `app/edit.tsx` | 3.2.12.2 | Fully correct. |
-| `components/ViewPanel.tsx` | 3.2.12.1 | All tests passed — stable. |
-| `app/(tabs)/compare.tsx` | 3.2.12.4.1 | Clear button, 7 CARD_ROWS, label width, toggle reload, row height alignment — all confirmed stable. |
+| `components/ViewPanel.tsx` | 3.2.13 | 2-column Monthly / Move-In costs layout. Both totals calculated locally. Stable. |
+| `app/(tabs)/compare.tsx` | 3.2.13.2 | Total Rent always calculated locally. All other rows and layout stable. |
+| `lib/listingsNormalize.ts` | 3.2.13 | Fee line always shows on cards — even $0. Stable. |
+| `main.py` (API) | 3.2.13.1 | totalMonthly + totalUpfront injected on POST and PUT. Stable. |
+| `config_constants.py` (API) | 3.2.13.1 | totalUpfront added to LISTINGS_COLUMNS and NUMERIC_FIELDS. PARKING_OPTIONS correct. Stable. |
 
 ---
 
-## Confirmed Stable Features — 3.2.12 Series
+## Confirmed Stable Features — 3.2.13 Series
+
+| Feature | Status |
+|---|---|
+| Home & Listings cards always show fee line (even $0) | Stable — 3.2.13 |
+| ViewPanel COSTS — 2-column Monthly / Move-In layout | Stable — 3.2.13 |
+| ViewPanel Total Monthly — locally calculated | Stable — 3.2.13 |
+| ViewPanel Total Upfront — locally calculated | Stable — 3.2.13 |
+| Compare — individual fee rows removed | Stable — 3.2.13 |
+| Compare — Total Rent always locally calculated | Stable — 3.2.13.2 |
+| API — totalMonthly calculated and stored on save | Stable — 3.2.13.1 |
+| API — totalUpfront calculated and stored on save | Stable — 3.2.13.1 |
+| All screens show consistent Total Monthly values | Stable — 3.2.13.2 |
+
+---
+
+## Confirmed Stable Features — Prior Series (Carried Forward)
 
 | Feature | Status |
 |---|---|
 | Property Type show/hide on Add | Stable — 3.2.12.1 |
 | Property Type show/hide on Edit | Stable — 3.2.12.2 |
 | Property Type show/hide on ViewPanel | Stable — 3.2.12.1 |
-| Property Type show/hide on Compare table | Stable — 3.2.12.1 |
-| shortTermAvailable + rentersInsuranceRequired moved to Listing section (Add) | Stable — 3.2.12.1 |
-| shortTermAvailable + rentersInsuranceRequired moved to Listing section (Edit) | Stable — 3.2.12.2 |
-| New fields visible in ViewPanel | Stable — 3.2.12.1 |
-| coolingType fix in ViewPanel | Stable — 3.2.12.1 |
-| petFee gated in ViewPanel | Stable — 3.2.12.1 |
-| Option arrays correct on Add | Stable — 3.2.12.3 |
-| Costs field order correct on Add | Stable — 3.2.12.3 |
+| Property Type show/hide on Compare | Stable — 3.2.12.1 |
+| shortTermAvailable + rentersInsuranceRequired in Listing section | Stable — 3.2.12 |
 | Compare Clear button | Stable — 3.2.12.4.1 |
-| Compare CARD_ROWS — 7 added rows | Stable — 3.2.12.4.1 |
+| Compare CARD_ROWS — all rows | Stable — 3.2.12.4.1 |
 | Compare label truncation fix (LABEL_W 150) | Stable — 3.2.12.4.1 |
 | Compare toggle reload on ProfilePanel close | Stable — 3.2.12.4.1 |
 | Compare label row height alignment | Stable — 3.2.12.4.1 |
@@ -91,31 +101,15 @@
 
 ---
 
+## Total Monthly / Total Upfront — Design Decision (Build 3.2.13)
+
+All screens calculate totalMonthly and totalUpfront locally from individual raw fee fields. No screen reads the stored totalMonthly or totalUpfront values from the sheet for display. This ensures all screens are always consistent and never show stale data. The stored fields in the sheet exist as a record only. They will be reviewed for removal in Build 3.2.17 (Canonical Data Model).
+
+---
+
 ## Open Issues — Carried Forward
 
-| ID | Issue | Target |
-|---|---|---|
-| ISSUE 2 | API `totalMonthly` omits fees for some listings. Compare screen uses local calculation as workaround. | Build 3.2.13 |
-
----
-
-## Immediate Next Step — Build 3.2.13
-
-**Scope:** Auto-calculations — Total Monthly + Total One-Time Upfront. API `totalMonthly` fix (ISSUE 2).
-
----
-
-## Roadmap — Remaining Builds
-
-| Build | Scope |
-|---|---|
-| 3.2.13 | Auto-calculations — Total Monthly + Total One-Time Upfront. API totalMonthly fix (ISSUE 2) |
-| 3.2.14 | ZIP to City/State auto-fill + Listing Site auto-detect from URL pattern |
-| 3.2.15 | Commute Calculation + Walk / Transit / Bike Scores via backend API calls |
-| 3.2.16 | Add/Edit Unification — single shared form component |
-| 3.2.17 | Canonical Data Model — one master field list across all screens and API |
-| 3.2.18 | UI Polish — spacing, typography, visual consistency. No functional changes. |
-| 3.2.19 | APK build for Android local testing before App Store submission |
+None. ISSUE 2 fully resolved.
 
 ---
 
@@ -128,3 +122,24 @@
 | DRIFT 6 | No structural changes to any screen without explicit authorisation from Thomas. If in doubt — ask first. |
 | DRIFT 7 | Read the original spec before touching any form structure. Never infer the structure from memory. |
 | DRIFT 8 | Never invent API functions. Read `lib/api.ts` before writing any import that references it. |
+| DRIFT 9 | Before changing any shared file, read every file that imports from it. Never rename, remove, or restructure any constant not in scope. (Section 36) |
+
+---
+
+## Immediate Next Step — Build 3.2.14
+
+**Scope:** ZIP to City/State auto-fill + Listing Site auto-detect from URL pattern.
+
+---
+
+## Roadmap — Remaining Builds
+
+| Build | Scope |
+|---|---|
+| 3.2.14 | ZIP to City/State auto-fill + Listing Site auto-detect from URL pattern |
+| 3.2.15 | Commute Calculation + Walk / Transit / Bike Scores via backend API calls |
+| 3.2.16 | Add/Edit Unification — single shared form component |
+| 3.2.17 | Canonical Data Model — one master field list across all screens and API. Review totalMonthly / totalUpfront stored fields for removal. |
+| 3.2.18 | UI Polish — spacing, typography, visual consistency. No functional changes. |
+| 3.2.19 | APK build for Android local testing before App Store submission |
+| 5.0+ | Notifications, Photos, Criteria Scoring, Login/Sync, URL Import, Import/Export, Themes, Help Center, User-Defined Lists, Buying Mode, Map View |
