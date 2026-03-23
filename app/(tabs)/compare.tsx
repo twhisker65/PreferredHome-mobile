@@ -1,7 +1,9 @@
-// app/(tabs)/compare.tsx — Build 3.2.13
-// Change from 3.2.12.4.1:
-// - Removed petFee, storageRent, brokerFee, moveInFee rows from TABLE_ROWS and CARD_ROWS.
-//   Compare now shows only Base Rent and Total Rent — no individual fee rows.
+// app/(tabs)/compare.tsx — Build 3.2.13.2
+// Change from 3.2.13:
+// - totalMonthly case in getCellData now always calculates locally from individual
+//   raw fee fields — identical to ViewPanel and listing cards. The stored
+//   raw.totalMonthly value from the sheet is no longer read. This ensures
+//   Total Rent on Compare always matches every other screen exactly.
 // All other logic, layout, and functionality unchanged.
 
 import React, { useCallback, useRef, useState } from "react";
@@ -119,11 +121,17 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
       return pill(fmtCurrency(v), lteColor(v, criteria.maxBaseRent));
     }
     case "totalMonthly": {
-      const apiTotal = rawNum(raw.totalMonthly);
-      const localTotal = (listing.baseRent !== undefined && listing.fees !== undefined)
-        ? (listing.baseRent ?? 0) + (listing.fees ?? 0)
-        : null;
-      const v = (apiTotal !== null && apiTotal > 0) ? apiTotal : localTotal;
+      // Always calculate locally from raw fee fields — never use stored totalMonthly.
+      // Identical approach to ViewPanel and listing cards.
+      const v =
+        (rawNum(raw.baseRent)    ?? 0) +
+        (rawNum(raw.parkingFee)  ?? 0) +
+        (rawNum(raw.amenityFee)  ?? 0) +
+        (rawNum(raw.adminFee)    ?? 0) +
+        (rawNum(raw.utilityFee)  ?? 0) +
+        (rawNum(raw.storageRent) ?? 0) +
+        (rawNum(raw.petFee)      ?? 0) +
+        (rawNum(raw.otherFee)    ?? 0);
       return pill(fmtCurrency(v), lteColor(v, criteria.maxTotalMonthly));
     }
     case "propertyType":
@@ -448,7 +456,6 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
   const syncingLabel   = useRef(false);
   const syncingData    = useRef(false);
 
-  // Table shows apt-only rows if at least one listing is apt/condo/coop
   const showAptFields = listings.some((l) =>
     ["Apartment", "Condo", "Co-op"].includes(rawStr(l.raw?.propertyType))
   );
@@ -464,7 +471,6 @@ function CompareTable({ listings, criteria, toggles }: { listings: ListingUI[]; 
         style={{ width: LABEL_W }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header spacer */}
         <View style={{ height: 44, borderBottomWidth: 2, borderBottomColor: colors.border }} />
         {visibleRows.map((row) => (
           <View
