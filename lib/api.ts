@@ -61,3 +61,30 @@ export async function lookupZip(zipCode: string): Promise<{ city: string; state:
     return { city: "", state: "" };
   }
 }
+
+// URL keyword patterns used to auto-detect listing site.
+// Checked in order — first match wins.
+const LISTING_SITE_PATTERNS: { keyword: string; site: string }[] = [
+  { keyword: "zillow.com",          site: "Zillow" },
+  { keyword: "realtor.com",         site: "Realtor.com" },
+  { keyword: "redfin.com",          site: "Redfin" },
+  { keyword: "homes.com",           site: "Homes.com" },
+  { keyword: "apartments.com",      site: "Apartments.com" },
+  { keyword: "streeteasy.com",      site: "StreetEasy" },
+  { keyword: "hotpads.com",         site: "HotPads" },
+  { keyword: "trulia.com",          site: "Trulia" },
+  { keyword: "rent.com",            site: "Rent.com" },
+  { keyword: "apartmentfinder.com", site: "Apartment Finder" },
+  { keyword: "rentals.com",         site: "Rentals.com" },
+  { keyword: "mls",                 site: "MLS / Broker" },
+];
+
+// Detect listing site from a URL string. Returns "Other" if no match.
+export function detectListingSite(url: string): string {
+  if (!url) return "Other";
+  const lower = url.toLowerCase();
+  for (const { keyword, site } of LISTING_SITE_PATTERNS) {
+    if (lower.includes(keyword)) return site;
+  }
+  return "Other";
+}

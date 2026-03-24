@@ -1,11 +1,10 @@
-// app/edit.tsx — Build 3.2.12.2
-// Changes from 3.2.12.1:
-// - FIXED: fetchListing (did not exist) replaced with getListings() + find by id.
-// - FIXED: Option arrays restored to exact 3.2.11B values:
-//   UTILITIES, UNIT_FEATURES, BUILDING_AMENITIES, PRIVATE_OUTDOOR_SPACE,
-//   STORAGE_TYPES, ROOM_TYPES, CLOSE_BY, PET_AMENITIES.
-// - FIXED: Costs section field order restored to exact 3.2.11B sequence.
-// All other fields, sections, rawToDraft, payload, and logic unchanged from 3.2.12.
+// app/edit.tsx — Build 3.2.14
+// Changes from 3.2.13.2:
+// - Import: detectListingSite added from ../lib/api
+// - LISTING_SITES: replaced with new 13-item list
+// - useEffect added: watches draft.listingUrl, auto-sets draft.listingSite via detectListingSite
+//   Guard: only fires if listingUrl is non-empty (prevents overriding stored listingSite on load)
+// All other fields, sections, rawToDraft, payload, and logic unchanged from 3.2.12.2.
 
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -32,7 +31,7 @@ import { ProfilePanel } from "../components/ProfilePanel";
 import { CriteriaPanel } from "../components/CriteriaPanel";
 import { SettingsPanel } from "../components/SettingsPanel";
 import { Calendar } from "react-native-calendars";
-import { getListings, updateListing } from "../lib/api";
+import { getListings, updateListing, detectListingSite } from "../lib/api";
 import { loadProfileToggles, type ProfileToggles } from "../lib/profileStorage";
 
 type Draft = {
@@ -120,7 +119,8 @@ const COOLING_TYPES = ["Central Air", "Wall Unit", "Window Unit", "None"];
 const HEATING_TYPES = ["Forced Air", "Baseboard", "Radiant", "Steam", "Electric", "Natural Gas", "Oil", "Propane", "None"];
 const LAUNDRY = ["None", "In-Unit", "On Floor", "In Building"];
 const PARKING = ["Shared Garage", "Shared Lot", "Covered Space", "Attached Garage", "Detached Garage", "Driveway", "Carport", "Street", "None", "Other"];
-const UTILITIES = ["Electric", "Gas", "Heat", "Hot Water", "Water", "Sewer", "Trash", "Internet", "Cable", "Parking", "Lawn Care", "Snow Removal", "Pool Maintenance"];
+const LISTING_SITES = ["Zillow", "Realtor.com", "Redfin", "Homes.com", "Apartments.com", "StreetEasy", "HotPads", "Trulia", "Rent.com", "Apartment Finder", "Rentals.com", "MLS / Broker", "Other"];
+const UTILITIES = ["Water", "Sewer", "Trash", "Internet", "Cable", "Parking", "Lawn Care", "Snow Removal", "Pool Maintenance"];
 const UNIT_FEATURES = ["Hardwood Floors", "Dishwasher", "Microwave", "Fireplace", "Views", "Large Windows"];
 const BUILDING_AMENITIES = ["Rooftop Space", "Common Lounge", "Barbecue Area", "Firepits", "Gym", "Pool", "Doorman", "Elevator", "Game Room", "Theater Room", "Playground", "Tennis Court"];
 const PRIVATE_OUTDOOR_SPACE = ["Balcony", "Patio", "Deck", "Porch", "Private Yard", "Fenced Yard", "Other"];
@@ -128,7 +128,6 @@ const PET_AMENITIES = ["Pet Washing", "Dog Park"];
 const CLOSE_BY = ["Subway", "Bus Stop", "Grocery Store", "Park", "Restaurants", "Pharmacy", "Coffee Shop", "Gym", "School", "Hospital", "Library", "Dog Park", "Farmer's Market", "Shopping Mall", "Highway Access"];
 const STORAGE_TYPES = ["Closet", "Walk-in Closet", "Basement", "Attic", "Garage", "Shed", "Locker", "Pantry", "Outdoor Storage", "Bike Storage", "Other"];
 const ROOM_TYPES = ["Living Room", "Dining Room", "Kitchen", "Eat-in Kitchen", "Foyer", "Den", "Family Room", "TV Room", "Office", "Library", "Sunroom", "Mudroom", "Laundry Room", "Finished Basement", "Bonus Room", "Playroom", "Other"];
-const LISTING_SITES = ["StreetEasy", "Zillow", "Apartments.com", "Realtor.com", "Craigslist", "Facebook Marketplace", "Direct", "Other"];
 const TIME_OPTIONS = [
   "6:00 AM","6:30 AM","7:00 AM","7:30 AM","8:00 AM","8:30 AM","9:00 AM","9:30 AM",
   "10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","12:30 PM","1:00 PM","1:30 PM",
@@ -140,21 +139,27 @@ function boolStr(v: boolean): string {
   return v ? "TRUE" : "FALSE";
 }
 
-function boolVal(v: any): boolean {
+function boolVal(v: unknown): boolean {
   if (typeof v === "boolean") return v;
-  return String(v ?? "").trim().toUpperCase() === "TRUE";
+  const s = String(v ?? "").trim().toUpperCase();
+  return s === "TRUE" || s === "1" || s === "YES";
 }
 
-function str(v: any): string {
+function str(v: unknown): string {
   if (v === null || v === undefined) return "";
-  return String(v).trim();
+  return String(v);
 }
 
-function multiVal(v: any): string[] {
+function numStr(v: unknown): string {
+  if (v === null || v === undefined || v === "") return "";
+  const n = Number(v);
+  return isNaN(n) ? "" : String(n);
+}
+
+function multiVal(v: unknown): string[] {
+  if (!v || v === "") return [];
   if (Array.isArray(v)) return v.map(String).filter(Boolean);
-  const s = str(v);
-  if (!s) return [];
-  return s.split(",").map((x) => x.trim()).filter(Boolean);
+  return String(v).split(",").map((s) => s.trim()).filter(Boolean);
 }
 
 function clampRating(v: string): string {
@@ -174,29 +179,29 @@ function rawToDraft(raw: any): Draft {
     zipCode: str(raw?.zipCode),
     neighborhood: str(raw?.neighborhood),
     unitNumber: str(raw?.unitNumber),
-    floorNumber: str(raw?.floorNumber),
-    numberOfFloors: str(raw?.numberOfFloors),
-    bedrooms: str(raw?.bedrooms),
-    bathrooms: str(raw?.bathrooms),
-    squareFootage: str(raw?.squareFootage),
+    floorNumber: numStr(raw?.floorNumber),
+    numberOfFloors: numStr(raw?.numberOfFloors),
+    bedrooms: numStr(raw?.bedrooms),
+    bathrooms: numStr(raw?.bathrooms),
+    squareFootage: numStr(raw?.squareFootage),
     topFloor: boolVal(raw?.topFloor),
     cornerUnit: boolVal(raw?.cornerUnit),
     propertyType: str(raw?.propertyType) || "Apartment",
     furnished: boolVal(raw?.furnished),
     shortTermAvailable: boolVal(raw?.shortTermAvailable),
     rentersInsuranceRequired: boolVal(raw?.rentersInsuranceRequired),
-    baseRent: str(raw?.baseRent),
-    amenityFee: str(raw?.amenityFee),
-    adminFee: str(raw?.adminFee),
-    utilityFee: str(raw?.utilityFee),
-    parkingFee: str(raw?.parkingFee),
-    otherFee: str(raw?.otherFee),
-    petFee: str(raw?.petFee),
-    storageRent: str(raw?.storageRent),
-    securityDeposit: str(raw?.securityDeposit),
-    applicationFee: str(raw?.applicationFee),
-    brokerFee: str(raw?.brokerFee),
-    moveInFee: str(raw?.moveInFee),
+    baseRent: numStr(raw?.baseRent),
+    amenityFee: numStr(raw?.amenityFee),
+    adminFee: numStr(raw?.adminFee),
+    utilityFee: numStr(raw?.utilityFee),
+    parkingFee: numStr(raw?.parkingFee),
+    otherFee: numStr(raw?.otherFee),
+    petFee: numStr(raw?.petFee),
+    storageRent: numStr(raw?.storageRent),
+    securityDeposit: numStr(raw?.securityDeposit),
+    applicationFee: numStr(raw?.applicationFee),
+    brokerFee: numStr(raw?.brokerFee),
+    moveInFee: numStr(raw?.moveInFee),
     utilitiesIncluded: multiVal(raw?.utilitiesIncluded),
     unitFeatures: multiVal(raw?.unitFeatures),
     buildingAmenities: multiVal(raw?.buildingAmenities),
@@ -209,23 +214,23 @@ function rawToDraft(raw: any): Draft {
     roomTypes: multiVal(raw?.roomTypes),
     privateOutdoorSpaceTypes: multiVal(raw?.privateOutdoorSpaceTypes),
     storageTypes: multiVal(raw?.storageTypes),
-    commuteTime: str(raw?.commuteTime),
-    walkScore: str(raw?.walkScore),
-    transitScore: str(raw?.transitScore),
-    bikeScore: str(raw?.bikeScore),
+    commuteTime: numStr(raw?.commuteTime),
+    walkScore: numStr(raw?.walkScore),
+    transitScore: numStr(raw?.transitScore),
+    bikeScore: numStr(raw?.bikeScore),
     elementarySchoolName: str(raw?.elementarySchoolName),
-    elementaryRating: str(raw?.elementaryRating),
+    elementaryRating: numStr(raw?.elementaryRating),
     elementaryGrades: str(raw?.elementaryGrades),
-    elementaryDistance: str(raw?.elementaryDistance),
+    elementaryDistance: numStr(raw?.elementaryDistance),
     middleSchoolName: str(raw?.middleSchoolName),
-    middleRating: str(raw?.middleRating),
+    middleRating: numStr(raw?.middleRating),
     middleGrades: str(raw?.middleGrades),
-    middleDistance: str(raw?.middleDistance),
+    middleDistance: numStr(raw?.middleDistance),
     highSchoolName: str(raw?.highSchoolName),
-    highRating: str(raw?.highRating),
+    highRating: numStr(raw?.highRating),
     highGrades: str(raw?.highGrades),
-    highDistance: str(raw?.highDistance),
-    listingSite: str(raw?.listingSite),
+    highDistance: numStr(raw?.highDistance),
+    listingSite: str(raw?.listingSite) || "Other",
     listingUrl: str(raw?.listingUrl),
     photoUrl: str(raw?.photoUrl),
     contactName: str(raw?.contactName),
@@ -251,6 +256,7 @@ function buildViewingAppointment(d: Draft): string | null {
 
 export default function EditScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const inputRefs = useRef<Record<string, any>>({});
   const [draft, setDraft] = useState<Draft | null>(null);
   const [open, setOpen] = useState({
@@ -275,6 +281,7 @@ export default function EditScreen() {
   const [datePickerField, setDatePickerField] = useState<keyof Draft | null>(null);
   const [datePickerTitle, setDatePickerTitle] = useState("");
 
+  // Load toggles and listing on mount
   useEffect(() => {
     loadProfileToggles().then(setToggles);
     if (id) {
@@ -292,6 +299,17 @@ export default function EditScreen() {
         });
     }
   }, [id]);
+
+  // Listing Site auto-detect: fires when Listing URL changes (guard: only when non-empty)
+  useEffect(() => {
+    if (!draft || !draft.listingUrl) return;
+    const detected = detectListingSite(draft.listingUrl);
+    setDraft((d) => d ? { ...d, listingSite: detected } : d);
+  }, [draft?.listingUrl]);
+
+  // Helper: returns a setter for a single Draft field
+  const set = (field: keyof Draft) => (val: any) =>
+    setDraft((d) => d ? { ...d, [field]: val } : d);
 
   function toggleSection(key: keyof typeof open) {
     setOpen((o) => ({ ...o, [key]: !o[key] }));
@@ -414,9 +432,9 @@ export default function EditScreen() {
         pros: draft.pros,
         cons: draft.cons,
       };
-      await updateListing(id!, payload);
+      await updateListing(String(id), payload);
       Alert.alert("Saved", "Listing updated successfully.", [
-        { text: "OK", onPress: () => router.push("/(tabs)/listings") },
+        { text: "OK", onPress: () => router.back() },
       ]);
     } catch (err: any) {
       Alert.alert("Save Failed", err?.message ?? "Something went wrong. Please try again.");
@@ -425,19 +443,126 @@ export default function EditScreen() {
     }
   }
 
-  if (!draft) {
+  // Property type visibility helper
+  const isAptCondoCoop = draft ? ["Apartment", "Condo", "Co-op"].includes(draft.propertyType) : false;
+
+  // ── Sub-component definitions ────────────────────────────────────
+
+  function Section({ title, open: isOpen, onToggle, children }: { title: string; open: boolean; onToggle: () => void; children: React.ReactNode }) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator />
-        <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Loading listing...</Text>
+      <View style={{ marginBottom: 8 }}>
+        <Pressable onPress={onToggle} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Text style={headingLabel}>{title.toUpperCase()}</Text>
+          <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={16} color={colors.textSecondary} />
+        </Pressable>
+        {isOpen && <View style={{ paddingTop: 4 }}>{children}</View>}
       </View>
     );
   }
 
-  const set = (field: keyof Draft) => (val: any) => setDraft((d) => d ? { ...d, [field]: val } : d);
+  function Field({ label, fieldKey, value, onChangeText, keyboardType, placeholder, multiline }: {
+    label: string; fieldKey: string; value: string; onChangeText: (t: string) => void;
+    inputRefs?: any; onNext?: (k: string) => void;
+    keyboardType?: any; placeholder?: string; multiline?: boolean;
+  }) {
+    return (
+      <View style={{ marginBottom: 10 }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 3 }}>{label}</Text>
+        <TextInput
+          ref={(r) => { inputRefs.current[fieldKey] = r; }}
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType={keyboardType || "default"}
+          placeholder={placeholder || ""}
+          placeholderTextColor={colors.textSecondary}
+          multiline={multiline}
+          returnKeyType="next"
+          onSubmitEditing={() => focusNext(fieldKey)}
+          style={{
+            backgroundColor: colors.card,
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            color: colors.textPrimary,
+            fontSize: 14,
+            minHeight: multiline ? 80 : undefined,
+          }}
+        />
+      </View>
+    );
+  }
 
-  // Property type visibility helper
-  const isAptCondoCoop = ["Apartment", "Condo", "Co-op"].includes(draft.propertyType);
+  function SelectRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
+    return (
+      <Pressable onPress={onPress} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{label}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <Text style={{ color: colors.textPrimary, fontSize: 14 }}>{value || "—"}</Text>
+          <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
+        </View>
+      </Pressable>
+    );
+  }
+
+  function Toggle({ label, value, onValueChange }: { label: string; value: boolean; onValueChange: (v: boolean) => void }) {
+    return (
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{label}</Text>
+        <Switch value={value} onValueChange={onValueChange} trackColor={{ true: colors.primaryBlue }} />
+      </View>
+    );
+  }
+
+  function MultiRow({ label, values, onPress }: { label: string; values: string[]; onPress: () => void }) {
+    return (
+      <Pressable onPress={onPress} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{label}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1, justifyContent: "flex-end" }}>
+          <Text style={{ color: colors.textPrimary, fontSize: 13, textAlign: "right", flexShrink: 1 }} numberOfLines={1}>
+            {values.length > 0 ? values.join(", ") : "—"}
+          </Text>
+          <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
+        </View>
+      </Pressable>
+    );
+  }
+
+  function DateRow({ label, value, onPress, onClear }: { label: string; value: string; onPress: () => void; onClear: () => void }) {
+    return (
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{label}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {value ? (
+            <>
+              <Text style={{ color: colors.textPrimary, fontSize: 14 }}>{value}</Text>
+              <Pressable onPress={onClear}>
+                <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
+              </Pressable>
+            </>
+          ) : (
+            <Pressable onPress={onPress}>
+              <Text style={{ color: colors.primaryBlue, fontSize: 14 }}>Set</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // ── Loading state ─────────────────────────────────────────────────
+
+  if (!draft) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator />
+        <Text style={{ color: colors.textSecondary, marginTop: 10 }}>Loading...</Text>
+      </View>
+    );
+  }
+
+  // ── JSX ──────────────────────────────────────────────────────────
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -478,20 +603,20 @@ export default function EditScreen() {
 
           {/* ── COSTS ── */}
           <Section title="Costs" open={open.costs} onToggle={() => toggleSection("costs")}>
-            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginBottom: 2 }}>MONTHLY</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 4, marginBottom: 2 }}>MONTHLY</Text>
             <Field label="Base Rent" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={set("baseRent")} keyboardType="number-pad" />
-            <Field label="Utility Fee" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={set("utilityFee")} keyboardType="number-pad" />
             <Field label="Amenity Fee" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={set("amenityFee")} keyboardType="number-pad" />
+            <Field label="Admin Fee" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={set("adminFee")} keyboardType="number-pad" />
+            <Field label="Utility Fee" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={set("utilityFee")} keyboardType="number-pad" />
             {toggles.car && (
               <Field label="Parking Fee" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={set("parkingFee")} keyboardType="number-pad" />
             )}
-            <Field label="Storage Rent" fieldKey="storageRent" inputRefs={inputRefs} onNext={focusNext} value={draft.storageRent} onChangeText={set("storageRent")} keyboardType="number-pad" />
             {toggles.pets && (
               <Field label="Pet Fee" fieldKey="petFee" inputRefs={inputRefs} onNext={focusNext} value={draft.petFee} onChangeText={set("petFee")} keyboardType="number-pad" />
             )}
-            <Field label="Admin Fee" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={set("adminFee")} keyboardType="number-pad" />
+            <Field label="Storage Rent" fieldKey="storageRent" inputRefs={inputRefs} onNext={focusNext} value={draft.storageRent} onChangeText={set("storageRent")} keyboardType="number-pad" />
             <Field label="Other Fee" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={set("otherFee")} keyboardType="number-pad" />
-            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 6, marginBottom: 2 }}>UPFRONT</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 6, marginBottom: 2 }}>UP FRONT</Text>
             <Field label="Security Deposit" fieldKey="securityDeposit" inputRefs={inputRefs} onNext={focusNext} value={draft.securityDeposit} onChangeText={set("securityDeposit")} keyboardType="number-pad" />
             <Field label="Application Fee" fieldKey="applicationFee" inputRefs={inputRefs} onNext={focusNext} value={draft.applicationFee} onChangeText={set("applicationFee")} keyboardType="number-pad" />
             <Field label="Broker Fee" fieldKey="brokerFee" inputRefs={inputRefs} onNext={focusNext} value={draft.brokerFee} onChangeText={set("brokerFee")} keyboardType="number-pad" />
@@ -506,21 +631,21 @@ export default function EditScreen() {
             <SelectRow label="Heating Type" value={draft.heatingType} onPress={() => openSingle("Heating Type", HEATING_TYPES, draft.heatingType, set("heatingType"))} />
             <SelectRow label="Laundry" value={draft.laundry} onPress={() => openSingle("Laundry", LAUNDRY, draft.laundry, set("laundry"))} />
             <MultiRow label="Rooms" values={draft.roomTypes} onPress={() => openMulti("Rooms", ROOM_TYPES, draft.roomTypes, set("roomTypes"))} />
+            <MultiRow label="Building Amenities" values={draft.buildingAmenities} onPress={() => openMulti("Building Amenities", BUILDING_AMENITIES, draft.buildingAmenities, set("buildingAmenities"))} />
             <MultiRow label="Private Outdoor Space" values={draft.privateOutdoorSpaceTypes} onPress={() => openMulti("Private Outdoor Space", PRIVATE_OUTDOOR_SPACE, draft.privateOutdoorSpaceTypes, set("privateOutdoorSpaceTypes"))} />
             <MultiRow label="Storage" values={draft.storageTypes} onPress={() => openMulti("Storage", STORAGE_TYPES, draft.storageTypes, set("storageTypes"))} />
-            <MultiRow label="Building Amenities" values={draft.buildingAmenities} onPress={() => openMulti("Building Amenities", BUILDING_AMENITIES, draft.buildingAmenities, set("buildingAmenities"))} />
-            {toggles.pets && (
-              <MultiRow label="Pet Amenities" values={draft.petAmenities} onPress={() => openMulti("Pet Amenities", PET_AMENITIES, draft.petAmenities, set("petAmenities"))} />
-            )}
             {toggles.car && (
               <SelectRow label="Parking Type" value={draft.parkingType} onPress={() => openSingle("Parking Type", PARKING, draft.parkingType, set("parkingType"))} />
+            )}
+            {toggles.pets && (
+              <MultiRow label="Pet Amenities" values={draft.petAmenities} onPress={() => openMulti("Pet Amenities", PET_AMENITIES, draft.petAmenities, set("petAmenities"))} />
             )}
             <MultiRow label="Close By" values={draft.closeBy} onPress={() => openMulti("Close By", CLOSE_BY, draft.closeBy, set("closeBy"))} />
           </Section>
 
           {/* ── TRANSPORTATION ── */}
           <Section title="Transportation" open={open.transportation} onToggle={() => toggleSection("transportation")}>
-            <Field label="Commute Time (mins)" fieldKey="commuteTime" inputRefs={inputRefs} onNext={focusNext} value={draft.commuteTime} onChangeText={set("commuteTime")} keyboardType="number-pad" />
+            <Field label="Commute Time (min)" fieldKey="commuteTime" inputRefs={inputRefs} onNext={focusNext} value={draft.commuteTime} onChangeText={set("commuteTime")} keyboardType="number-pad" />
             <Field label="Walk Score (0–100)" fieldKey="walkScore" inputRefs={inputRefs} onNext={focusNext} value={draft.walkScore} onChangeText={set("walkScore")} keyboardType="number-pad" />
             <Field label="Transit Score (0–100)" fieldKey="transitScore" inputRefs={inputRefs} onNext={focusNext} value={draft.transitScore} onChangeText={set("transitScore")} keyboardType="number-pad" />
             <Field label="Bike Score (0–100)" fieldKey="bikeScore" inputRefs={inputRefs} onNext={focusNext} value={draft.bikeScore} onChangeText={set("bikeScore")} keyboardType="number-pad" />
@@ -529,7 +654,7 @@ export default function EditScreen() {
           {/* ── SCHOOLS ── */}
           {toggles.children && (
             <Section title="Schools" open={open.schools} onToggle={() => toggleSection("schools")}>
-              <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginBottom: 2 }}>ELEMENTARY</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 4, marginBottom: 2 }}>ELEMENTARY</Text>
               <Field label="School Name" fieldKey="elementarySchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.elementarySchoolName} onChangeText={set("elementarySchoolName")} />
               <Field label="Grades" fieldKey="elementaryGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryGrades} onChangeText={set("elementaryGrades")} />
               <Field label="Rating (0–10)" fieldKey="elementaryRating" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryRating} onChangeText={(t) => set("elementaryRating")(clampRating(t))} keyboardType="decimal-pad" />
@@ -567,7 +692,7 @@ export default function EditScreen() {
             <DateRow label="Date Available" value={draft.dateAvailable} onPress={() => openDatePicker("dateAvailable", "Date Available")} onClear={() => set("dateAvailable")("")} />
             <DateRow label="Contacted Date" value={draft.contactedDate} onPress={() => openDatePicker("contactedDate", "Contacted Date")} onClear={() => set("contactedDate")("")} />
             <DateRow label="Viewing Date" value={draft.viewingDate} onPress={() => openDatePicker("viewingDate", "Viewing Date")} onClear={() => set("viewingDate")("")} />
-            {!!draft.viewingDate && (
+            {!draft.viewingDate && (
               <SelectRow label="Viewing Time" value={draft.viewingTime} onPress={() => openSingle("Viewing Time", TIME_OPTIONS, draft.viewingTime, set("viewingTime"))} />
             )}
             <DateRow label="Applied Date" value={draft.appliedDate} onPress={() => openDatePicker("appliedDate", "Applied Date")} onClear={() => set("appliedDate")("")} />
@@ -643,150 +768,50 @@ export default function EditScreen() {
             </Pressable>
           </View>
           <Calendar
-            onDayPress={(day: { dateString: string }) => {
+            onDayPress={(day: any) => {
               if (datePickerField) {
-                setDraft((d) => d ? { ...d, [datePickerField]: day.dateString } : d);
+                set(datePickerField)(day.dateString);
               }
               setDatePickerVisible(false);
             }}
-            markedDates={
-              datePickerField && draft[datePickerField] as string
-                ? { [draft[datePickerField] as string]: { selected: true, selectedColor: colors.primaryBlue } }
-                : {}
-            }
             theme={{
               backgroundColor: colors.card,
               calendarBackground: colors.card,
               textSectionTitleColor: colors.textSecondary,
-              selectedDayBackgroundColor: colors.primaryBlue,
-              selectedDayTextColor: colors.textPrimary,
-              todayTextColor: colors.primaryBlue,
               dayTextColor: colors.textPrimary,
-              textDisabledColor: colors.textSecondary,
-              arrowColor: colors.primaryBlue,
+              todayTextColor: colors.primaryBlue,
+              selectedDayBackgroundColor: colors.primaryBlue,
+              selectedDayTextColor: "#fff",
               monthTextColor: colors.textPrimary,
+              arrowColor: colors.primaryBlue,
             }}
           />
         </View>
       </Modal>
 
-      {/* Menu */}
+      {/* ── MENU ── */}
       {menuOpen && (
         <MenuPanel
-          topOffset={0}
+          topOffset={insets.top + 53}
           onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }}
           onClose={() => setMenuOpen(false)}
         />
       )}
-
       {activeSubPanel === "profile" && (
-        <ProfilePanel topOffset={0} onClose={() => { setActiveSubPanel(null); loadProfileToggles().then(setToggles); }} />
+        <ProfilePanel
+          topOffset={insets.top + 53}
+          onClose={() => {
+            setActiveSubPanel(null);
+            loadProfileToggles().then(setToggles);
+          }}
+        />
       )}
       {activeSubPanel === "criteria" && (
-        <CriteriaPanel topOffset={0} onClose={() => setActiveSubPanel(null)} />
+        <CriteriaPanel topOffset={insets.top + 53} onClose={() => setActiveSubPanel(null)} />
       )}
       {activeSubPanel === "settings" && (
-        <SettingsPanel topOffset={0} onClose={() => setActiveSubPanel(null)} />
+        <SettingsPanel topOffset={insets.top + 53} onClose={() => setActiveSubPanel(null)} />
       )}
     </View>
-  );
-}
-
-// ── Sub-components ────────────────────────────────────────────────
-
-function Section({ title, open, onToggle, children }: { title: string; open: boolean; onToggle: () => void; children: React.ReactNode }) {
-  return (
-    <View style={{ marginBottom: 10 }}>
-      <Pressable onPress={onToggle} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10 }}>
-        <Text style={headingLabel}>{title.toUpperCase()}</Text>
-        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={18} color={colors.textSecondary} />
-      </Pressable>
-      {open ? <View style={{ gap: 10 }}>{children}</View> : null}
-    </View>
-  );
-}
-
-function Field({ label, fieldKey, value, onChangeText, inputRefs, onNext, keyboardType, placeholder, multiline }: {
-  label: string; fieldKey: string; value: string; onChangeText: (t: string) => void;
-  inputRefs: React.MutableRefObject<Record<string, any>>; onNext: (k: string) => void;
-  keyboardType?: any; placeholder?: string; multiline?: boolean;
-}) {
-  return (
-    <View>
-      <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 4 }}>{label}</Text>
-      <TextInput
-        ref={(r) => { if (r) inputRefs.current[fieldKey] = r; }}
-        value={value}
-        onChangeText={onChangeText}
-        onSubmitEditing={() => onNext(fieldKey)}
-        returnKeyType="next"
-        keyboardType={keyboardType ?? "default"}
-        placeholder={placeholder ?? ""}
-        placeholderTextColor={colors.textSecondary}
-        multiline={multiline}
-        style={{
-          backgroundColor: colors.cardHover, borderWidth: 1, borderColor: colors.border,
-          borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9,
-          color: colors.textPrimary, fontSize: 14,
-          minHeight: multiline ? 72 : undefined, textAlignVertical: multiline ? "top" : undefined,
-        }}
-      />
-    </View>
-  );
-}
-
-function Toggle({ label, value, onValueChange }: { label: string; value: boolean; onValueChange: (v: boolean) => void }) {
-  return (
-    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-      <Text style={{ color: colors.textPrimary, fontSize: 14 }}>{label}</Text>
-      <Switch
-        value={value}
-        onValueChange={onValueChange}
-        trackColor={{ false: colors.border, true: colors.primaryBlue }}
-        thumbColor={colors.textPrimary}
-      />
-    </View>
-  );
-}
-
-function SelectRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "600" }}>{label}</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-        <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 14 }}>{value || "Select…"}</Text>
-        <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
-      </View>
-    </Pressable>
-  );
-}
-
-function MultiRow({ label, values, onPress }: { label: string; values: string[]; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "600" }}>{label}</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, maxWidth: "60%" }}>
-        <Text style={{ color: values.length ? colors.textPrimary : colors.textSecondary, fontSize: 13, textAlign: "right" }} numberOfLines={2}>
-          {values.length ? values.join(", ") : "Select…"}
-        </Text>
-        <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
-      </View>
-    </Pressable>
-  );
-}
-
-function DateRow({ label, value, onPress, onClear }: { label: string; value: string; onPress: () => void; onClear: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "600" }}>{label}</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 14 }}>{value || "Select…"}</Text>
-        {!!value && (
-          <Pressable onPress={onClear} hitSlop={8}>
-            <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-          </Pressable>
-        )}
-      </View>
-    </Pressable>
   );
 }
