@@ -1,12 +1,15 @@
-// components/ProfilePanel.tsx — Build 3.2.06
-// Reverted from 3.2.15 — all commute snapshot / recalculate logic removed.
-// Departure Time is a plain PanelField TextInput.
-// This is the exact pre-3.2.15 state.
+// components/ProfilePanel.tsx — Build 3.2.15
+// Added: Departure Time converted from free-text to TIME_OPTIONS SelectRow.
+//        commuteSnapshot ref — captures workAddress/commuteMethod/departureTime on open.
+//        handleClose — if any commute field changed and workAddress not blank,
+//        fires recalculateAllCommutes (fire-and-forget) before calling onClose.
+//        Picker modal for Departure Time selection.
 
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Modal,
   Pressable,
   ScrollView,
   Switch,
@@ -25,6 +28,7 @@ import {
   type ProfileData,
   type ProfileToggles,
 } from "../lib/profileStorage";
+import { recalculateAllCommutes } from "../lib/api";
 
 type Props = {
   topOffset: number;
@@ -33,6 +37,13 @@ type Props = {
 
 const COMMUTE_METHODS: Array<ProfileData["commuteMethod"]> = [
   "Walk", "Drive", "Transit", "Bike",
+];
+
+const TIME_OPTIONS = [
+  "6:00 AM","6:30 AM","7:00 AM","7:30 AM","8:00 AM","8:30 AM","9:00 AM","9:30 AM",
+  "10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","12:30 PM","1:00 PM","1:30 PM",
+  "2:00 PM","2:30 PM","3:00 PM","3:30 PM","4:00 PM","4:30 PM","5:00 PM","5:30 PM",
+  "6:00 PM","6:30 PM","7:00 PM","7:30 PM","8:00 PM",
 ];
 
 // ── Sub-components defined outside component ──────────────────────
@@ -68,6 +79,27 @@ function PanelField({ label, value, onChangeText, placeholder, keyboardType }: {
   );
 }
 
+function PanelSelectRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
+  return (
+    <View style={{ gap: 3, marginBottom: 6 }}>
+      <Text style={{ color: colors.textSecondary, fontSize: 10, fontWeight: "700", letterSpacing: 0.4 }}>{label}</Text>
+      <Pressable
+        onPress={onPress}
+        style={{
+          backgroundColor: colors.cardHover, borderWidth: 1, borderColor: colors.border,
+          borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7,
+          flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+        }}
+      >
+        <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 12 }}>
+          {value || "Select"}
+        </Text>
+        <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
+      </Pressable>
+    </View>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────
 
 export function ProfilePanel({ topOffset, onClose }: Props) {
@@ -82,9 +114,23 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
   const [toggles, setToggles] = useState<ProfileToggles>({ children: false, pets: false, car: false });
   const [loaded, setLoaded] = useState(false);
 
+  // Picker state for Departure Time
+  const [pickerVisible, setPickerVisible] = useState(false);
+
+  // Snapshot of commute fields captured on open — used to detect changes on close.
+  const commuteSnapshot = useRef({ workAddress: "", commuteMethod: "", departureTime: "" });
+
   useEffect(() => {
     Promise.all([loadProfileData(), loadProfileToggles()]).then(([d, t]) => {
-      setData(d); setToggles(t); setLoaded(true);
+      setData(d);
+      setToggles(t);
+      // Capture snapshot when data first loads so we can diff on close.
+      commuteSnapshot.current = {
+        workAddress:   d.workAddress,
+        commuteMethod: d.commuteMethod,
+        departureTime: d.departureTime,
+      };
+      setLoaded(true);
     });
   }, []);
 
@@ -99,10 +145,8 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
     saveProfileData(data);
   }, [data, loaded]);
 
-  const isFirstToggleRender = useRef(true);
   useEffect(() => {
     if (!loaded) return;
-    if (isFirstToggleRender.current) { isFirstToggleRender.current = false; return; }
     saveProfileToggles(toggles);
   }, [toggles, loaded]);
 
@@ -110,56 +154,72 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
     setData((d) => ({ ...d, [field]: value }));
   }
 
-  const fieldLabel = { color: colors.textSecondary, fontSize: 10, fontWeight: "700" as const, letterSpacing: 0.4 };
+  // handleClose: check if any commute field changed; if so fire recalculate-all.
+  // The recalculate call is fire-and-forget — close happens immediately regardless.
+  function handleClose() {
+    const snap = commuteSnapshot.current;
+    const commuteChanged =
+      data.workAddress   !== snap.workAddress   ||
+      data.commuteMethod !== snap.commuteMethod ||
+      data.departureTime !== snap.departureTime;
+
+    if (commuteChanged && data.workAddress.trim()) {
+      recalculateAllCommutes({
+        workAddress:   data.workAddress,
+        commuteMethod: data.commuteMethod,
+        departureTime: data.departureTime,
+      }).catch(() => {});
+    }
+
+    onClose();
+  }
+
+  const fieldLabel = { color: colors.textSecondary, fontSize: 10, fontWeight: "700" as const, letterSpacing: 0.4, marginBottom: 4 };
 
   return (
     <>
-      {/* Overlay — closes everything on tap */}
+      {/* Overlay */}
       <Pressable
-        onPress={onClose}
-        style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 90, backgroundColor: "rgba(0,0,0,0.35)" }}
+        onPress={handleClose}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.4)" }}
       />
 
       {/* Panel */}
-      <Animated.View
-        style={{
-          position: "absolute", top: topOffset, bottom: 0, left: 0,
-          width: panelW, zIndex: 100, transform: [{ translateX }],
-          backgroundColor: colors.card, borderRightWidth: 1, borderRightColor: colors.border,
-          shadowColor: "#000", shadowOffset: { width: 3, height: 0 },
-          shadowOpacity: 0.3, shadowRadius: 8, elevation: 10,
-        }}
-      >
+      <Animated.View style={{
+        position: "absolute", top: 0, bottom: 0, left: 0,
+        width: panelW,
+        backgroundColor: colors.card,
+        transform: [{ translateX }],
+        shadowColor: "#000", shadowOffset: { width: 4, height: 0 }, shadowOpacity: 0.3, shadowRadius: 8,
+        elevation: 10,
+      }}>
         {/* Header */}
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "900", letterSpacing: 0.3 }}>Profile</Text>
-          <Pressable onPress={onClose} hitSlop={12}>
+        <View style={{ paddingTop: topOffset + 12, paddingHorizontal: 14, paddingBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Text style={headingLabel}>PROFILE</Text>
+          <Pressable onPress={handleClose}>
             <Ionicons name="close" size={20} color={colors.textSecondary} />
           </Pressable>
         </View>
 
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 14, gap: 16, paddingBottom: 40 }}>
+        <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
 
-          {/* ── IDENTITY ── */}
-          <SectionLabel label="IDENTITY" />
+          {/* ── PERSONAL ── */}
+          <SectionLabel label="PERSONAL" />
           <PanelField label="Name" value={data.name} onChangeText={(v) => updateData("name", v)} placeholder="Your name" />
-          <PanelField label="Email" value={data.email} onChangeText={(v) => updateData("email", v)} placeholder="you@email.com" keyboardType="email-address" />
+          <PanelField label="Email" value={data.email} onChangeText={(v) => updateData("email", v)} placeholder="your@email.com" keyboardType="email-address" />
 
-          {/* ── SEARCH ── */}
-          <SectionLabel label="SEARCH" />
-          <View style={{ gap: 5 }}>
-            <Text style={fieldLabel}>Search Mode</Text>
-            <View style={{ flexDirection: "row", gap: 6 }}>
-              {(["Buy", "Rent"] as const).map((mode) => (
-                <Pressable
-                  key={mode}
-                  onPress={() => updateData("searchMode", mode)}
-                  style={{ flex: 1, paddingVertical: 9, borderRadius: 9, borderWidth: 1, alignItems: "center", borderColor: data.searchMode === mode ? colors.primaryBlue : colors.border, backgroundColor: data.searchMode === mode ? `${colors.primaryBlue}18` : colors.cardHover }}
-                >
-                  <Text style={{ color: data.searchMode === mode ? colors.primaryBlue : colors.textPrimary, fontSize: 12, fontWeight: "700" }}>{mode}</Text>
-                </Pressable>
-              ))}
-            </View>
+          {/* ── SEARCH MODE ── */}
+          <SectionLabel label="SEARCH MODE" />
+          <View style={{ flexDirection: "row", gap: 6, marginBottom: 6 }}>
+            {(["Rent", "Buy"] as Array<ProfileData["searchMode"]>).map((mode) => (
+              <Pressable
+                key={mode}
+                onPress={() => updateData("searchMode", mode)}
+                style={{ flex: 1, paddingVertical: 7, borderRadius: 8, borderWidth: 1, alignItems: "center", borderColor: data.searchMode === mode ? colors.primaryBlue : colors.border, backgroundColor: data.searchMode === mode ? `${colors.primaryBlue}18` : colors.cardHover }}
+              >
+                <Text style={{ color: data.searchMode === mode ? colors.primaryBlue : colors.textPrimary, fontSize: 12, fontWeight: "700" }}>{mode}</Text>
+              </Pressable>
+            ))}
           </View>
 
           {/* ── COMMUTE ── */}
@@ -181,7 +241,18 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
             </View>
           </View>
 
-          <PanelField label="Usual Departure Time" value={data.departureTime} onChangeText={(v) => updateData("departureTime", v)} placeholder="e.g. 8:00 AM" />
+          <View style={{ marginTop: 6 }}>
+            <PanelSelectRow
+              label="Usual Departure Time"
+              value={data.departureTime}
+              onPress={() => setPickerVisible(true)}
+            />
+            {data.departureTime ? (
+              <Pressable onPress={() => updateData("departureTime", "")} style={{ alignSelf: "flex-start", marginTop: 2 }}>
+                <Text style={{ color: colors.textSecondary, fontSize: 10 }}>Clear</Text>
+              </Pressable>
+            ) : null}
+          </View>
 
           {/* ── LIFESTYLE ── */}
           <SectionLabel label="LIFESTYLE" />
@@ -200,6 +271,31 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
 
         </ScrollView>
       </Animated.View>
+
+      {/* Departure Time Picker Modal */}
+      <Modal visible={pickerVisible} transparent animationType="slide">
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => setPickerVisible(false)} />
+        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: 400 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: "700" }}>Departure Time</Text>
+            <Pressable onPress={() => setPickerVisible(false)}>
+              <Ionicons name="close" size={20} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+          <ScrollView>
+            {TIME_OPTIONS.map((opt) => (
+              <Pressable
+                key={opt}
+                onPress={() => { updateData("departureTime", opt); setPickerVisible(false); }}
+                style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}
+              >
+                <Text style={{ color: data.departureTime === opt ? colors.primaryBlue : colors.textPrimary, fontSize: 14 }}>{opt}</Text>
+                {data.departureTime === opt && <Ionicons name="checkmark" size={16} color={colors.primaryBlue} />}
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
     </>
   );
 }

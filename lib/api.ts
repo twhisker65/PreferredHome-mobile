@@ -1,5 +1,5 @@
-// lib/api.ts — Build 3.2.14
-// Reverted from 3.2.15 — calculateCommute and recalculateAllCommutes removed.
+// lib/api.ts — Build 3.2.15
+// Added: recalculateAllCommutes()
 
 import { API_BASE_URL } from "./config";
 
@@ -80,4 +80,16 @@ export function detectListingSite(url: string): string {
     if (lower.includes(pattern)) return name;
   }
   return "Other";
+}
+
+export async function recalculateAllCommutes(params: {
+  workAddress: string;
+  commuteMethod: string;
+  departureTime: string;
+}): Promise<any> {
+  return fetchJson(`${API_BASE_URL}/commute/recalculate-all`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
 }
