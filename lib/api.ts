@@ -1,5 +1,5 @@
-// lib/api.ts — Build 3.2.15
-// Added: recalculateAllCommutes()
+// lib/api.ts — Build 3.2.15.1 Hotfix
+// Added: calculateCommute() — calls separate /commute/calculate/{id} endpoint.
 
 import { API_BASE_URL } from "./config";
 
@@ -80,6 +80,17 @@ export function detectListingSite(url: string): string {
     if (lower.includes(pattern)) return name;
   }
   return "Other";
+}
+
+export async function calculateCommute(
+  listingId: string,
+  params: { workAddress: string; commuteMethod: string; departureTime: string }
+): Promise<any> {
+  return fetchJson(`${API_BASE_URL}/commute/calculate/${listingId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
 }
 
 export async function recalculateAllCommutes(params: {

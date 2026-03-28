@@ -1,7 +1,6 @@
-// app/(tabs)/add.tsx — Build 3.2.15
-// Added: profileRef loaded in useFocusEffect.
-//        workAddress, commuteMethod, departureTime passed in handleSave payload
-//        so the API can calculate and store commuteTime in one write.
+// app/(tabs)/add.tsx — Build 3.2.15.1 Hotfix
+// Restored: calculateCommute fired as separate call after postListing succeeds.
+// Removed: workAddress/commuteMethod/departureTime from listing payload.
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -28,7 +27,7 @@ import { ProfilePanel } from "../../components/ProfilePanel";
 import { CriteriaPanel } from "../../components/CriteriaPanel";
 import { SettingsPanel } from "../../components/SettingsPanel";
 import { Calendar } from "react-native-calendars";
-import { postListing, lookupZip, detectListingSite } from "../../lib/api";
+import { postListing, lookupZip, detectListingSite, calculateCommute } from "../../lib/api";
 import { loadProfileToggles, loadProfileData, type ProfileToggles, type ProfileData } from "../../lib/profileStorage";
 
 type Draft = {
@@ -362,12 +361,17 @@ export default function AddTab() {
         dateAvailable: draft.dateAvailable || null, contactedDate: draft.contactedDate || null,
         viewingAppointment: buildViewingAppointment(draft) || null,
         appliedDate: draft.appliedDate || null, pros: draft.pros, cons: draft.cons,
-        // Commute profile fields — API uses these to calculate commuteTime and discards them.
-        workAddress:    profileRef.current?.workAddress    ?? "",
-        commuteMethod:  profileRef.current?.commuteMethod  ?? "Transit",
-        departureTime:  profileRef.current?.departureTime  ?? "",
       };
-      await postListing(payload);
+      const saved = await postListing(payload);
+      // Fire commute calculation as a separate call after save — fire-and-forget.
+      const workAddress = profileRef.current?.workAddress ?? "";
+      if (workAddress.trim() && saved?.id && draft.streetAddress.trim()) {
+        calculateCommute(saved.id, {
+          workAddress,
+          commuteMethod: profileRef.current?.commuteMethod ?? "Transit",
+          departureTime: profileRef.current?.departureTime ?? "",
+        }).catch(() => {});
+      }
       setDraft(BLANK_DRAFT);
       Alert.alert("Saved", "Listing added successfully.", [{ text: "OK", onPress: () => router.push("/(tabs)/listings") }]);
     } catch (err: any) {

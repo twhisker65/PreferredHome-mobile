@@ -1,7 +1,6 @@
-// app/edit.tsx — Build 3.2.15
-// Added: profileRef loaded on mount.
-//        workAddress, commuteMethod, departureTime passed in handleSave payload
-//        so the API can calculate and store commuteTime in one write.
+// app/edit.tsx — Build 3.2.15.1 Hotfix
+// Restored: calculateCommute fired as separate call after updateListing succeeds.
+// Removed: workAddress/commuteMethod/departureTime from listing payload.
 
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -19,7 +18,7 @@ import { ProfilePanel } from "../components/ProfilePanel";
 import { CriteriaPanel } from "../components/CriteriaPanel";
 import { SettingsPanel } from "../components/SettingsPanel";
 import { Calendar } from "react-native-calendars";
-import { getListings, updateListing, detectListingSite } from "../lib/api";
+import { getListings, updateListing, detectListingSite, calculateCommute } from "../lib/api";
 import { loadProfileToggles, loadProfileData, type ProfileToggles, type ProfileData } from "../lib/profileStorage";
 
 type Draft = {
@@ -309,12 +308,17 @@ export default function EditScreen() {
         dateAvailable: draft.dateAvailable || null, contactedDate: draft.contactedDate || null,
         viewingAppointment: buildViewingAppointment(draft) || null,
         appliedDate: draft.appliedDate || null, pros: draft.pros, cons: draft.cons,
-        // Commute profile fields — API uses these to calculate commuteTime and discards them.
-        workAddress:    profileRef.current?.workAddress    ?? "",
-        commuteMethod:  profileRef.current?.commuteMethod  ?? "Transit",
-        departureTime:  profileRef.current?.departureTime  ?? "",
       };
       await updateListing(id!, payload);
+      // Fire commute calculation as a separate call after save — fire-and-forget.
+      const workAddress = profileRef.current?.workAddress ?? "";
+      if (workAddress.trim() && id && draft.streetAddress.trim()) {
+        calculateCommute(id, {
+          workAddress,
+          commuteMethod: profileRef.current?.commuteMethod ?? "Transit",
+          departureTime: profileRef.current?.departureTime ?? "",
+        }).catch(() => {});
+      }
       Alert.alert("Saved", "Listing updated successfully.", [{ text: "OK", onPress: () => router.back() }]);
     } catch (err: any) {
       Alert.alert("Save Failed", err?.message ?? "Something went wrong. Please try again.");
