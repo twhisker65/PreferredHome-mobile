@@ -1,3 +1,7 @@
+// lib/api.ts — Build 3.2.15
+// Added: calculateCommute, recalculateAllCommutes
+// All existing functions unchanged.
+
 import { API_BASE_URL } from "./config";
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -64,27 +68,60 @@ export async function lookupZip(zipCode: string): Promise<{ city: string; state:
 
 // URL keyword patterns used to auto-detect listing site.
 // Checked in order — first match wins.
-const LISTING_SITE_PATTERNS: { keyword: string; site: string }[] = [
-  { keyword: "zillow.com",          site: "Zillow" },
-  { keyword: "realtor.com",         site: "Realtor.com" },
-  { keyword: "redfin.com",          site: "Redfin" },
-  { keyword: "homes.com",           site: "Homes.com" },
-  { keyword: "apartments.com",      site: "Apartments.com" },
-  { keyword: "streeteasy.com",      site: "StreetEasy" },
-  { keyword: "hotpads.com",         site: "HotPads" },
-  { keyword: "trulia.com",          site: "Trulia" },
-  { keyword: "rent.com",            site: "Rent.com" },
-  { keyword: "apartmentfinder.com", site: "Apartment Finder" },
-  { keyword: "rentals.com",         site: "Rentals.com" },
-  { keyword: "mls",                 site: "MLS / Broker" },
+const LISTING_SITE_PATTERNS: Array<[string, string]> = [
+  ["zillow.com",          "Zillow"],
+  ["realtor.com",         "Realtor.com"],
+  ["redfin.com",          "Redfin"],
+  ["homes.com",           "Homes.com"],
+  ["apartments.com",      "Apartments.com"],
+  ["streeteasy.com",      "StreetEasy"],
+  ["hotpads.com",         "HotPads"],
+  ["trulia.com",          "Trulia"],
+  ["rent.com",            "Rent.com"],
+  ["apartmentfinder.com", "Apartment Finder"],
+  ["rentals.com",         "Rentals.com"],
+  ["mls",                 "MLS / Broker"],
 ];
 
-// Detect listing site from a URL string. Returns "Other" if no match.
 export function detectListingSite(url: string): string {
   if (!url) return "Other";
   const lower = url.toLowerCase();
-  for (const { keyword, site } of LISTING_SITE_PATTERNS) {
-    if (lower.includes(keyword)) return site;
+  for (const [pattern, name] of LISTING_SITE_PATTERNS) {
+    if (lower.includes(pattern)) return name;
   }
   return "Other";
+}
+
+// Calculate commute time for a single listing and store it.
+// Called after Add or Edit save. Fire-and-forget — errors are silent.
+// Returns { commuteTime: number } in minutes.
+export async function calculateCommute(
+  listingId: string,
+  params: {
+    workAddress: string;
+    commuteMethod: string;
+    departureTime: string;
+    listingAddress: string;
+  }
+): Promise<{ commuteTime: number }> {
+  return fetchJson(`${API_BASE_URL}/commute/calculate/${listingId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+}
+
+// Recalculate commute for all listings. Called when profile commute
+// fields change and the profile panel closes. Fire-and-forget.
+// Returns { updated: number, skipped: number }.
+export async function recalculateAllCommutes(params: {
+  workAddress: string;
+  commuteMethod: string;
+  departureTime: string;
+}): Promise<{ updated: number; skipped: number }> {
+  return fetchJson(`${API_BASE_URL}/commute/recalculate-all`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
 }

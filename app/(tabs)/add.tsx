@@ -1,7 +1,6 @@
-// app/(tabs)/add.tsx — Build 3.2.14.1
-// Hotfix: Section, Field, SelectRow, Toggle, MultiRow, DateRow moved outside
-// the main export function. Fixes keyboard dismissing after every keystroke.
-// Zero logic, payload, or UI changes from 3.2.14.
+// app/(tabs)/add.tsx — Build 3.2.15.1 Hotfix
+// Fix: PROPERTY_TYPES, COOLING_TYPES, PARKING restored to exact 3.2.14.1 values.
+// All other logic identical to 3.2.15.
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -28,8 +27,15 @@ import { ProfilePanel } from "../../components/ProfilePanel";
 import { CriteriaPanel } from "../../components/CriteriaPanel";
 import { SettingsPanel } from "../../components/SettingsPanel";
 import { Calendar } from "react-native-calendars";
-import { postListing, lookupZip, detectListingSite } from "../../lib/api";
-import { loadProfileToggles, type ProfileToggles } from "../../lib/profileStorage";
+import { postListing, lookupZip, detectListingSite, calculateCommute } from "../../lib/api";
+import {
+  loadProfileToggles,
+  loadProfileData,
+  type ProfileToggles,
+  type ProfileData,
+} from "../../lib/profileStorage";
+
+// ── Types ─────────────────────────────────────────────────────────
 
 type Draft = {
   status: string;
@@ -81,16 +87,16 @@ type Draft = {
   transitScore: string;
   bikeScore: string;
   elementarySchoolName: string;
-  elementaryRating: string;
   elementaryGrades: string;
+  elementaryRating: string;
   elementaryDistance: string;
   middleSchoolName: string;
-  middleRating: string;
   middleGrades: string;
+  middleRating: string;
   middleDistance: string;
   highSchoolName: string;
-  highRating: string;
   highGrades: string;
+  highRating: string;
   highDistance: string;
   listingSite: string;
   listingUrl: string;
@@ -110,100 +116,47 @@ type Draft = {
   cons: string;
 };
 
+// ── Constants ─────────────────────────────────────────────────────
+
 const BLANK_DRAFT: Draft = {
-  status: "New",
-  preferred: false,
-  buildingName: "",
-  streetAddress: "",
-  city: "",
-  state: "",
-  zipCode: "",
-  neighborhood: "",
-  unitNumber: "",
-  floorNumber: "",
-  numberOfFloors: "",
-  bedrooms: "",
-  bathrooms: "",
-  squareFootage: "",
-  topFloor: false,
-  cornerUnit: false,
-  propertyType: "Apartment",
-  furnished: false,
-  shortTermAvailable: false,
-  rentersInsuranceRequired: false,
-  baseRent: "",
-  amenityFee: "",
-  adminFee: "",
-  utilityFee: "",
-  parkingFee: "",
-  otherFee: "",
-  petFee: "",
-  storageRent: "",
-  securityDeposit: "",
-  applicationFee: "",
-  brokerFee: "",
-  moveInFee: "",
-  utilitiesIncluded: [],
-  unitFeatures: [],
-  buildingAmenities: [],
-  petAmenities: [],
-  closeBy: [],
-  coolingType: "None",
-  heatingType: "None",
-  laundry: "None",
-  parkingType: "None",
-  roomTypes: [],
-  privateOutdoorSpaceTypes: [],
-  storageTypes: [],
-  commuteTime: "",
-  walkScore: "",
-  transitScore: "",
-  bikeScore: "",
-  elementarySchoolName: "",
-  elementaryRating: "",
-  elementaryGrades: "",
-  elementaryDistance: "",
-  middleSchoolName: "",
-  middleRating: "",
-  middleGrades: "",
-  middleDistance: "",
-  highSchoolName: "",
-  highRating: "",
-  highGrades: "",
-  highDistance: "",
-  listingSite: "Other",
-  listingUrl: "",
-  photoUrl: "",
-  contactName: "",
-  contactPhone: "",
-  contactEmail: "",
-  leaseLength: "",
-  noBoardApproval: false,
-  noBrokerFee: false,
-  dateAvailable: "",
-  contactedDate: "",
-  viewingDate: "",
-  viewingTime: "11:00 AM",
-  appliedDate: "",
-  pros: "",
-  cons: "",
+  status: "New", preferred: false, buildingName: "", streetAddress: "",
+  city: "", state: "", zipCode: "", neighborhood: "", unitNumber: "",
+  floorNumber: "", numberOfFloors: "", bedrooms: "", bathrooms: "",
+  squareFootage: "", topFloor: false, cornerUnit: false, propertyType: "",
+  furnished: false, shortTermAvailable: false, rentersInsuranceRequired: false,
+  baseRent: "", amenityFee: "", adminFee: "", utilityFee: "", parkingFee: "",
+  otherFee: "", petFee: "", storageRent: "", securityDeposit: "",
+  applicationFee: "", brokerFee: "", moveInFee: "",
+  utilitiesIncluded: [], unitFeatures: [], buildingAmenities: [],
+  petAmenities: [], closeBy: [], coolingType: "", heatingType: "",
+  laundry: "", parkingType: "", roomTypes: [], privateOutdoorSpaceTypes: [],
+  storageTypes: [], commuteTime: "", walkScore: "", transitScore: "",
+  bikeScore: "", elementarySchoolName: "", elementaryGrades: "",
+  elementaryRating: "", elementaryDistance: "", middleSchoolName: "",
+  middleGrades: "", middleRating: "", middleDistance: "", highSchoolName: "",
+  highGrades: "", highRating: "", highDistance: "", listingSite: "Other",
+  listingUrl: "", photoUrl: "", contactName: "", contactPhone: "",
+  contactEmail: "", leaseLength: "", noBoardApproval: false, noBrokerFee: false,
+  dateAvailable: "", contactedDate: "", viewingDate: "", viewingTime: "11:00 AM",
+  appliedDate: "", pros: "", cons: "",
 };
 
+// ── Option arrays — FROZEN. Do not modify without explicit instruction. ──
 const STATUS = ["New", "Contacted", "Scheduled", "Viewed", "Shortlisted", "Applied", "Approved", "Signed", "Rejected", "Archived"];
 const PROPERTY_TYPES = ["Apartment", "Condo", "Co-op", "Townhouse", "House"];
 const COOLING_TYPES = ["Central Air", "Wall Unit", "Window Unit", "None"];
 const HEATING_TYPES = ["Forced Air", "Baseboard", "Radiant", "Steam", "Electric", "Natural Gas", "Oil", "Propane", "None"];
 const LAUNDRY = ["None", "In-Unit", "On Floor", "In Building"];
 const PARKING = ["Shared Garage", "Shared Lot", "Covered Space", "Attached Garage", "Detached Garage", "Driveway", "Carport", "Street", "None", "Other"];
-const LISTING_SITES = ["Zillow", "Realtor.com", "Redfin", "Homes.com", "Apartments.com", "StreetEasy", "HotPads", "Trulia", "Rent.com", "Apartment Finder", "Rentals.com", "MLS / Broker", "Other"];
-const UTILITIES = ["Water", "Sewer", "Trash", "Internet", "Cable", "Parking", "Lawn Care", "Snow Removal", "Pool Maintenance"];
-const UNIT_FEATURES = ["Hardwood Floors", "Dishwasher", "Microwave", "Fireplace", "Views", "Large Windows"];
+const ROOM_TYPES = ["Living Room", "Dining Room", "Kitchen", "Eat-in Kitchen", "Foyer", "Den", "Family Room", "TV Room", "Office", "Library", "Sunroom", "Mudroom", "Laundry Room", "Finished Basement", "Bonus Room", "Playroom", "Other"];
 const BUILDING_AMENITIES = ["Rooftop Space", "Common Lounge", "Barbecue Area", "Firepits", "Gym", "Pool", "Doorman", "Elevator", "Game Room", "Theater Room", "Playground", "Tennis Court"];
 const PRIVATE_OUTDOOR_SPACE = ["Balcony", "Patio", "Deck", "Porch", "Private Yard", "Fenced Yard", "Other"];
 const PET_AMENITIES = ["Pet Washing", "Dog Park"];
 const CLOSE_BY = ["Subway", "Bus Stop", "Grocery Store", "Park", "Restaurants", "Pharmacy", "Coffee Shop", "Gym", "School", "Hospital", "Library", "Dog Park", "Farmer's Market", "Shopping Mall", "Highway Access"];
 const STORAGE_TYPES = ["Closet", "Walk-in Closet", "Basement", "Attic", "Garage", "Shed", "Locker", "Pantry", "Outdoor Storage", "Bike Storage", "Other"];
-const ROOM_TYPES = ["Living Room", "Dining Room", "Kitchen", "Eat-in Kitchen", "Foyer", "Den", "Family Room", "TV Room", "Office", "Library", "Sunroom", "Mudroom", "Laundry Room", "Finished Basement", "Bonus Room", "Playroom", "Other"];
+const UNIT_FEATURES = ["Hardwood Floors", "Dishwasher", "Microwave", "Fireplace", "Views", "Large Windows"];
+const UTILITIES = ["Water", "Sewer", "Trash", "Internet", "Cable", "Parking", "Lawn Care", "Snow Removal", "Pool Maintenance"];
+const LISTING_SITES = ["Zillow", "Realtor.com", "Redfin", "Homes.com", "Apartments.com", "StreetEasy", "HotPads", "Trulia", "Rent.com", "Apartment Finder", "Rentals.com", "MLS / Broker", "Other"];
 const TIME_OPTIONS = [
   "6:00 AM","6:30 AM","7:00 AM","7:30 AM","8:00 AM","8:30 AM","9:00 AM","9:30 AM",
   "10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","12:30 PM","1:00 PM","1:30 PM",
@@ -211,15 +164,10 @@ const TIME_OPTIONS = [
   "6:00 PM","6:30 PM","7:00 PM","7:30 PM","8:00 PM",
 ];
 
-function boolStr(v: boolean): string {
-  return v ? "TRUE" : "FALSE";
-}
+// ── Helpers ───────────────────────────────────────────────────────
 
-function clampRating(v: string): string {
-  const n = parseFloat(v);
-  if (isNaN(n)) return v;
-  return String(Math.min(n, 10));
-}
+function boolStr(v: boolean): string { return v ? "TRUE" : "FALSE"; }
+function clampRating(v: string): string { const n = parseFloat(v); if (isNaN(n)) return v; return String(Math.min(n, 10)); }
 
 // ── Sub-components — defined OUTSIDE main function to prevent remount on re-render ──
 
@@ -237,79 +185,73 @@ function Section({ title, open: isOpen, onToggle, children }: {
   );
 }
 
-function Field({ label, fieldKey, inputRefs, onNext, value, onChangeText, keyboardType, placeholder, multiline }: {
+function Field({ label, fieldKey, inputRefs, onNext, value, onChangeText, keyboardType, multiline, placeholder }: {
   label: string; fieldKey: string; inputRefs: React.MutableRefObject<Record<string, any>>;
   onNext: (k: string) => void; value: string; onChangeText: (t: string) => void;
-  keyboardType?: any; placeholder?: string; multiline?: boolean;
+  keyboardType?: any; multiline?: boolean; placeholder?: string;
 }) {
   return (
-    <View style={{ marginBottom: 10 }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 3 }}>{label}</Text>
+    <View style={{ gap: 4 }}>
+      <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.4 }}>{label}</Text>
       <TextInput
-        ref={(r) => { inputRefs.current[fieldKey] = r; }}
+        ref={(r) => { if (r) inputRefs.current[fieldKey] = r; }}
         value={value}
         onChangeText={onChangeText}
-        keyboardType={keyboardType || "default"}
-        placeholder={placeholder || ""}
-        placeholderTextColor={colors.textSecondary}
+        keyboardType={keyboardType ?? "default"}
         multiline={multiline}
+        placeholder={placeholder ?? ""}
+        placeholderTextColor={colors.textSecondary}
         returnKeyType="next"
         onSubmitEditing={() => onNext(fieldKey)}
+        blurOnSubmit={false}
         style={{
-          backgroundColor: colors.card,
-          borderWidth: 1,
-          borderColor: colors.border,
-          borderRadius: 8,
-          paddingHorizontal: 12,
-          paddingVertical: 8,
-          color: colors.textPrimary,
-          fontSize: 14,
-          minHeight: multiline ? 80 : undefined,
+          backgroundColor: colors.cardHover, borderWidth: 1, borderColor: colors.border,
+          borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9,
+          color: colors.textPrimary, fontSize: 14, minHeight: multiline ? 72 : undefined,
         }}
       />
     </View>
   );
 }
 
-function SelectRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
+function SelectRow({ label, value, onPress }: { label: string; value: string; onPress: () => void; }) {
   return (
     <Pressable onPress={onPress} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{label}</Text>
+      <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600" }}>{label}</Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-        <Text style={{ color: colors.textPrimary, fontSize: 14 }}>{value || "—"}</Text>
+        <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 13 }}>{value || "Select"}</Text>
         <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
       </View>
     </Pressable>
   );
 }
 
-function Toggle({ label, value, onValueChange }: { label: string; value: boolean; onValueChange: (v: boolean) => void }) {
+function Toggle({ label, value, onValueChange }: { label: string; value: boolean; onValueChange: (v: boolean) => void; }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{label}</Text>
-      <Switch value={value} onValueChange={onValueChange} trackColor={{ true: colors.primaryBlue }} />
+    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 6 }}>
+      <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600" }}>{label}</Text>
+      <Switch value={value} onValueChange={onValueChange} trackColor={{ false: colors.border, true: colors.primaryBlue }} thumbColor="#fff" />
     </View>
   );
 }
 
-function MultiRow({ label, values, onPress }: { label: string; values: string[]; onPress: () => void }) {
+function MultiRow({ label, values, onPress }: { label: string; values: string[]; onPress: () => void; }) {
+  const display = values.length === 0 ? "Select" : values.length === 1 ? values[0] : `${values.length} selected`;
   return (
     <Pressable onPress={onPress} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{label}</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1, justifyContent: "flex-end" }}>
-        <Text style={{ color: colors.textPrimary, fontSize: 13, textAlign: "right", flexShrink: 1 }} numberOfLines={1}>
-          {values.length > 0 ? values.join(", ") : "—"}
-        </Text>
+      <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600" }}>{label}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+        <Text style={{ color: values.length > 0 ? colors.textPrimary : colors.textSecondary, fontSize: 13 }}>{display}</Text>
         <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
       </View>
     </Pressable>
   );
 }
 
-function DateRow({ label, value, onPress, onClear }: { label: string; value: string; onPress: () => void; onClear: () => void }) {
+function DateRow({ label, value, onPress, onClear }: { label: string; value: string; onPress: () => void; onClear: () => void; }) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{label}</Text>
+      <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600" }}>{label}</Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         {value ? (
           <>
@@ -330,9 +272,15 @@ function DateRow({ label, value, onPress, onClear }: { label: string; value: str
 
 // ── Main component ────────────────────────────────────────────────
 
+const DEFAULT_PROFILE_DATA: ProfileData = {
+  name: "", email: "", searchMode: "Rent",
+  workAddress: "", commuteMethod: "Transit", departureTime: "",
+};
+
 export default function AddTab() {
   const insets = useSafeAreaInsets();
   const inputRefs = useRef<Record<string, any>>({});
+  const profileDataRef = useRef<ProfileData>(DEFAULT_PROFILE_DATA);
   const [draft, setDraft] = useState<Draft>(BLANK_DRAFT);
   const [open, setOpen] = useState({
     property: true, costs: true, features: true, transportation: true,
@@ -359,6 +307,7 @@ export default function AddTab() {
   useFocusEffect(
     useCallback(() => {
       loadProfileToggles().then(setToggles);
+      loadProfileData().then((d) => { profileDataRef.current = d; });
     }, [])
   );
 
@@ -397,27 +346,17 @@ export default function AddTab() {
   }
 
   function openSingle(title: string, options: string[], current: string, cb: (v: string) => void) {
-    setPickerTitle(title);
-    setPickerOptions(options);
-    setPickerSelected(current);
-    setPickerMulti(false);
-    setPickerCallback(() => cb);
-    setPickerVisible(true);
+    setPickerTitle(title); setPickerOptions(options); setPickerSelected(current);
+    setPickerMulti(false); setPickerCallback(() => cb); setPickerVisible(true);
   }
 
   function openMulti(title: string, options: string[], current: string[], cb: (v: string[]) => void) {
-    setPickerTitle(title);
-    setPickerOptions(options);
-    setPickerSelected(current);
-    setPickerMulti(true);
-    setPickerCallback(() => cb);
-    setPickerVisible(true);
+    setPickerTitle(title); setPickerOptions(options); setPickerSelected(current);
+    setPickerMulti(true); setPickerCallback(() => cb); setPickerVisible(true);
   }
 
   function openDatePicker(field: keyof Draft, title: string) {
-    setDatePickerField(field);
-    setDatePickerTitle(title);
-    setDatePickerVisible(true);
+    setDatePickerField(field); setDatePickerTitle(title); setDatePickerVisible(true);
   }
 
   function buildViewingAppointment(d: Draft): string | null {
@@ -465,18 +404,18 @@ export default function AddTab() {
         applicationFee: draft.applicationFee ? Number(draft.applicationFee) : null,
         brokerFee: draft.brokerFee ? Number(draft.brokerFee) : null,
         moveInFee: draft.moveInFee ? Number(draft.moveInFee) : null,
-        utilitiesIncluded: draft.utilitiesIncluded.join(","),
-        unitFeatures: draft.unitFeatures.join(","),
-        buildingAmenities: draft.buildingAmenities.join(","),
-        petAmenities: draft.petAmenities.join(","),
-        closeBy: draft.closeBy.join(","),
+        utilitiesIncluded: draft.utilitiesIncluded.join(", "),
+        unitFeatures: draft.unitFeatures.join(", "),
+        buildingAmenities: draft.buildingAmenities.join(", "),
+        petAmenities: draft.petAmenities.join(", "),
+        closeBy: draft.closeBy.join(", "),
         coolingType: draft.coolingType,
         heatingType: draft.heatingType,
         laundry: draft.laundry,
         parkingType: draft.parkingType,
-        roomTypes: draft.roomTypes.join(","),
-        privateOutdoorSpaceTypes: draft.privateOutdoorSpaceTypes.join(","),
-        storageTypes: draft.storageTypes.join(","),
+        roomTypes: draft.roomTypes.join(", "),
+        privateOutdoorSpaceTypes: draft.privateOutdoorSpaceTypes.join(", "),
+        storageTypes: draft.storageTypes.join(", "),
         commuteTime: draft.commuteTime ? Number(draft.commuteTime) : null,
         walkScore: draft.walkScore ? Number(draft.walkScore) : null,
         transitScore: draft.transitScore ? Number(draft.transitScore) : null,
@@ -509,7 +448,21 @@ export default function AddTab() {
         pros: draft.pros,
         cons: draft.cons,
       };
-      await postListing(payload);
+
+      const saved = await postListing(payload);
+
+      const pd = profileDataRef.current;
+      if (pd.workAddress.trim() && draft.streetAddress.trim()) {
+        const listingAddress = [draft.streetAddress, draft.city, draft.state, draft.zipCode]
+          .filter(Boolean).join(", ");
+        calculateCommute(saved.id, {
+          workAddress: pd.workAddress,
+          commuteMethod: pd.commuteMethod,
+          departureTime: pd.departureTime,
+          listingAddress,
+        }).catch(() => {});
+      }
+
       setDraft(BLANK_DRAFT);
       Alert.alert("Saved", "Listing added successfully.", [
         { text: "OK", onPress: () => router.push("/(tabs)/listings") },
@@ -546,32 +499,30 @@ export default function AddTab() {
               </View>
             ) : null}
             <Field label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={(t) => setDraft((d) => ({ ...d, neighborhood: t }))} />
-            {isAptCondoCoop && <Field label="Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={(t) => setDraft((d) => ({ ...d, unitNumber: t }))} />}
-            {isAptCondoCoop && <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="decimal-pad" />}
-            <Field label="Number of Floors" fieldKey="numberOfFloors" inputRefs={inputRefs} onNext={focusNext} value={draft.numberOfFloors} onChangeText={(t) => setDraft((d) => ({ ...d, numberOfFloors: t }))} keyboardType="decimal-pad" />
-            <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bedrooms: t }))} keyboardType="decimal-pad" />
+            <Field label="Unit Number" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={(t) => setDraft((d) => ({ ...d, unitNumber: t }))} />
+            <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="number-pad" />
+            {isAptCondoCoop && <Field label="Number of Floors in Building" fieldKey="numberOfFloors" inputRefs={inputRefs} onNext={focusNext} value={draft.numberOfFloors} onChangeText={(t) => setDraft((d) => ({ ...d, numberOfFloors: t }))} keyboardType="number-pad" />}
+            <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bedrooms: t }))} keyboardType="number-pad" />
             <Field label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bathrooms: t }))} keyboardType="decimal-pad" />
-            <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={(t) => setDraft((d) => ({ ...d, squareFootage: t }))} keyboardType="decimal-pad" />
-            {isAptCondoCoop && <Toggle label="Top Floor" value={draft.topFloor} onValueChange={(v) => setDraft((d) => ({ ...d, topFloor: v }))} />}
-            {isAptCondoCoop && <Toggle label="Corner Unit" value={draft.cornerUnit} onValueChange={(v) => setDraft((d) => ({ ...d, cornerUnit: v }))} />}
+            <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={(t) => setDraft((d) => ({ ...d, squareFootage: t }))} keyboardType="number-pad" />
+            <Toggle label="Top Floor" value={draft.topFloor} onValueChange={(v) => setDraft((d) => ({ ...d, topFloor: v }))} />
+            <Toggle label="Corner Unit" value={draft.cornerUnit} onValueChange={(v) => setDraft((d) => ({ ...d, cornerUnit: v }))} />
             <Toggle label="Furnished" value={draft.furnished} onValueChange={(v) => setDraft((d) => ({ ...d, furnished: v }))} />
           </Section>
 
           <Section title="Costs" open={open.costs} onToggle={() => toggleSection("costs")}>
-            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 4, marginBottom: 2 }}>MONTHLY</Text>
-            <Field label="Base Rent" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={(t) => setDraft((d) => ({ ...d, baseRent: t }))} keyboardType="number-pad" />
-            <Field label="Amenity Fee" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={(t) => setDraft((d) => ({ ...d, amenityFee: t }))} keyboardType="number-pad" />
-            <Field label="Admin Fee" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={(t) => setDraft((d) => ({ ...d, adminFee: t }))} keyboardType="number-pad" />
-            <Field label="Utility Fee" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={(t) => setDraft((d) => ({ ...d, utilityFee: t }))} keyboardType="number-pad" />
-            {toggles.car && <Field label="Parking Fee" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={(t) => setDraft((d) => ({ ...d, parkingFee: t }))} keyboardType="number-pad" />}
-            {toggles.pets && <Field label="Pet Fee" fieldKey="petFee" inputRefs={inputRefs} onNext={focusNext} value={draft.petFee} onChangeText={(t) => setDraft((d) => ({ ...d, petFee: t }))} keyboardType="number-pad" />}
-            <Field label="Storage Rent" fieldKey="storageRent" inputRefs={inputRefs} onNext={focusNext} value={draft.storageRent} onChangeText={(t) => setDraft((d) => ({ ...d, storageRent: t }))} keyboardType="number-pad" />
-            <Field label="Other Fee" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={(t) => setDraft((d) => ({ ...d, otherFee: t }))} keyboardType="number-pad" />
-            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 6, marginBottom: 2 }}>UP FRONT</Text>
-            <Field label="Security Deposit" fieldKey="securityDeposit" inputRefs={inputRefs} onNext={focusNext} value={draft.securityDeposit} onChangeText={(t) => setDraft((d) => ({ ...d, securityDeposit: t }))} keyboardType="number-pad" />
-            <Field label="Application Fee" fieldKey="applicationFee" inputRefs={inputRefs} onNext={focusNext} value={draft.applicationFee} onChangeText={(t) => setDraft((d) => ({ ...d, applicationFee: t }))} keyboardType="number-pad" />
-            <Field label="Broker Fee" fieldKey="brokerFee" inputRefs={inputRefs} onNext={focusNext} value={draft.brokerFee} onChangeText={(t) => setDraft((d) => ({ ...d, brokerFee: t }))} keyboardType="number-pad" />
-            <Field label="Move-in Fee" fieldKey="moveInFee" inputRefs={inputRefs} onNext={focusNext} value={draft.moveInFee} onChangeText={(t) => setDraft((d) => ({ ...d, moveInFee: t }))} keyboardType="number-pad" />
+            <Field label="Base Rent ($)" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={(t) => setDraft((d) => ({ ...d, baseRent: t }))} keyboardType="number-pad" />
+            {toggles.car && <Field label="Parking Fee ($)" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={(t) => setDraft((d) => ({ ...d, parkingFee: t }))} keyboardType="number-pad" />}
+            <Field label="Amenity Fee ($)" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={(t) => setDraft((d) => ({ ...d, amenityFee: t }))} keyboardType="number-pad" />
+            <Field label="Admin Fee ($)" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={(t) => setDraft((d) => ({ ...d, adminFee: t }))} keyboardType="number-pad" />
+            <Field label="Utility Fee ($)" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={(t) => setDraft((d) => ({ ...d, utilityFee: t }))} keyboardType="number-pad" />
+            <Field label="Other Fee ($)" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={(t) => setDraft((d) => ({ ...d, otherFee: t }))} keyboardType="number-pad" />
+            {toggles.pets && <Field label="Pet Fee ($)" fieldKey="petFee" inputRefs={inputRefs} onNext={focusNext} value={draft.petFee} onChangeText={(t) => setDraft((d) => ({ ...d, petFee: t }))} keyboardType="number-pad" />}
+            <Field label="Storage Rent ($)" fieldKey="storageRent" inputRefs={inputRefs} onNext={focusNext} value={draft.storageRent} onChangeText={(t) => setDraft((d) => ({ ...d, storageRent: t }))} keyboardType="number-pad" />
+            <Field label="Security Deposit ($)" fieldKey="securityDeposit" inputRefs={inputRefs} onNext={focusNext} value={draft.securityDeposit} onChangeText={(t) => setDraft((d) => ({ ...d, securityDeposit: t }))} keyboardType="number-pad" />
+            <Field label="Application Fee ($)" fieldKey="applicationFee" inputRefs={inputRefs} onNext={focusNext} value={draft.applicationFee} onChangeText={(t) => setDraft((d) => ({ ...d, applicationFee: t }))} keyboardType="number-pad" />
+            <Field label="Broker Fee ($)" fieldKey="brokerFee" inputRefs={inputRefs} onNext={focusNext} value={draft.brokerFee} onChangeText={(t) => setDraft((d) => ({ ...d, brokerFee: t }))} keyboardType="number-pad" />
+            <Field label="Move-in Fee ($)" fieldKey="moveInFee" inputRefs={inputRefs} onNext={focusNext} value={draft.moveInFee} onChangeText={(t) => setDraft((d) => ({ ...d, moveInFee: t }))} keyboardType="number-pad" />
           </Section>
 
           <Section title="Features" open={open.features} onToggle={() => toggleSection("features")}>
@@ -644,18 +595,18 @@ export default function AddTab() {
           </Section>
 
           <Pressable onPress={handleSave} disabled={saving} style={{ backgroundColor: colors.primaryBlue, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 8 }}>
-            {saving ? <ActivityIndicator color={colors.textPrimary} /> : <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "700" }}>Save Listing</Text>}
+            {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>Save Listing</Text>}
           </Pressable>
 
         </ScrollView>
       </KeyboardAvoidingView>
 
       <Modal visible={pickerVisible} transparent animationType="slide" onRequestClose={() => setPickerVisible(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => setPickerVisible(false)} />
-        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "70%", paddingBottom: 32 }}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => { if (pickerMulti) pickerCallback(pickerSelected); setPickerVisible(false); }} />
+        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: "60%" }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16 }}>
             <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>{pickerTitle}</Text>
-            <Pressable onPress={() => { pickerCallback(pickerSelected); setPickerVisible(false); }}>
+            <Pressable onPress={() => { if (pickerMulti) pickerCallback(pickerSelected); setPickerVisible(false); }}>
               <Text style={{ color: colors.primaryBlue, fontSize: 15, fontWeight: "700" }}>Done</Text>
             </Pressable>
           </View>
@@ -663,7 +614,12 @@ export default function AddTab() {
             {pickerOptions.map((opt) => {
               const isSelected = pickerMulti ? (pickerSelected as string[]).includes(opt) : pickerSelected === opt;
               return (
-                <Pressable key={opt} onPress={() => { if (pickerMulti) { const cur = pickerSelected as string[]; setPickerSelected(cur.includes(opt) ? cur.filter((x) => x !== opt) : [...cur, opt]); } else { setPickerSelected(opt); } }} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                <Pressable key={opt} onPress={() => {
+                  if (pickerMulti) {
+                    const cur = pickerSelected as string[];
+                    setPickerSelected(cur.includes(opt) ? cur.filter((x) => x !== opt) : [...cur, opt]);
+                  } else { setPickerSelected(opt); pickerCallback(opt); setPickerVisible(false); }
+                }} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                   <Text style={{ color: isSelected ? colors.primaryBlue : colors.textPrimary, fontSize: 15 }}>{opt}</Text>
                   {isSelected && <Ionicons name="checkmark" size={18} color={colors.primaryBlue} />}
                 </Pressable>
@@ -682,12 +638,15 @@ export default function AddTab() {
               <Text style={{ color: colors.primaryBlue, fontSize: 15, fontWeight: "700" }}>Done</Text>
             </Pressable>
           </View>
-          <Calendar onDayPress={(day: any) => { if (datePickerField) setDraft((d) => ({ ...d, [datePickerField]: day.dateString })); setDatePickerVisible(false); }} theme={{ backgroundColor: colors.card, calendarBackground: colors.card, textSectionTitleColor: colors.textSecondary, dayTextColor: colors.textPrimary, todayTextColor: colors.primaryBlue, selectedDayBackgroundColor: colors.primaryBlue, selectedDayTextColor: "#fff", monthTextColor: colors.textPrimary, arrowColor: colors.primaryBlue }} />
+          <Calendar
+            onDayPress={(day: any) => { if (datePickerField) setDraft((d) => ({ ...d, [datePickerField]: day.dateString })); setDatePickerVisible(false); }}
+            theme={{ backgroundColor: colors.card, calendarBackground: colors.card, textSectionTitleColor: colors.textSecondary, dayTextColor: colors.textPrimary, todayTextColor: colors.primaryBlue, selectedDayBackgroundColor: colors.primaryBlue, selectedDayTextColor: "#fff", monthTextColor: colors.textPrimary, arrowColor: colors.primaryBlue }}
+          />
         </View>
       </Modal>
 
       {menuOpen && <MenuPanel topOffset={insets.top + 53} onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }} onClose={() => setMenuOpen(false)} />}
-      {activeSubPanel === "profile" && <ProfilePanel topOffset={insets.top + 53} onClose={() => { setActiveSubPanel(null); loadProfileToggles().then(setToggles); }} />}
+      {activeSubPanel === "profile" && <ProfilePanel topOffset={insets.top + 53} onClose={() => { setActiveSubPanel(null); loadProfileToggles().then(setToggles); loadProfileData().then((d) => { profileDataRef.current = d; }); }} />}
       {activeSubPanel === "criteria" && <CriteriaPanel topOffset={insets.top + 53} onClose={() => setActiveSubPanel(null)} />}
       {activeSubPanel === "settings" && <SettingsPanel topOffset={insets.top + 53} onClose={() => setActiveSubPanel(null)} />}
     </View>

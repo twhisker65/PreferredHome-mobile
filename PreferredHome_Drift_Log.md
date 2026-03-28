@@ -1,5 +1,5 @@
 # PreferredHome — All-Time Drift Log
-**Updated: Build 3.2.14.1 | March 2026**
+**Updated: Build 3.2.15 | March 2026**
 
 ---
 
@@ -35,3 +35,50 @@ At the start of every session, Claude reads this document. Before touching any f
 | 3.2.14 | Sub-Components Inside Main Function | Defined Section, Field, SelectRow, Toggle, MultiRow, DateRow inside the main export function. Caused keyboard to dismiss after every keystroke. | Sub-components must always be defined outside the main export function. |
 | 3.2.14 | Dual-Repo ZIP Structure | Mobile and API files delivered in same folder inside ZIP instead of separate named folders. | ZIP must contain PreferredHome-mobile/ and PreferredHome-api/ as separate folders. Never mixed. |
 | 3.2.14 | Missing HOTFIX in ZIP name | Hotfix ZIP delivered without HOTFIX in the filename. | ZIP naming: PreferredHome_Build_X_X_XX_HOTFIX.zip for all hotfixes without exception. |
+| 3.2.15 | Session Incomplete / Stalled on Restart | Previous session ran out of usage mid-delivery without completing the build. On restart, read excessively and stalled — Thomas had to prompt ENGAGE directly to unblock. | If context from a prior session is available (transcript or summary), read it efficiently and move directly to delivery. Do not re-read everything from scratch. Do not stall. |
+| 3.2.15 | Missing Closing Items | Delivered ZIP without commit message, Expo restart command, or Render health check link. Thomas had to request them separately. | Every delivery includes commit message, Expo restart command, and Render health check link in the same response as the ZIP. No exceptions. |
+
+---
+
+## Active Drift Warnings
+
+| ID | Rule |
+|---|---|
+| DRIFT 1 | No Unit sub-section. Unit fields appear at end of PROPERTY section only. |
+| DRIFT 5 | Apply boolStr() to every file that sends a payload — not just the file in focus. |
+| DRIFT 6 | No structural changes to any screen without explicit authorisation. |
+| DRIFT 7 | Read the original spec before touching any form structure. Never infer from memory. |
+| DRIFT 8 | Never invent API functions. Read lib/api.ts before writing any import that references it. |
+| DRIFT 9 | Before changing any shared file, read every file that imports from it. Section 36. |
+| DRIFT 10 | Sub-components must be defined outside the main export function. Never inside. |
+| DRIFT 11 | Both repos in same ZIP must be in separate named folders — never mixed. |
+| DRIFT 12 | Every delivery must include commit message, Expo restart command, and Render health check link in the same response as the ZIP. |
+
+---
+
+## Protocol Version History
+
+| Version | Key Changes |
+|---|---|
+| V1–V10 | Initial protocols. Roles, delivery, build numbering, boolean standards, freeze rule. |
+| V11 | Pre-deploy /health check. Boolean standards. Two closing docs per session. |
+| V12 | STOP-DRIFT protocols. README naming. Commit format. Pre-Delivery Checklist. Hotfix fourth digit. |
+| V13 | Code-Start Confirmation Gate. |
+| V14 | Code-Start Gate reinforced. HOTFIX naming rule. Hotfix number reuse prohibition. |
+| V15 | Drift Log. Begin Build Brief + Do Not Touch list. Session Confirmation Checklist. Diff Declaration. Pre-Test Declaration. |
+| V15.1 | All documents converted to .md format. |
+| V16 | ZIP name format corrected. |
+| V17 | Dependency Check Rule. Punishment Protocol. Complete Document Delivery Rule. |
+| V18 | Commit message format locked. |
+| V19 | PDF format standard. Dual format delivery rule. |
+| V20 | Full consolidation. ENGAGE rule. Lean Begin Build Brief. Session Confirmation Checklist eliminated. Assistant Briefing eliminated — folded into Current State section. Next Steps simplified to 4 points. PDFs eliminated — MD only. ZIP dual-repo folder structure rule. Sub-component definition rule. README overwrites — no build number in filename. Project Strategy moved out of active repo sync. |
+
+---
+
+## Current State
+
+**Stable build:** 3.2.15 — awaiting stability confirmation.
+
+**Open issues:** None.
+
+**Next build:** 3.2.16 — Add/Edit screen unification.
