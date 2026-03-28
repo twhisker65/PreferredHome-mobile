@@ -1,8 +1,17 @@
+<<<<<<< HEAD
 // app/(tabs)/add.tsx — Build 3.2.15.1 Hotfix
 // Fix: PROPERTY_TYPES, COOLING_TYPES, PARKING restored to exact 3.2.14.1 values.
 // All other logic identical to 3.2.15.
+=======
+// app/(tabs)/add.tsx — Build 3.2.14
+// Changes from 3.2.13.2:
+// - Import: detectListingSite added from ../../lib/api
+// - LISTING_SITES: replaced with new 13-item list
+// - useEffect added: watches draft.listingUrl, auto-sets draft.listingSite via detectListingSite
+// All other fields, sections, payload, and logic unchanged from 3.2.12.
+>>>>>>> parent of 772dfa5 (Build 3.2.14.1 Hotfix)
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -169,6 +178,7 @@ const TIME_OPTIONS = [
 function boolStr(v: boolean): string { return v ? "TRUE" : "FALSE"; }
 function clampRating(v: string): string { const n = parseFloat(v); if (isNaN(n)) return v; return String(Math.min(n, 10)); }
 
+<<<<<<< HEAD
 // ── Sub-components — defined OUTSIDE main function to prevent remount on re-render ──
 
 function Section({ title, open: isOpen, onToggle, children }: {
@@ -277,6 +287,8 @@ const DEFAULT_PROFILE_DATA: ProfileData = {
   workAddress: "", commuteMethod: "Transit", departureTime: "",
 };
 
+=======
+>>>>>>> parent of 772dfa5 (Build 3.2.14.1 Hotfix)
 export default function AddTab() {
   const insets = useSafeAreaInsets();
   const inputRefs = useRef<Record<string, any>>({});
@@ -291,6 +303,7 @@ export default function AddTab() {
   const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
   const [toggles, setToggles] = useState<ProfileToggles>({ children: false, pets: false, car: false });
 
+  // Picker state
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerTitle, setPickerTitle] = useState("");
   const [pickerOptions, setPickerOptions] = useState<string[]>([]);
@@ -298,10 +311,12 @@ export default function AddTab() {
   const [pickerMulti, setPickerMulti] = useState(false);
   const [pickerCallback, setPickerCallback] = useState<(v: any) => void>(() => () => {});
 
+  // Date picker state
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [datePickerField, setDatePickerField] = useState<keyof Draft | null>(null);
   const [datePickerTitle, setDatePickerTitle] = useState("");
 
+  // ZIP lookup
   const [zipLooking, setZipLooking] = useState(false);
 
   useFocusEffect(
@@ -311,6 +326,7 @@ export default function AddTab() {
     }, [])
   );
 
+  // ZIP auto-fill: triggers when ZIP reaches 5 digits
   useEffect(() => {
     const z = draft.zipCode;
     if (z.length !== 5) return;
@@ -328,6 +344,7 @@ export default function AddTab() {
     return () => { cancelled = true; };
   }, [draft.zipCode]);
 
+  // Listing Site auto-detect: triggers whenever Listing URL changes
   useEffect(() => {
     const detected = detectListingSite(draft.listingUrl);
     setDraft((d) => ({ ...d, listingSite: detected }));
@@ -474,7 +491,115 @@ export default function AddTab() {
     }
   }
 
+  // Property type visibility helper
   const isAptCondoCoop = ["Apartment", "Condo", "Co-op"].includes(draft.propertyType);
+
+  // ── Sub-component definitions ────────────────────────────────────
+
+  function Section({ title, open: isOpen, onToggle, children }: { title: string; open: boolean; onToggle: () => void; children: React.ReactNode }) {
+    return (
+      <View style={{ marginBottom: 8 }}>
+        <Pressable onPress={onToggle} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <Text style={headingLabel}>{title.toUpperCase()}</Text>
+          <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={16} color={colors.textSecondary} />
+        </Pressable>
+        {isOpen && <View style={{ paddingTop: 4 }}>{children}</View>}
+      </View>
+    );
+  }
+
+  function Field({ label, fieldKey, value, onChangeText, keyboardType, placeholder, multiline }: {
+    label: string; fieldKey: string; value: string; onChangeText: (t: string) => void;
+    inputRefs?: any; onNext?: (k: string) => void;
+    keyboardType?: any; placeholder?: string; multiline?: boolean;
+  }) {
+    return (
+      <View style={{ marginBottom: 10 }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 3 }}>{label}</Text>
+        <TextInput
+          ref={(r) => { inputRefs.current[fieldKey] = r; }}
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType={keyboardType || "default"}
+          placeholder={placeholder || ""}
+          placeholderTextColor={colors.textSecondary}
+          multiline={multiline}
+          returnKeyType="next"
+          onSubmitEditing={() => focusNext(fieldKey)}
+          style={{
+            backgroundColor: colors.card,
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            color: colors.textPrimary,
+            fontSize: 14,
+            minHeight: multiline ? 80 : undefined,
+          }}
+        />
+      </View>
+    );
+  }
+
+  function SelectRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
+    return (
+      <Pressable onPress={onPress} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{label}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <Text style={{ color: colors.textPrimary, fontSize: 14 }}>{value || "—"}</Text>
+          <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
+        </View>
+      </Pressable>
+    );
+  }
+
+  function Toggle({ label, value, onValueChange }: { label: string; value: boolean; onValueChange: (v: boolean) => void }) {
+    return (
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{label}</Text>
+        <Switch value={value} onValueChange={onValueChange} trackColor={{ true: colors.primaryBlue }} />
+      </View>
+    );
+  }
+
+  function MultiRow({ label, values, onPress }: { label: string; values: string[]; onPress: () => void }) {
+    return (
+      <Pressable onPress={onPress} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{label}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flex: 1, justifyContent: "flex-end" }}>
+          <Text style={{ color: colors.textPrimary, fontSize: 13, textAlign: "right", flexShrink: 1 }} numberOfLines={1}>
+            {values.length > 0 ? values.join(", ") : "—"}
+          </Text>
+          <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
+        </View>
+      </Pressable>
+    );
+  }
+
+  function DateRow({ label, value, onPress, onClear }: { label: string; value: string; onPress: () => void; onClear: () => void }) {
+    return (
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Text style={{ color: colors.textSecondary, fontSize: 14 }}>{label}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {value ? (
+            <>
+              <Text style={{ color: colors.textPrimary, fontSize: 14 }}>{value}</Text>
+              <Pressable onPress={onClear}>
+                <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
+              </Pressable>
+            </>
+          ) : (
+            <Pressable onPress={onPress}>
+              <Text style={{ color: colors.primaryBlue, fontSize: 14 }}>Set</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // ── JSX ──────────────────────────────────────────────────────────
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -483,6 +608,7 @@ export default function AddTab() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}>
         <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 40 }}>
 
+          {/* ── PROPERTY ── */}
           <Section title="Property" open={open.property} onToggle={() => toggleSection("property")}>
             <SelectRow label="Status" value={draft.status} onPress={() => openSingle("Status", STATUS, draft.status, (v) => setDraft((d) => ({ ...d, status: v })))} />
             <SelectRow label="Property Type" value={draft.propertyType} onPress={() => openSingle("Property Type", PROPERTY_TYPES, draft.propertyType, (v) => setDraft((d) => ({ ...d, propertyType: v })))} />
@@ -499,6 +625,7 @@ export default function AddTab() {
               </View>
             ) : null}
             <Field label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={(t) => setDraft((d) => ({ ...d, neighborhood: t }))} />
+<<<<<<< HEAD
             <Field label="Unit Number" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={(t) => setDraft((d) => ({ ...d, unitNumber: t }))} />
             <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="number-pad" />
             {isAptCondoCoop && <Field label="Number of Floors in Building" fieldKey="numberOfFloors" inputRefs={inputRefs} onNext={focusNext} value={draft.numberOfFloors} onChangeText={(t) => setDraft((d) => ({ ...d, numberOfFloors: t }))} keyboardType="number-pad" />}
@@ -507,10 +634,30 @@ export default function AddTab() {
             <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={(t) => setDraft((d) => ({ ...d, squareFootage: t }))} keyboardType="number-pad" />
             <Toggle label="Top Floor" value={draft.topFloor} onValueChange={(v) => setDraft((d) => ({ ...d, topFloor: v }))} />
             <Toggle label="Corner Unit" value={draft.cornerUnit} onValueChange={(v) => setDraft((d) => ({ ...d, cornerUnit: v }))} />
+=======
+            {isAptCondoCoop && (
+              <Field label="Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={(t) => setDraft((d) => ({ ...d, unitNumber: t }))} />
+            )}
+            {isAptCondoCoop && (
+              <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={(t) => setDraft((d) => ({ ...d, floorNumber: t }))} keyboardType="decimal-pad" />
+            )}
+            <Field label="Number of Floors" fieldKey="numberOfFloors" inputRefs={inputRefs} onNext={focusNext} value={draft.numberOfFloors} onChangeText={(t) => setDraft((d) => ({ ...d, numberOfFloors: t }))} keyboardType="decimal-pad" />
+            <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bedrooms: t }))} keyboardType="decimal-pad" />
+            <Field label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={(t) => setDraft((d) => ({ ...d, bathrooms: t }))} keyboardType="decimal-pad" />
+            <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={(t) => setDraft((d) => ({ ...d, squareFootage: t }))} keyboardType="decimal-pad" />
+            {isAptCondoCoop && (
+              <Toggle label="Top Floor" value={draft.topFloor} onValueChange={(v) => setDraft((d) => ({ ...d, topFloor: v }))} />
+            )}
+            {isAptCondoCoop && (
+              <Toggle label="Corner Unit" value={draft.cornerUnit} onValueChange={(v) => setDraft((d) => ({ ...d, cornerUnit: v }))} />
+            )}
+>>>>>>> parent of 772dfa5 (Build 3.2.14.1 Hotfix)
             <Toggle label="Furnished" value={draft.furnished} onValueChange={(v) => setDraft((d) => ({ ...d, furnished: v }))} />
           </Section>
 
+          {/* ── COSTS ── */}
           <Section title="Costs" open={open.costs} onToggle={() => toggleSection("costs")}>
+<<<<<<< HEAD
             <Field label="Base Rent ($)" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={(t) => setDraft((d) => ({ ...d, baseRent: t }))} keyboardType="number-pad" />
             {toggles.car && <Field label="Parking Fee ($)" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={(t) => setDraft((d) => ({ ...d, parkingFee: t }))} keyboardType="number-pad" />}
             <Field label="Amenity Fee ($)" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={(t) => setDraft((d) => ({ ...d, amenityFee: t }))} keyboardType="number-pad" />
@@ -523,8 +670,29 @@ export default function AddTab() {
             <Field label="Application Fee ($)" fieldKey="applicationFee" inputRefs={inputRefs} onNext={focusNext} value={draft.applicationFee} onChangeText={(t) => setDraft((d) => ({ ...d, applicationFee: t }))} keyboardType="number-pad" />
             <Field label="Broker Fee ($)" fieldKey="brokerFee" inputRefs={inputRefs} onNext={focusNext} value={draft.brokerFee} onChangeText={(t) => setDraft((d) => ({ ...d, brokerFee: t }))} keyboardType="number-pad" />
             <Field label="Move-in Fee ($)" fieldKey="moveInFee" inputRefs={inputRefs} onNext={focusNext} value={draft.moveInFee} onChangeText={(t) => setDraft((d) => ({ ...d, moveInFee: t }))} keyboardType="number-pad" />
+=======
+            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 4, marginBottom: 2 }}>MONTHLY</Text>
+            <Field label="Base Rent" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={(t) => setDraft((d) => ({ ...d, baseRent: t }))} keyboardType="number-pad" />
+            <Field label="Amenity Fee" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={(t) => setDraft((d) => ({ ...d, amenityFee: t }))} keyboardType="number-pad" />
+            <Field label="Admin Fee" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={(t) => setDraft((d) => ({ ...d, adminFee: t }))} keyboardType="number-pad" />
+            <Field label="Utility Fee" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={(t) => setDraft((d) => ({ ...d, utilityFee: t }))} keyboardType="number-pad" />
+            {toggles.car && (
+              <Field label="Parking Fee" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={(t) => setDraft((d) => ({ ...d, parkingFee: t }))} keyboardType="number-pad" />
+            )}
+            {toggles.pets && (
+              <Field label="Pet Fee" fieldKey="petFee" inputRefs={inputRefs} onNext={focusNext} value={draft.petFee} onChangeText={(t) => setDraft((d) => ({ ...d, petFee: t }))} keyboardType="number-pad" />
+            )}
+            <Field label="Storage Rent" fieldKey="storageRent" inputRefs={inputRefs} onNext={focusNext} value={draft.storageRent} onChangeText={(t) => setDraft((d) => ({ ...d, storageRent: t }))} keyboardType="number-pad" />
+            <Field label="Other Fee" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={(t) => setDraft((d) => ({ ...d, otherFee: t }))} keyboardType="number-pad" />
+            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 6, marginBottom: 2 }}>UP FRONT</Text>
+            <Field label="Security Deposit" fieldKey="securityDeposit" inputRefs={inputRefs} onNext={focusNext} value={draft.securityDeposit} onChangeText={(t) => setDraft((d) => ({ ...d, securityDeposit: t }))} keyboardType="number-pad" />
+            <Field label="Application Fee" fieldKey="applicationFee" inputRefs={inputRefs} onNext={focusNext} value={draft.applicationFee} onChangeText={(t) => setDraft((d) => ({ ...d, applicationFee: t }))} keyboardType="number-pad" />
+            <Field label="Broker Fee" fieldKey="brokerFee" inputRefs={inputRefs} onNext={focusNext} value={draft.brokerFee} onChangeText={(t) => setDraft((d) => ({ ...d, brokerFee: t }))} keyboardType="number-pad" />
+            <Field label="Move-in Fee" fieldKey="moveInFee" inputRefs={inputRefs} onNext={focusNext} value={draft.moveInFee} onChangeText={(t) => setDraft((d) => ({ ...d, moveInFee: t }))} keyboardType="number-pad" />
+>>>>>>> parent of 772dfa5 (Build 3.2.14.1 Hotfix)
           </Section>
 
+          {/* ── FEATURES ── */}
           <Section title="Features" open={open.features} onToggle={() => toggleSection("features")}>
             <MultiRow label="Utilities Included" values={draft.utilitiesIncluded} onPress={() => openMulti("Utilities Included", UTILITIES, draft.utilitiesIncluded, (v) => setDraft((d) => ({ ...d, utilitiesIncluded: v })))} />
             <MultiRow label="Unit Features" values={draft.unitFeatures} onPress={() => openMulti("Unit Features", UNIT_FEATURES, draft.unitFeatures, (v) => setDraft((d) => ({ ...d, unitFeatures: v })))} />
@@ -535,11 +703,16 @@ export default function AddTab() {
             <MultiRow label="Building Amenities" values={draft.buildingAmenities} onPress={() => openMulti("Building Amenities", BUILDING_AMENITIES, draft.buildingAmenities, (v) => setDraft((d) => ({ ...d, buildingAmenities: v })))} />
             <MultiRow label="Private Outdoor Space" values={draft.privateOutdoorSpaceTypes} onPress={() => openMulti("Private Outdoor Space", PRIVATE_OUTDOOR_SPACE, draft.privateOutdoorSpaceTypes, (v) => setDraft((d) => ({ ...d, privateOutdoorSpaceTypes: v })))} />
             <MultiRow label="Storage" values={draft.storageTypes} onPress={() => openMulti("Storage", STORAGE_TYPES, draft.storageTypes, (v) => setDraft((d) => ({ ...d, storageTypes: v })))} />
-            {toggles.car && <SelectRow label="Parking Type" value={draft.parkingType} onPress={() => openSingle("Parking Type", PARKING, draft.parkingType, (v) => setDraft((d) => ({ ...d, parkingType: v })))} />}
-            {toggles.pets && <MultiRow label="Pet Amenities" values={draft.petAmenities} onPress={() => openMulti("Pet Amenities", PET_AMENITIES, draft.petAmenities, (v) => setDraft((d) => ({ ...d, petAmenities: v })))} />}
+            {toggles.car && (
+              <SelectRow label="Parking Type" value={draft.parkingType} onPress={() => openSingle("Parking Type", PARKING, draft.parkingType, (v) => setDraft((d) => ({ ...d, parkingType: v })))} />
+            )}
+            {toggles.pets && (
+              <MultiRow label="Pet Amenities" values={draft.petAmenities} onPress={() => openMulti("Pet Amenities", PET_AMENITIES, draft.petAmenities, (v) => setDraft((d) => ({ ...d, petAmenities: v })))} />
+            )}
             <MultiRow label="Close By" values={draft.closeBy} onPress={() => openMulti("Close By", CLOSE_BY, draft.closeBy, (v) => setDraft((d) => ({ ...d, closeBy: v })))} />
           </Section>
 
+          {/* ── TRANSPORTATION ── */}
           <Section title="Transportation" open={open.transportation} onToggle={() => toggleSection("transportation")}>
             <Field label="Commute Time (min)" fieldKey="commuteTime" inputRefs={inputRefs} onNext={focusNext} value={draft.commuteTime} onChangeText={(t) => setDraft((d) => ({ ...d, commuteTime: t }))} keyboardType="number-pad" />
             <Field label="Walk Score (0–100)" fieldKey="walkScore" inputRefs={inputRefs} onNext={focusNext} value={draft.walkScore} onChangeText={(t) => setDraft((d) => ({ ...d, walkScore: t }))} keyboardType="number-pad" />
@@ -547,6 +720,7 @@ export default function AddTab() {
             <Field label="Bike Score (0–100)" fieldKey="bikeScore" inputRefs={inputRefs} onNext={focusNext} value={draft.bikeScore} onChangeText={(t) => setDraft((d) => ({ ...d, bikeScore: t }))} keyboardType="number-pad" />
           </Section>
 
+          {/* ── SCHOOLS ── */}
           {toggles.children && (
             <Section title="Schools" open={open.schools} onToggle={() => toggleSection("schools")}>
               <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 4, marginBottom: 2 }}>ELEMENTARY SCHOOL</Text>
@@ -567,6 +741,7 @@ export default function AddTab() {
             </Section>
           )}
 
+          {/* ── LISTING ── */}
           <Section title="Listing" open={open.listing} onToggle={() => toggleSection("listing")}>
             <SelectRow label="Listing Site" value={draft.listingSite} onPress={() => openSingle("Listing Site", LISTING_SITES, draft.listingSite, (v) => setDraft((d) => ({ ...d, listingSite: v })))} />
             <Field label="Listing URL" fieldKey="listingUrl" inputRefs={inputRefs} onNext={focusNext} value={draft.listingUrl} onChangeText={(t) => setDraft((d) => ({ ...d, listingUrl: t }))} />
@@ -581,26 +756,45 @@ export default function AddTab() {
             <Toggle label="Renters Insurance Required" value={draft.rentersInsuranceRequired} onValueChange={(v) => setDraft((d) => ({ ...d, rentersInsuranceRequired: v }))} />
           </Section>
 
+          {/* ── TIMELINE ── */}
           <Section title="Timeline" open={open.timeline} onToggle={() => toggleSection("timeline")}>
             <DateRow label="Date Available" value={draft.dateAvailable} onPress={() => openDatePicker("dateAvailable", "Date Available")} onClear={() => setDraft((d) => ({ ...d, dateAvailable: "" }))} />
             <DateRow label="Contacted Date" value={draft.contactedDate} onPress={() => openDatePicker("contactedDate", "Contacted Date")} onClear={() => setDraft((d) => ({ ...d, contactedDate: "" }))} />
             <DateRow label="Viewing Date" value={draft.viewingDate} onPress={() => openDatePicker("viewingDate", "Viewing Date")} onClear={() => setDraft((d) => ({ ...d, viewingDate: "" }))} />
-            {!draft.viewingDate && <SelectRow label="Viewing Time" value={draft.viewingTime} onPress={() => openSingle("Viewing Time", TIME_OPTIONS, draft.viewingTime, (v) => setDraft((d) => ({ ...d, viewingTime: v })))} />}
+            {!draft.viewingDate && (
+              <SelectRow label="Viewing Time" value={draft.viewingTime} onPress={() => openSingle("Viewing Time", TIME_OPTIONS, draft.viewingTime, (v) => setDraft((d) => ({ ...d, viewingTime: v })))} />
+            )}
             <DateRow label="Applied Date" value={draft.appliedDate} onPress={() => openDatePicker("appliedDate", "Applied Date")} onClear={() => setDraft((d) => ({ ...d, appliedDate: "" }))} />
           </Section>
 
+          {/* ── NOTES ── */}
           <Section title="Notes" open={open.notes} onToggle={() => toggleSection("notes")}>
             <Field label="Pros" fieldKey="pros" inputRefs={inputRefs} onNext={focusNext} value={draft.pros} onChangeText={(t) => setDraft((d) => ({ ...d, pros: t }))} multiline />
             <Field label="Cons" fieldKey="cons" inputRefs={inputRefs} onNext={focusNext} value={draft.cons} onChangeText={(t) => setDraft((d) => ({ ...d, cons: t }))} multiline />
           </Section>
 
+<<<<<<< HEAD
           <Pressable onPress={handleSave} disabled={saving} style={{ backgroundColor: colors.primaryBlue, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 8 }}>
             {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>Save Listing</Text>}
+=======
+          {/* ── SAVE BUTTON ── */}
+          <Pressable
+            onPress={handleSave}
+            disabled={saving}
+            style={{ backgroundColor: colors.primaryBlue, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 8 }}
+          >
+            {saving ? (
+              <ActivityIndicator color={colors.textPrimary} />
+            ) : (
+              <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "700" }}>Save Listing</Text>
+            )}
+>>>>>>> parent of 772dfa5 (Build 3.2.14.1 Hotfix)
           </Pressable>
 
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* ── PICKER MODAL ── */}
       <Modal visible={pickerVisible} transparent animationType="slide" onRequestClose={() => setPickerVisible(false)}>
         <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => { if (pickerMulti) pickerCallback(pickerSelected); setPickerVisible(false); }} />
         <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, maxHeight: "60%" }}>
@@ -612,14 +806,31 @@ export default function AddTab() {
           </View>
           <ScrollView>
             {pickerOptions.map((opt) => {
-              const isSelected = pickerMulti ? (pickerSelected as string[]).includes(opt) : pickerSelected === opt;
+              const isSelected = pickerMulti
+                ? (pickerSelected as string[]).includes(opt)
+                : pickerSelected === opt;
               return (
+<<<<<<< HEAD
                 <Pressable key={opt} onPress={() => {
                   if (pickerMulti) {
                     const cur = pickerSelected as string[];
                     setPickerSelected(cur.includes(opt) ? cur.filter((x) => x !== opt) : [...cur, opt]);
                   } else { setPickerSelected(opt); pickerCallback(opt); setPickerVisible(false); }
                 }} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+=======
+                <Pressable
+                  key={opt}
+                  onPress={() => {
+                    if (pickerMulti) {
+                      const cur = pickerSelected as string[];
+                      setPickerSelected(cur.includes(opt) ? cur.filter((x) => x !== opt) : [...cur, opt]);
+                    } else {
+                      setPickerSelected(opt);
+                    }
+                  }}
+                  style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}
+                >
+>>>>>>> parent of 772dfa5 (Build 3.2.14.1 Hotfix)
                   <Text style={{ color: isSelected ? colors.primaryBlue : colors.textPrimary, fontSize: 15 }}>{opt}</Text>
                   {isSelected && <Ionicons name="checkmark" size={18} color={colors.primaryBlue} />}
                 </Pressable>
@@ -629,6 +840,7 @@ export default function AddTab() {
         </View>
       </Modal>
 
+      {/* ── DATE PICKER MODAL ── */}
       <Modal visible={datePickerVisible} transparent animationType="slide" onRequestClose={() => setDatePickerVisible(false)}>
         <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => setDatePickerVisible(false)} />
         <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32 }}>
@@ -639,16 +851,62 @@ export default function AddTab() {
             </Pressable>
           </View>
           <Calendar
+<<<<<<< HEAD
             onDayPress={(day: any) => { if (datePickerField) setDraft((d) => ({ ...d, [datePickerField]: day.dateString })); setDatePickerVisible(false); }}
             theme={{ backgroundColor: colors.card, calendarBackground: colors.card, textSectionTitleColor: colors.textSecondary, dayTextColor: colors.textPrimary, todayTextColor: colors.primaryBlue, selectedDayBackgroundColor: colors.primaryBlue, selectedDayTextColor: "#fff", monthTextColor: colors.textPrimary, arrowColor: colors.primaryBlue }}
+=======
+            onDayPress={(day: any) => {
+              if (datePickerField) {
+                setDraft((d) => ({ ...d, [datePickerField]: day.dateString }));
+              }
+              setDatePickerVisible(false);
+            }}
+            theme={{
+              backgroundColor: colors.card,
+              calendarBackground: colors.card,
+              textSectionTitleColor: colors.textSecondary,
+              dayTextColor: colors.textPrimary,
+              todayTextColor: colors.primaryBlue,
+              selectedDayBackgroundColor: colors.primaryBlue,
+              selectedDayTextColor: "#fff",
+              monthTextColor: colors.textPrimary,
+              arrowColor: colors.primaryBlue,
+            }}
+>>>>>>> parent of 772dfa5 (Build 3.2.14.1 Hotfix)
           />
         </View>
       </Modal>
 
+<<<<<<< HEAD
       {menuOpen && <MenuPanel topOffset={insets.top + 53} onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }} onClose={() => setMenuOpen(false)} />}
       {activeSubPanel === "profile" && <ProfilePanel topOffset={insets.top + 53} onClose={() => { setActiveSubPanel(null); loadProfileToggles().then(setToggles); loadProfileData().then((d) => { profileDataRef.current = d; }); }} />}
       {activeSubPanel === "criteria" && <CriteriaPanel topOffset={insets.top + 53} onClose={() => setActiveSubPanel(null)} />}
       {activeSubPanel === "settings" && <SettingsPanel topOffset={insets.top + 53} onClose={() => setActiveSubPanel(null)} />}
+=======
+      {/* ── MENU ── */}
+      {menuOpen && (
+        <MenuPanel
+          topOffset={insets.top + 53}
+          onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }}
+          onClose={() => setMenuOpen(false)}
+        />
+      )}
+      {activeSubPanel === "profile" && (
+        <ProfilePanel
+          topOffset={insets.top + 53}
+          onClose={() => {
+            setActiveSubPanel(null);
+            loadProfileToggles().then(setToggles);
+          }}
+        />
+      )}
+      {activeSubPanel === "criteria" && (
+        <CriteriaPanel topOffset={insets.top + 53} onClose={() => setActiveSubPanel(null)} />
+      )}
+      {activeSubPanel === "settings" && (
+        <SettingsPanel topOffset={insets.top + 53} onClose={() => setActiveSubPanel(null)} />
+      )}
+>>>>>>> parent of 772dfa5 (Build 3.2.14.1 Hotfix)
     </View>
   );
 }
