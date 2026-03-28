@@ -1,6 +1,10 @@
 # PreferredHome — All-Time Drift Log
 <<<<<<< HEAD
+<<<<<<< HEAD
 **Updated: Build 3.2.15 | March 2026**
+=======
+**Updated: Build 3.2.13.1 | March 2026**
+>>>>>>> parent of 5a437f4 (Brief Updates)
 =======
 **Updated: Build 3.2.13.1 | March 2026**
 >>>>>>> parent of 5a437f4 (Brief Updates)
@@ -17,6 +21,7 @@ At the start of every session, Claude must read this document in full. Before to
 
 | Build | Type | What Happened | Rule to Follow |
 |---|---|---|---|
+<<<<<<< HEAD
 <<<<<<< HEAD
 | 3.2.02 / 3.2.03 | Unauthorized UI | Created a separate Unit sub-section Thomas never requested. | Freeze Rule. No Unit section. Unit fields appear at end of PROPERTY section only. |
 | 3.2.05 | Freeze Rule | Changed screens not in build scope. | Freeze Rule. Do not touch screens not in scope. |
@@ -88,6 +93,8 @@ At the start of every session, Claude must read this document in full. Before to
 
 **Next build:** 3.2.16 — Add/Edit screen unification.
 =======
+=======
+>>>>>>> parent of 5a437f4 (Brief Updates)
 | 3.2.02 / 3.2.03 | Unauthorized UI | Created a separate Unit sub-section that Thomas never requested. | The Freeze Rule. No Unit section. Unit fields appear at the end of the PROPERTY section only. |
 | 3.2.05 | Freeze Rule | Changed screens that were not in build scope. | The Freeze Rule. Do not touch screens that are not in the build scope. |
 | 3.2.06 | Code-Start Violation | Moved ahead with Roadmap V5 PDF generation without waiting for Thomas's explicit approval. | Wait for explicit confirmation before producing any deliverable. |
@@ -110,4 +117,7 @@ At the start of every session, Claude must read this document in full. Before to
 | 3.2.13 | Code-Start Violation — Section 27 | After asking Thomas for go-ahead to write the hotfix, Claude immediately started writing code in the same response without waiting for Thomas's answer. Thomas had not said proceed. | Section 27 is absolute. After asking a question, Claude produces nothing further until Thomas explicitly replies. A question is not a go-ahead. |
 | 3.2.13 | Out-of-Scope Constant Rename | Claude renamed `PARKING_OPTIONS` to `PARKING_TYPE_OPTIONS` in `config_constants.py` without any instruction to do so. This broke `helpers.py` which imports `PARKING_OPTIONS` by name, crashing the API immediately on Render. Claude had not read `helpers.py` before rewriting `config_constants.py`. | Section 36: Before changing any shared file, read every file that imports from it. List those files. Never rename, remove, or restructure any constant that was not broken and not in scope. |
 | 3.2.13 | Incomplete Document Delivery | After Thomas instructed Claude to deliver complete updated Drift Log and Protocols documents, Claude delivered snippet additions instead of complete files. Thomas never manually merges documents. | Every governing document delivered must be a complete file. No snippets. No append instructions. No partial files. Ever. |
+<<<<<<< HEAD
+>>>>>>> parent of 5a437f4 (Brief Updates)
+=======
 >>>>>>> parent of 5a437f4 (Brief Updates)
