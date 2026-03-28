@@ -1,61 +1,32 @@
-PreferredHome — Build 3.2.15.1 Hotfix
+PreferredHome — Build 3.2.15.2 Hotfix
 ======================================
 Generated: March 2026
 
 CHANGED FILES
 -------------
 
-API repo (PreferredHome-api):
-  main.py   — recalculate-all: single Sheets read, batch in-memory update, single write
+Mobile repo only:
+  components/ProfilePanel.tsx — departure time reverted to plain TextInput
 
-Mobile repo (PreferredHome-mobile):
-  app/(tabs)/add.tsx            — PROPERTY_TYPES, COOLING_TYPES, PARKING restored to 3.2.14.1 values
-  app/edit.tsx                  — same
-  components/ProfilePanel.tsx   — departure time Modal replaced with inline expandable list
+API repo: NO CHANGES.
+add.tsx / edit.tsx: NO CHANGES.
+compare.tsx / listings.tsx: NOT TOUCHED.
 
-WHAT WAS BROKEN AND WHY
-------------------------
-
-1. Listings page load failed (HTTP 500 / 429 quota exceeded)
-   recalculate-all called update_listing() once per listing.
-   Each update_listing() does a full Sheets read + full Sheets write.
-   With N listings that is 3N Sheets API calls fired simultaneously.
-   Google Sheets per-minute quota was exceeded, making ALL subsequent
-   Sheets reads fail — including getListings() on every screen.
-   FIX: recalculate-all now loads the sheet once, updates all commuteTime
-   values in the DataFrame in memory, then writes once. 2 API calls total.
-
-2. Compare page duplicate key error / continuous scroll
-   ProfilePanel contained a Modal. A Modal nested inside an
-   absolutely-positioned Animated.View interferes with React Native's
-   scroll reconciliation for sibling ScrollViews (the compare table).
-   FIX: Modal removed. Departure time is now an inline expandable list
-   using nestedScrollEnabled inside the panel's own ScrollView.
-
-3. Option arrays changed (PROPERTY_TYPES, COOLING_TYPES, PARKING)
-   These were rewritten from scratch instead of copied from 3.2.14.1.
-   FIX: All three arrays restored exactly to 3.2.14.1 values.
-   A comment is now added above the constant block to make the freeze
-   rule explicit in the file itself.
+WHAT CHANGED
+------------
+ProfilePanel.tsx departure time field reverted to plain PanelField (TextInput),
+identical to 3.2.06. The Modal added in 3.2.15 and the inline nested ScrollView
+added in 3.2.15.1 both broke compare table scroll. Plain TextInput has no side
+effects on sibling ScrollViews. commuteSnapshot and handleClose recalculate-all
+logic from 3.2.15 are unchanged.
 
 DEPLOY STEPS
 ------------
+Mobile only — no API deploy, no Render deploy.
 
-API:
-1. Copy main.py into PreferredHome-api repo root (overwrite existing)
+1. Copy components/ProfilePanel.tsx into PreferredHome-mobile repo (overwrite)
 2. Commit in GitHub Desktop:
-   Build 3.2.15.1 Hotfix - Fix Sheets quota breach in recalculate-all, fix compare scroll, restore option arrays
-3. Push to GitHub (MAIN)
-4. Render: "Deploy latest commit"
-5. Verify: GET https://preferredhome-api.onrender.com/health
-   Expected: { "ok": "PreferredHome API 3.2.15.1" }
-
-Mobile:
-1. Copy these 3 files into PreferredHome-mobile repo (overwrite existing):
-   app/(tabs)/add.tsx
-   app/edit.tsx
-   components/ProfilePanel.tsx
-2. Commit in GitHub Desktop (same message as above)
+   Build 3.2.15.2 Hotfix - Revert ProfilePanel departure time to plain TextInput to fix compare scroll
 3. Push to GitHub (MAIN)
 4. Restart Expo:
    cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel --clear
@@ -63,39 +34,16 @@ Mobile:
 TEST CHECKLIST
 --------------
 
-T1 — Listings page loads
-    Open Listings tab. Listings load without error. No 500 / quota error.
+T1 — Compare table scrolls correctly
+    Add 2+ listings to compare. Switch to table view.
+    Scrolls vertically. No infinite horizontal scroll. No duplicate key error.
 
-T2 — Compare table — no continuous scroll
-    Add 2+ listings to compare. Switch to table view. Scroll normally.
-    No runaway scrolling. No duplicate key error toast.
+T2 — Profile panel loads
+    Open Profile panel. All fields present. Departure Time is a text input.
 
-T3 — Cooling Type options correct
-    Open Add or Edit. Features section → Cooling Type.
-    Options: Central Air, Wall Unit, Window Unit, None.
+T3 — Commute recalculates on profile close
+    Change work address or commute method. Close panel.
+    Wait ~10 seconds. Pull to refresh on Listings. Commute times updated.
 
-T4 — Parking options correct
-    Open Add or Edit (Car toggle ON). Features section → Parking Type.
-    Options: Shared Garage, Shared Lot, Covered Space, Attached Garage,
-    Detached Garage, Driveway, Carport, Street, None, Other.
-
-T5 — Property Type options correct
-    Open Add or Edit. Property section → Property Type.
-    Options: Apartment, Condo, Co-op, Townhouse, House.
-
-T6 — Departure time picker (inline, no modal)
-    Open Profile panel. Tap Usual Departure Time field.
-    Inline list expands below the field. Select a time — list collapses.
-    Tap Clear — field resets. No modal appears.
-
-T7 — Commute recalculates on profile close
-    Set work address in Profile. Change commute method. Close panel.
-    Wait ~10 seconds. Pull to refresh. Commute times updated.
-
-T8 — Commute recalculates after edit save
-    Open Edit on a listing with a street address. Change any field. Save.
-    Wait ~5 seconds. Open the listing. Commute Time refreshed.
-
-T9 — Health check
-    GET https://preferredhome-api.onrender.com/health
-    Returns: { "ok": "PreferredHome API 3.2.15.1" }
+T4 — Listings page loads
+    Open Listings. No stack error. Listings load normally.
