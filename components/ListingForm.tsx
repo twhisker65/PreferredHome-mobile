@@ -1,4 +1,4 @@
-// components/ListingForm.tsx — Build 3.2.16
+// components/ListingForm.tsx — Build 3.2.16.1 Hotfix
 // Shared form component used by both Add and Edit screens.
 // All sub-components defined OUTSIDE the export function (DRIFT 10).
 // Option arrays copied exactly from source — never rewritten from memory (DRIFT 13).
@@ -486,7 +486,7 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
           <DateRow label="Date Available" value={draft.dateAvailable} onPress={() => openDatePicker("dateAvailable", "Date Available")} onClear={() => set("dateAvailable")("")} />
           <DateRow label="Contacted Date" value={draft.contactedDate} onPress={() => openDatePicker("contactedDate", "Contacted Date")} onClear={() => set("contactedDate")("")} />
           <DateRow label="Viewing Date" value={draft.viewingDate} onPress={() => openDatePicker("viewingDate", "Viewing Date")} onClear={() => set("viewingDate")("")} />
-          {!draft.viewingDate && <SelectRow label="Viewing Time" value={draft.viewingTime} onPress={() => openSingle("Viewing Time", TIME_OPTIONS, draft.viewingTime, set("viewingTime"))} />}
+          <SelectRow label="Viewing Time" value={draft.viewingTime} onPress={() => openSingle("Viewing Time", TIME_OPTIONS, draft.viewingTime, set("viewingTime"))} />
           <DateRow label="Applied Date" value={draft.appliedDate} onPress={() => openDatePicker("appliedDate", "Applied Date")} onClear={() => set("appliedDate")("")} />
         </Section>
 

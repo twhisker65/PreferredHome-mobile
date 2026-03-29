@@ -1,13 +1,14 @@
-// app/edit.tsx — Build 3.2.16
-// Refactored to use shared ListingForm component.
-// All form logic, option arrays, and sub-components live in components/ListingForm.tsx.
-// This screen handles: listing fetch, profile/toggle loading, updateListing API call,
-// commute calculation fire-and-forget, and post-save navigation.
+// app/edit.tsx — Build 3.2.16.1 Hotfix
+// Fixed: native Expo Router stack header suppressed via Stack.Screen.
+// Added: subtitle bar below TopBar — back arrow (left) + "Edit Listing" (centered).
+// Added: back arrow triggers confirmDiscard from lib/unsavedChanges.
+// No other changes from Build 3.2.16.
 
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, View, ActivityIndicator } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { Alert, View, ActivityIndicator, Pressable, Text } from "react-native";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/colors";
 import { TopBar } from "../components/TopBar";
 import { MenuPanel, type SubPanelKey } from "../components/MenuPanel";
@@ -16,6 +17,7 @@ import { CriteriaPanel } from "../components/CriteriaPanel";
 import { SettingsPanel } from "../components/SettingsPanel";
 import { getListings, updateListing, calculateCommute } from "../lib/api";
 import { loadProfileToggles, loadProfileData, type ProfileToggles, type ProfileData } from "../lib/profileStorage";
+import { confirmDiscard } from "../lib/unsavedChanges";
 import ListingForm, { rawToDraft, type Draft } from "../components/ListingForm";
 
 export default function EditScreen() {
@@ -45,7 +47,6 @@ export default function EditScreen() {
     setSaving(true);
     try {
       await updateListing(id!, payload);
-      // Fire commute calculation as a separate call after save — fire-and-forget.
       const workAddress = profileRef.current?.workAddress ?? "";
       if (workAddress.trim() && id && draft.streetAddress.trim()) {
         calculateCommute(id, {
@@ -60,53 +61,84 @@ export default function EditScreen() {
     } finally { setSaving(false); }
   }
 
-  // Show spinner while listing is loading
   if (!initialDraft) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator color={colors.primaryBlue} />
-      </View>
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator color={colors.primaryBlue} />
+        </View>
+      </>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <TopBar title="Edit Listing" onPressMenu={() => setMenuOpen(true)} />
+    <>
+      {/* Suppress native Expo Router stack header */}
+      <Stack.Screen options={{ headerShown: false }} />
 
-      <ListingForm
-        initialDraft={initialDraft}
-        toggles={toggles}
-        saving={saving}
-        onSave={handleSave}
-        insets={insets}
-      />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
 
-      {/* Menu dropdown */}
-      {menuOpen && (
-        <MenuPanel
-          topOffset={topBarHeight}
-          onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }}
-          onClose={() => setMenuOpen(false)}
+        {/* PreferredHome TopBar with hamburger — same as all screens */}
+        <TopBar title="PreferredHome" onPressMenu={() => setMenuOpen(true)} />
+
+        {/* Page subtitle bar — back arrow left, title centered */}
+        <View style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+          backgroundColor: colors.background,
+        }}>
+          <Pressable
+            onPress={() => confirmDiscard(() => router.back())}
+            style={{ position: "absolute", left: 16, zIndex: 1, padding: 4 }}
+          >
+            <Ionicons name="chevron-back" size={22} color={colors.primaryBlue} />
+          </Pressable>
+          <Text style={{ flex: 1, textAlign: "center", color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>
+            Edit Listing
+          </Text>
+        </View>
+
+        <ListingForm
+          initialDraft={initialDraft}
+          toggles={toggles}
+          saving={saving}
+          onSave={handleSave}
+          insets={insets}
         />
-      )}
 
-      {/* Sub-panels */}
-      {activeSubPanel === "profile" && (
-        <ProfilePanel
-          topOffset={topBarHeight}
-          onClose={() => {
-            loadProfileToggles().then(setToggles);
-            loadProfileData().then(p => { profileRef.current = p; });
-            setActiveSubPanel(null);
-          }}
-        />
-      )}
-      {activeSubPanel === "criteria" && (
-        <CriteriaPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
-      )}
-      {activeSubPanel === "settings" && (
-        <SettingsPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
-      )}
-    </View>
+        {/* Menu dropdown */}
+        {menuOpen && (
+          <MenuPanel
+            topOffset={topBarHeight}
+            onSelectPanel={(p) => { setMenuOpen(false); setActiveSubPanel(p); }}
+            onClose={() => setMenuOpen(false)}
+          />
+        )}
+
+        {/* Sub-panels */}
+        {activeSubPanel === "profile" && (
+          <ProfilePanel
+            topOffset={topBarHeight}
+            onClose={() => {
+              loadProfileToggles().then(setToggles);
+              loadProfileData().then(p => { profileRef.current = p; });
+              setActiveSubPanel(null);
+            }}
+          />
+        )}
+        {activeSubPanel === "criteria" && (
+          <CriteriaPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+        )}
+        {activeSubPanel === "settings" && (
+          <SettingsPanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
+        )}
+
+      </View>
+    </>
   );
 }
