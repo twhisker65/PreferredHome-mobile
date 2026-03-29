@@ -1,8 +1,10 @@
-// app/(tabs)/listings.tsx — Build 3.2.18.1 Hotfix
-// Fixed: TopBar prop corrected from rightIcon → rightIconName (icon was silently ignored).
-// Fixed: rightIconColor restored — icon turns blue when filters/sort active.
-// Fixed: FILTERS ACTIVE banner restored (removed in error in 3.2.18).
-// Carries: applySort() and sections useMemo from Build 3.2.18 — unchanged.
+// app/(tabs)/listings.tsx — Build 3.2.18.3 Hotfix
+// Fixed: raw.unitType → raw.propertyType in applyFilters (field renamed in 3.2.11A).
+// Fixed: Broker fee filter conditions un-reversed — "with" now correctly keeps
+//        listings where noBrokerFee is FALSE; "without" keeps where TRUE.
+// Removed: zipCodes filter block (zip code filter removed from FilterPanel).
+// Removed: listings prop from FilterPanel call (no longer needed).
+// Carries: applySort(), sections useMemo, TopBar fix, banner from prior hotfixes.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -47,17 +49,13 @@ function applyFilters(items: ListingUI[], f: FilterState): ListingUI[] {
   return items.filter((l) => {
     const raw = l.raw ?? {};
     if (f.statuses.length > 0 && !f.statuses.includes(l.status as ListingStatus)) return false;
-    if (f.unitTypes.length > 0 && !f.unitTypes.includes(String(raw.unitType ?? ""))) return false;
-    if (f.brokerFee === "with"    && !boolVal(raw.noBrokerFee)) return false;
-    if (f.brokerFee === "without" &&  boolVal(raw.noBrokerFee)) return false;
-    if (f.preferred === "yes"     && !l.preferred) return false;
+    if (f.unitTypes.length > 0 && !f.unitTypes.includes(String(raw.propertyType ?? ""))) return false;
+    if (f.brokerFee === "with"    &&  boolVal(raw.noBrokerFee)) return false;
+    if (f.brokerFee === "without" && !boolVal(raw.noBrokerFee)) return false;
+    if (f.preferred === "yes" && !l.preferred) return false;
     if (f.maxRent !== "") {
       const max = Number(f.maxRent);
       if (!isNaN(max) && (l.baseRent ?? 0) > max) return false;
-    }
-    if (f.zipCodes.length > 0) {
-      const zip = String(raw.zipCode ?? "").trim();
-      if (!f.zipCodes.includes(zip)) return false;
     }
     return true;
   });
@@ -328,7 +326,6 @@ export default function ListingsScreen() {
       {filterOpen && (
         <FilterPanel
           topOffset={topBarHeight}
-          listings={listings}
           appliedFilters={appliedFilters}
           onApply={(f) => setAppliedFilters(f)}
           onClear={() => setAppliedFilters(DEFAULT_FILTERS)}

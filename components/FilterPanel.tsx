@@ -1,12 +1,19 @@
-// components/FilterPanel.tsx — Build 3.2.18.2 Hotfix
-// Changed: SORT BY converted from chip row to standard DropdownButton + DropdownList
-//          with SingleSelectItem for each sort key — matching filter dropdown style.
-// Changed: ORDER converted from two-button toggle to standard DropdownButton +
-//          DropdownList with SingleSelectItem for Ascending / Descending.
-// Removed: SortKeyChip and SortOrderButton sub-components (no longer used).
-// All other logic and sub-components unchanged from Build 3.2.18.
+// components/FilterPanel.tsx — Build 3.2.18.3 Hotfix
+// Changed: FilterRow converted to horizontal layout — label left (flex 1),
+//          control right (flex 2) — matching the Add/Edit form row style.
+// Changed: Each filter block restructured — FilterRow holds only the button;
+//          DropdownList renders below the row, full width, outside FilterRow.
+// Fixed:   UNIT_TYPES corrected to Apartment, Condo, Co-op, Townhouse, House.
+//          Was: Rental, Condo, Co-op, Townhouse, House — "Rental" does not exist
+//          as a propertyType value.
+// Removed: Zip Code — FilterState.zipCodes, DEFAULT_FILTERS.zipCodes,
+//          zipIsActive, toggleZip, zipLabel, uniqueZips memo, ZIP CODE row,
+//          listings prop (was only used for uniqueZips).
+// Removed: isFiltersActive zipCodes check.
+// All sub-components defined outside the export function (DRIFT 10 compliant).
+// ALL_STATUSES copied exactly — not rewritten from memory (DRIFT 13 compliant).
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Pressable,
@@ -18,7 +25,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/colors";
 import { headingLabel } from "../styles/typography";
-import type { ListingUI, ListingStatus } from "../lib/types";
+import type { ListingStatus } from "../lib/types";
 
 // ── Types & constants ─────────────────────────────────────────────
 
@@ -28,7 +35,6 @@ export type FilterState = {
   brokerFee: "both" | "with" | "without";
   preferred: "both" | "yes";
   maxRent: string;
-  zipCodes: string[];
   sortKey: string;
   sortOrder: "asc" | "desc";
 };
@@ -39,7 +45,6 @@ export const DEFAULT_FILTERS: FilterState = {
   brokerFee: "both",
   preferred: "both",
   maxRent: "",
-  zipCodes: [],
   sortKey: "",
   sortOrder: "asc",
 };
@@ -49,7 +54,7 @@ export const ALL_STATUSES: ListingStatus[] = [
   "Applied","Approved","Signed","Rejected","Archived",
 ];
 
-const UNIT_TYPES = ["Rental", "Condo", "Co-op", "Townhouse", "House"];
+const UNIT_TYPES = ["Apartment", "Condo", "Co-op", "Townhouse", "House"];
 
 export const SORT_KEYS = [
   "Status",
@@ -71,7 +76,6 @@ export function isFiltersActive(f: FilterState): boolean {
     f.brokerFee !== "both" ||
     f.preferred !== "both" ||
     f.maxRent !== "" ||
-    f.zipCodes.length > 0 ||
     f.sortKey !== ""
   );
 }
@@ -81,13 +85,11 @@ function unitTypeIsActive(f: FilterState)  { return f.unitTypes.length > 0; }
 function brokerFeeIsActive(f: FilterState) { return f.brokerFee !== "both"; }
 function preferredIsActive(f: FilterState) { return f.preferred !== "both"; }
 function maxRentIsActive(f: FilterState)   { return f.maxRent !== ""; }
-function zipIsActive(f: FilterState)       { return f.zipCodes.length > 0; }
 
 // ── Main component ────────────────────────────────────────────────
 
 type Props = {
   topOffset: number;
-  listings: ListingUI[];
   appliedFilters: FilterState;
   onApply: (f: FilterState) => void;
   onClear: () => void;
@@ -96,7 +98,6 @@ type Props = {
 
 export function FilterPanel({
   topOffset,
-  listings,
   appliedFilters,
   onApply,
   onClear,
@@ -119,15 +120,6 @@ export function FilterPanel({
     ]).start();
   }, []);
 
-  const uniqueZips = useMemo(() => {
-    const s = new Set<string>();
-    listings.forEach((l) => {
-      const z = l.raw?.zipCode;
-      if (z && String(z).trim() !== "") s.add(String(z).trim());
-    });
-    return Array.from(s).sort();
-  }, [listings]);
-
   function toggleStatus(s: ListingStatus) {
     setDraft((d) => ({
       ...d,
@@ -144,14 +136,6 @@ export function FilterPanel({
         : [...d.unitTypes, t],
     }));
   }
-  function toggleZip(z: string) {
-    setDraft((d) => ({
-      ...d,
-      zipCodes: d.zipCodes.includes(z)
-        ? d.zipCodes.filter((x) => x !== z)
-        : [...d.zipCodes, z],
-    }));
-  }
 
   function statusLabel() {
     if (!statusIsActive(draft)) return "All";
@@ -163,20 +147,10 @@ export function FilterPanel({
     if (draft.unitTypes.length === 1) return draft.unitTypes[0];
     return `${draft.unitTypes.length} selected`;
   }
-  function zipLabel() {
-    if (draft.zipCodes.length === 0) return "All";
-    if (draft.zipCodes.length === 1) return draft.zipCodes[0];
-    return `${draft.zipCodes.length} selected`;
-  }
 
-  const brokerLabel =
-    draft.brokerFee === "both"
-      ? "Both"
-      : draft.brokerFee === "without"
-      ? "No Fee"
-      : "With Fee";
-  const prefLabel = draft.preferred === "both" ? "Both" : "Yes";
-  const sortKeyLabel = draft.sortKey === "" ? "None" : draft.sortKey;
+  const brokerLabel    = draft.brokerFee === "both" ? "Both" : draft.brokerFee === "without" ? "No Fee" : "With Fee";
+  const prefLabel      = draft.preferred === "both" ? "Both" : "Yes";
+  const sortKeyLabel   = draft.sortKey === "" ? "None" : draft.sortKey;
   const sortOrderLabel = draft.sortOrder === "asc" ? "Ascending" : "Descending";
 
   return (
@@ -200,7 +174,7 @@ export function FilterPanel({
         elevation: 10,
       }}
     >
-      {/* ── Header bar — matches Edit Listing subtitle bar ──────── */}
+      {/* ── Header bar — matches Edit Listing subtitle bar ────────── */}
       <View
         style={{
           flexDirection: "row",
@@ -227,27 +201,29 @@ export function FilterPanel({
             fontWeight: "700",
           }}
         >
-          Sort &amp; Filter Listings
+          Sort & Filter Listings
         </Text>
       </View>
 
-      {/* ── Scrollable content ───────────────────────────────────── */}
+      {/* ── Scrollable content ─────────────────────────────────────── */}
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: 16, gap: 12 }}
+        contentContainerStyle={{ padding: 16, gap: 10 }}
       >
-        {/* ── FILTER section label ─────────────────────────────── */}
+        {/* ── FILTER section label ──────────────────────────────── */}
         <Text style={[headingLabel, { marginBottom: 2 }]}>FILTER</Text>
 
         {/* STATUS */}
-        <FilterRow label="STATUS">
-          <DropdownButton
-            label={statusLabel()}
-            open={openDropdown === "status"}
-            active={statusIsActive(draft)}
-            onPress={() => toggleDropdown("status")}
-          />
+        <View style={{ gap: 4 }}>
+          <FilterRow label="STATUS">
+            <DropdownButton
+              label={statusLabel()}
+              open={openDropdown === "status"}
+              active={statusIsActive(draft)}
+              onPress={() => toggleDropdown("status")}
+            />
+          </FilterRow>
           {openDropdown === "status" && (
             <DropdownList>
               <MultiSelectItem
@@ -273,16 +249,18 @@ export function FilterPanel({
               ))}
             </DropdownList>
           )}
-        </FilterRow>
+        </View>
 
         {/* UNIT TYPE */}
-        <FilterRow label="UNIT TYPE">
-          <DropdownButton
-            label={unitTypeLabel()}
-            open={openDropdown === "unitType"}
-            active={unitTypeIsActive(draft)}
-            onPress={() => toggleDropdown("unitType")}
-          />
+        <View style={{ gap: 4 }}>
+          <FilterRow label="UNIT TYPE">
+            <DropdownButton
+              label={unitTypeLabel()}
+              open={openDropdown === "unitType"}
+              active={unitTypeIsActive(draft)}
+              onPress={() => toggleDropdown("unitType")}
+            />
+          </FilterRow>
           {openDropdown === "unitType" && (
             <DropdownList>
               {UNIT_TYPES.map((t) => (
@@ -295,16 +273,18 @@ export function FilterPanel({
               ))}
             </DropdownList>
           )}
-        </FilterRow>
+        </View>
 
         {/* BROKER FEE */}
-        <FilterRow label="BROKER FEE">
-          <DropdownButton
-            label={brokerLabel}
-            open={openDropdown === "brokerFee"}
-            active={brokerFeeIsActive(draft)}
-            onPress={() => toggleDropdown("brokerFee")}
-          />
+        <View style={{ gap: 4 }}>
+          <FilterRow label="BROKER FEE">
+            <DropdownButton
+              label={brokerLabel}
+              open={openDropdown === "brokerFee"}
+              active={brokerFeeIsActive(draft)}
+              onPress={() => toggleDropdown("brokerFee")}
+            />
+          </FilterRow>
           {openDropdown === "brokerFee" && (
             <DropdownList>
               {(
@@ -326,16 +306,18 @@ export function FilterPanel({
               ))}
             </DropdownList>
           )}
-        </FilterRow>
+        </View>
 
         {/* PREFERRED */}
-        <FilterRow label="PREFERRED">
-          <DropdownButton
-            label={prefLabel}
-            open={openDropdown === "preferred"}
-            active={preferredIsActive(draft)}
-            onPress={() => toggleDropdown("preferred")}
-          />
+        <View style={{ gap: 4 }}>
+          <FilterRow label="PREFERRED">
+            <DropdownButton
+              label={prefLabel}
+              open={openDropdown === "preferred"}
+              active={preferredIsActive(draft)}
+              onPress={() => toggleDropdown("preferred")}
+            />
+          </FilterRow>
           {openDropdown === "preferred" && (
             <DropdownList>
               {(
@@ -356,7 +338,7 @@ export function FilterPanel({
               ))}
             </DropdownList>
           )}
-        </FilterRow>
+        </View>
 
         {/* MAX RENT */}
         <FilterRow label="MAX RENT">
@@ -370,70 +352,35 @@ export function FilterPanel({
             placeholder="No limit"
             placeholderTextColor={colors.textSecondary}
             style={{
-              backgroundColor: maxRentIsActive(draft)
-                ? `${colors.primaryBlue}15`
-                : colors.cardHover,
+              backgroundColor: maxRentIsActive(draft) ? `${colors.primaryBlue}15` : colors.cardHover,
               borderWidth: 1,
-              borderColor: maxRentIsActive(draft)
-                ? colors.primaryBlue
-                : colors.border,
+              borderColor: maxRentIsActive(draft) ? colors.primaryBlue : colors.border,
               borderRadius: 8,
               paddingHorizontal: 10,
               paddingVertical: 8,
-              color: maxRentIsActive(draft)
-                ? colors.primaryBlue
-                : colors.textPrimary,
+              color: maxRentIsActive(draft) ? colors.primaryBlue : colors.textPrimary,
               fontSize: 12,
               fontWeight: maxRentIsActive(draft) ? "700" : "400",
             }}
           />
         </FilterRow>
 
-        {/* ZIP CODE */}
-        {uniqueZips.length > 0 && (
-          <FilterRow label="ZIP CODE">
-            <DropdownButton
-              label={zipLabel()}
-              open={openDropdown === "zip"}
-              active={zipIsActive(draft)}
-              onPress={() => toggleDropdown("zip")}
-            />
-            {openDropdown === "zip" && (
-              <DropdownList>
-                {uniqueZips.map((z) => (
-                  <MultiSelectItem
-                    key={z}
-                    label={z}
-                    selected={draft.zipCodes.includes(z)}
-                    onPress={() => toggleZip(z)}
-                  />
-                ))}
-              </DropdownList>
-            )}
-          </FilterRow>
-        )}
+        {/* ── Divider between FILTER and SORT ───────────────────── */}
+        <View style={{ height: 1, backgroundColor: colors.border, marginTop: 4, marginBottom: 2 }} />
 
-        {/* ── Divider between FILTER and SORT ─────────────────── */}
-        <View
-          style={{
-            height: 1,
-            backgroundColor: colors.border,
-            marginTop: 4,
-            marginBottom: 2,
-          }}
-        />
-
-        {/* ── SORT section label ───────────────────────────────── */}
+        {/* ── SORT section label ─────────────────────────────────── */}
         <Text style={[headingLabel, { marginBottom: 2 }]}>SORT</Text>
 
-        {/* SORT BY — single-select dropdown */}
-        <FilterRow label="SORT BY">
-          <DropdownButton
-            label={sortKeyLabel}
-            open={openDropdown === "sortKey"}
-            active={draft.sortKey !== ""}
-            onPress={() => toggleDropdown("sortKey")}
-          />
+        {/* SORT BY */}
+        <View style={{ gap: 4 }}>
+          <FilterRow label="SORT BY">
+            <DropdownButton
+              label={sortKeyLabel}
+              open={openDropdown === "sortKey"}
+              active={draft.sortKey !== ""}
+              onPress={() => toggleDropdown("sortKey")}
+            />
+          </FilterRow>
           {openDropdown === "sortKey" && (
             <DropdownList>
               <SingleSelectItem
@@ -458,16 +405,18 @@ export function FilterPanel({
               ))}
             </DropdownList>
           )}
-        </FilterRow>
+        </View>
 
-        {/* ORDER — single-select dropdown */}
-        <FilterRow label="ORDER">
-          <DropdownButton
-            label={sortOrderLabel}
-            open={openDropdown === "sortOrder"}
-            active={draft.sortKey !== ""}
-            onPress={() => toggleDropdown("sortOrder")}
-          />
+        {/* ORDER */}
+        <View style={{ gap: 4 }}>
+          <FilterRow label="ORDER">
+            <DropdownButton
+              label={sortOrderLabel}
+              open={openDropdown === "sortOrder"}
+              active={draft.sortKey !== ""}
+              onPress={() => toggleDropdown("sortOrder")}
+            />
+          </FilterRow>
           {openDropdown === "sortOrder" && (
             <DropdownList>
               {(
@@ -488,11 +437,11 @@ export function FilterPanel({
               ))}
             </DropdownList>
           )}
-        </FilterRow>
+        </View>
 
       </ScrollView>
 
-      {/* ── Fixed bottom bar — Clear + Apply ────────────────────── */}
+      {/* ── Fixed bottom bar — Clear + Apply — always above nav ───── */}
       <View
         style={{
           flexDirection: "row",
@@ -540,6 +489,8 @@ export function FilterPanel({
 
 // ── Sub-components — all defined outside export function ──────────
 
+// Horizontal row: label left (flex 1), control right (flex 2).
+// Matches the Add/Edit form row pattern.
 function FilterRow({
   label,
   children,
@@ -548,9 +499,9 @@ function FilterRow({
   children: React.ReactNode;
 }) {
   return (
-    <View style={{ gap: 5 }}>
-      <Text style={[headingLabel, { fontSize: 10 }]}>{label}</Text>
-      {children}
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+      <Text style={[headingLabel, { fontSize: 11, flex: 1 }]}>{label}</Text>
+      <View style={{ flex: 2 }}>{children}</View>
     </View>
   );
 }
@@ -594,9 +545,7 @@ function DropdownButton({
         borderRadius: 8,
         borderWidth: 1,
         borderColor: highlighted ? colors.primaryBlue : colors.border,
-        backgroundColor: highlighted
-          ? `${colors.primaryBlue}15`
-          : colors.cardHover,
+        backgroundColor: highlighted ? `${colors.primaryBlue}15` : colors.cardHover,
         opacity: pressed ? 0.8 : 1,
       })}
     >
