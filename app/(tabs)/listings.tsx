@@ -1,7 +1,8 @@
-// app/(tabs)/listings.tsx — Build 3.2.18
-// Added: applySort() function — sorts items by the selected sortKey in selected order.
-// Changed: sections useMemo — applies applySort() after applyFilters() for both groups.
-// All other logic unchanged.
+// app/(tabs)/listings.tsx — Build 3.2.18.1 Hotfix
+// Fixed: TopBar prop corrected from rightIcon → rightIconName (icon was silently ignored).
+// Fixed: rightIconColor restored — icon turns blue when filters/sort active.
+// Fixed: FILTERS ACTIVE banner restored (removed in error in 3.2.18).
+// Carries: applySort() and sections useMemo from Build 3.2.18 — unchanged.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -248,9 +249,34 @@ export default function ListingsScreen() {
       <TopBar
         title="PreferredHome"
         onPressMenu={() => setMenuOpen(true)}
-        rightIcon={filtersActive ? "options" : "options-outline"}
+        rightIconName="filter"
+        rightIconColor={filtersActive ? colors.primaryBlue : colors.textPrimary}
         onPressRight={() => setFilterOpen(true)}
       />
+
+      {/* FILTERS ACTIVE banner — shown below header when filters or sort are active */}
+      {filtersActive && (
+        <View
+          style={{
+            backgroundColor: `${colors.primaryBlue}20`,
+            borderBottomWidth: 1,
+            borderBottomColor: `${colors.primaryBlue}66`,
+            paddingVertical: 7,
+            alignItems: "center",
+          }}
+        >
+          <Text
+            style={{
+              color: colors.primaryBlue,
+              fontSize: 11,
+              fontWeight: "700",
+              letterSpacing: 0.9,
+            }}
+          >
+            FILTERS ACTIVE
+          </Text>
+        </View>
+      )}
 
       {loading && !refreshing ? (
         <View
