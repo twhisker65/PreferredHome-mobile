@@ -1,21 +1,23 @@
-// components/FilterPanel.tsx — Build 3.2.18.3 Hotfix
-// Changed: FilterRow converted to horizontal layout — label left (flex 1),
-//          control right (flex 2) — matching the Add/Edit form row style.
-// Changed: Each filter block restructured — FilterRow holds only the button;
-//          DropdownList renders below the row, full width, outside FilterRow.
-// Fixed:   UNIT_TYPES corrected to Apartment, Condo, Co-op, Townhouse, House.
-//          Was: Rental, Condo, Co-op, Townhouse, House — "Rental" does not exist
-//          as a propertyType value.
-// Removed: Zip Code — FilterState.zipCodes, DEFAULT_FILTERS.zipCodes,
-//          zipIsActive, toggleZip, zipLabel, uniqueZips memo, ZIP CODE row,
-//          listings prop (was only used for uniqueZips).
-// Removed: isFiltersActive zipCodes check.
-// All sub-components defined outside the export function (DRIFT 10 compliant).
+// components/FilterPanel.tsx — Build 3.2.18.4 Hotfix
+// Changed: Dropdown lists now render as an overlay Modal — they float above the
+//          panel content and do not push other rows down.
+// Changed: Each open dropdown list is scrollable internally (maxHeight 240,
+//          ScrollView inside Modal). Full-width list anchored below the tapped button.
+// Changed: All inline DropdownList renders removed from the ScrollView.
+//          A single renderDropdownContent() helper renders the correct items
+//          into the Modal based on which dropdown is open.
+// Added:   buttonRefs dict — measureInWindow on each button to position the overlay.
+// Added:   dropdownLayout state — stores {y, height} of the open button.
+// Added:   Modal import from react-native.
+// All types, constants, FilterState, DEFAULT_FILTERS, isFiltersActive,
+//   active-state helpers, sub-components, and layout from 3.2.18.3 unchanged.
 // ALL_STATUSES copied exactly — not rewritten from memory (DRIFT 13 compliant).
+// All sub-components defined outside export function (DRIFT 10 compliant).
 
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Modal,
   Pressable,
   ScrollView,
   Text,
@@ -105,9 +107,31 @@ export function FilterPanel({
 }: Props) {
   const [draft, setDraft] = useState<FilterState>({ ...appliedFilters });
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [dropdownLayout, setDropdownLayout] = useState<{ y: number; height: number } | null>(null);
 
-  function toggleDropdown(key: string) {
-    setOpenDropdown((prev) => (prev === key ? null : key));
+  // One ref slot per dropdown key — used to measure button position for overlay
+  const buttonRefs = useRef<Record<string, View | null>>({});
+
+  function measureAndOpen(key: string) {
+    if (openDropdown === key) {
+      setOpenDropdown(null);
+      setDropdownLayout(null);
+      return;
+    }
+    const ref = buttonRefs.current[key];
+    if (ref) {
+      ref.measureInWindow((_x, y, _w, h) => {
+        setDropdownLayout({ y, height: h });
+        setOpenDropdown(key);
+      });
+    } else {
+      setOpenDropdown(key);
+    }
+  }
+
+  function closeDropdown() {
+    setOpenDropdown(null);
+    setDropdownLayout(null);
   }
 
   const opacity    = useRef(new Animated.Value(0)).current;
@@ -152,6 +176,142 @@ export function FilterPanel({
   const prefLabel      = draft.preferred === "both" ? "Both" : "Yes";
   const sortKeyLabel   = draft.sortKey === "" ? "None" : draft.sortKey;
   const sortOrderLabel = draft.sortOrder === "asc" ? "Ascending" : "Descending";
+
+  // Renders the items for whichever dropdown is currently open — used inside Modal
+  function renderDropdownContent() {
+    switch (openDropdown) {
+      case "status":
+        return (
+          <>
+            <MultiSelectItem
+              label="Select All"
+              selected={draft.statuses.length === ALL_STATUSES.length}
+              onPress={() => setDraft((d) => ({ ...d, statuses: [...ALL_STATUSES] }))}
+              isBold
+            />
+            <MultiSelectItem
+              label="Clear All"
+              selected={false}
+              onPress={() => setDraft((d) => ({ ...d, statuses: [] }))}
+              isBold
+            />
+            <ListDivider />
+            {ALL_STATUSES.map((s) => (
+              <MultiSelectItem
+                key={s}
+                label={s}
+                selected={draft.statuses.includes(s)}
+                onPress={() => toggleStatus(s)}
+              />
+            ))}
+          </>
+        );
+      case "unitType":
+        return (
+          <>
+            {UNIT_TYPES.map((t) => (
+              <MultiSelectItem
+                key={t}
+                label={t}
+                selected={draft.unitTypes.includes(t)}
+                onPress={() => toggleUnitType(t)}
+              />
+            ))}
+          </>
+        );
+      case "brokerFee":
+        return (
+          <>
+            {(
+              [
+                { label: "Both",     value: "both"    },
+                { label: "No Fee",   value: "without" },
+                { label: "With Fee", value: "with"    },
+              ] as { label: string; value: FilterState["brokerFee"] }[]
+            ).map((o) => (
+              <SingleSelectItem
+                key={o.value}
+                label={o.label}
+                selected={draft.brokerFee === o.value}
+                onPress={() => {
+                  setDraft((d) => ({ ...d, brokerFee: o.value }));
+                  closeDropdown();
+                }}
+              />
+            ))}
+          </>
+        );
+      case "preferred":
+        return (
+          <>
+            {(
+              [
+                { label: "Both", value: "both" },
+                { label: "Yes",  value: "yes"  },
+              ] as { label: string; value: FilterState["preferred"] }[]
+            ).map((o) => (
+              <SingleSelectItem
+                key={o.value}
+                label={o.label}
+                selected={draft.preferred === o.value}
+                onPress={() => {
+                  setDraft((d) => ({ ...d, preferred: o.value }));
+                  closeDropdown();
+                }}
+              />
+            ))}
+          </>
+        );
+      case "sortKey":
+        return (
+          <>
+            <SingleSelectItem
+              label="None"
+              selected={draft.sortKey === ""}
+              onPress={() => {
+                setDraft((d) => ({ ...d, sortKey: "" }));
+                closeDropdown();
+              }}
+            />
+            <ListDivider />
+            {SORT_KEYS.map((key) => (
+              <SingleSelectItem
+                key={key}
+                label={key}
+                selected={draft.sortKey === key}
+                onPress={() => {
+                  setDraft((d) => ({ ...d, sortKey: key }));
+                  closeDropdown();
+                }}
+              />
+            ))}
+          </>
+        );
+      case "sortOrder":
+        return (
+          <>
+            {(
+              [
+                { label: "Ascending",  value: "asc"  },
+                { label: "Descending", value: "desc" },
+              ] as { label: string; value: FilterState["sortOrder"] }[]
+            ).map((o) => (
+              <SingleSelectItem
+                key={o.value}
+                label={o.label}
+                selected={draft.sortOrder === o.value}
+                onPress={() => {
+                  setDraft((d) => ({ ...d, sortOrder: o.value }));
+                  closeDropdown();
+                }}
+              />
+            ))}
+          </>
+        );
+      default:
+        return null;
+    }
+  }
 
   return (
     <Animated.View
@@ -209,136 +369,58 @@ export function FilterPanel({
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: 16, gap: 10 }}
+        contentContainerStyle={{ padding: 16, gap: 12 }}
       >
         {/* ── FILTER section label ──────────────────────────────── */}
         <Text style={[headingLabel, { marginBottom: 2 }]}>FILTER</Text>
 
         {/* STATUS */}
-        <View style={{ gap: 4 }}>
-          <FilterRow label="STATUS">
+        <FilterRow label="STATUS">
+          <View ref={(r) => { buttonRefs.current["status"] = r; }}>
             <DropdownButton
               label={statusLabel()}
               open={openDropdown === "status"}
               active={statusIsActive(draft)}
-              onPress={() => toggleDropdown("status")}
+              onPress={() => measureAndOpen("status")}
             />
-          </FilterRow>
-          {openDropdown === "status" && (
-            <DropdownList>
-              <MultiSelectItem
-                label="Select All"
-                selected={draft.statuses.length === ALL_STATUSES.length}
-                onPress={() => setDraft((d) => ({ ...d, statuses: [...ALL_STATUSES] }))}
-                isBold
-              />
-              <MultiSelectItem
-                label="Clear All"
-                selected={false}
-                onPress={() => setDraft((d) => ({ ...d, statuses: [] }))}
-                isBold
-              />
-              <ListDivider />
-              {ALL_STATUSES.map((s) => (
-                <MultiSelectItem
-                  key={s}
-                  label={s}
-                  selected={draft.statuses.includes(s)}
-                  onPress={() => toggleStatus(s)}
-                />
-              ))}
-            </DropdownList>
-          )}
-        </View>
+          </View>
+        </FilterRow>
 
         {/* UNIT TYPE */}
-        <View style={{ gap: 4 }}>
-          <FilterRow label="UNIT TYPE">
+        <FilterRow label="UNIT TYPE">
+          <View ref={(r) => { buttonRefs.current["unitType"] = r; }}>
             <DropdownButton
               label={unitTypeLabel()}
               open={openDropdown === "unitType"}
               active={unitTypeIsActive(draft)}
-              onPress={() => toggleDropdown("unitType")}
+              onPress={() => measureAndOpen("unitType")}
             />
-          </FilterRow>
-          {openDropdown === "unitType" && (
-            <DropdownList>
-              {UNIT_TYPES.map((t) => (
-                <MultiSelectItem
-                  key={t}
-                  label={t}
-                  selected={draft.unitTypes.includes(t)}
-                  onPress={() => toggleUnitType(t)}
-                />
-              ))}
-            </DropdownList>
-          )}
-        </View>
+          </View>
+        </FilterRow>
 
         {/* BROKER FEE */}
-        <View style={{ gap: 4 }}>
-          <FilterRow label="BROKER FEE">
+        <FilterRow label="BROKER FEE">
+          <View ref={(r) => { buttonRefs.current["brokerFee"] = r; }}>
             <DropdownButton
               label={brokerLabel}
               open={openDropdown === "brokerFee"}
               active={brokerFeeIsActive(draft)}
-              onPress={() => toggleDropdown("brokerFee")}
+              onPress={() => measureAndOpen("brokerFee")}
             />
-          </FilterRow>
-          {openDropdown === "brokerFee" && (
-            <DropdownList>
-              {(
-                [
-                  { label: "Both",     value: "both"    },
-                  { label: "No Fee",   value: "without" },
-                  { label: "With Fee", value: "with"    },
-                ] as { label: string; value: FilterState["brokerFee"] }[]
-              ).map((o) => (
-                <SingleSelectItem
-                  key={o.value}
-                  label={o.label}
-                  selected={draft.brokerFee === o.value}
-                  onPress={() => {
-                    setDraft((d) => ({ ...d, brokerFee: o.value }));
-                    setOpenDropdown(null);
-                  }}
-                />
-              ))}
-            </DropdownList>
-          )}
-        </View>
+          </View>
+        </FilterRow>
 
         {/* PREFERRED */}
-        <View style={{ gap: 4 }}>
-          <FilterRow label="PREFERRED">
+        <FilterRow label="PREFERRED">
+          <View ref={(r) => { buttonRefs.current["preferred"] = r; }}>
             <DropdownButton
               label={prefLabel}
               open={openDropdown === "preferred"}
               active={preferredIsActive(draft)}
-              onPress={() => toggleDropdown("preferred")}
+              onPress={() => measureAndOpen("preferred")}
             />
-          </FilterRow>
-          {openDropdown === "preferred" && (
-            <DropdownList>
-              {(
-                [
-                  { label: "Both", value: "both" },
-                  { label: "Yes",  value: "yes"  },
-                ] as { label: string; value: FilterState["preferred"] }[]
-              ).map((o) => (
-                <SingleSelectItem
-                  key={o.value}
-                  label={o.label}
-                  selected={draft.preferred === o.value}
-                  onPress={() => {
-                    setDraft((d) => ({ ...d, preferred: o.value }));
-                    setOpenDropdown(null);
-                  }}
-                />
-              ))}
-            </DropdownList>
-          )}
-        </View>
+          </View>
+        </FilterRow>
 
         {/* MAX RENT */}
         <FilterRow label="MAX RENT">
@@ -347,7 +429,7 @@ export function FilterPanel({
             onChangeText={(t) =>
               setDraft((d) => ({ ...d, maxRent: t.replace(/[^0-9]/g, "") }))
             }
-            onFocus={() => setOpenDropdown(null)}
+            onFocus={() => closeDropdown()}
             keyboardType="number-pad"
             placeholder="No limit"
             placeholderTextColor={colors.textSecondary}
@@ -372,72 +454,28 @@ export function FilterPanel({
         <Text style={[headingLabel, { marginBottom: 2 }]}>SORT</Text>
 
         {/* SORT BY */}
-        <View style={{ gap: 4 }}>
-          <FilterRow label="SORT BY">
+        <FilterRow label="SORT BY">
+          <View ref={(r) => { buttonRefs.current["sortKey"] = r; }}>
             <DropdownButton
               label={sortKeyLabel}
               open={openDropdown === "sortKey"}
               active={draft.sortKey !== ""}
-              onPress={() => toggleDropdown("sortKey")}
+              onPress={() => measureAndOpen("sortKey")}
             />
-          </FilterRow>
-          {openDropdown === "sortKey" && (
-            <DropdownList>
-              <SingleSelectItem
-                label="None"
-                selected={draft.sortKey === ""}
-                onPress={() => {
-                  setDraft((d) => ({ ...d, sortKey: "" }));
-                  setOpenDropdown(null);
-                }}
-              />
-              <ListDivider />
-              {SORT_KEYS.map((key) => (
-                <SingleSelectItem
-                  key={key}
-                  label={key}
-                  selected={draft.sortKey === key}
-                  onPress={() => {
-                    setDraft((d) => ({ ...d, sortKey: key }));
-                    setOpenDropdown(null);
-                  }}
-                />
-              ))}
-            </DropdownList>
-          )}
-        </View>
+          </View>
+        </FilterRow>
 
         {/* ORDER */}
-        <View style={{ gap: 4 }}>
-          <FilterRow label="ORDER">
+        <FilterRow label="ORDER">
+          <View ref={(r) => { buttonRefs.current["sortOrder"] = r; }}>
             <DropdownButton
               label={sortOrderLabel}
               open={openDropdown === "sortOrder"}
               active={draft.sortKey !== ""}
-              onPress={() => toggleDropdown("sortOrder")}
+              onPress={() => measureAndOpen("sortOrder")}
             />
-          </FilterRow>
-          {openDropdown === "sortOrder" && (
-            <DropdownList>
-              {(
-                [
-                  { label: "Ascending",  value: "asc"  },
-                  { label: "Descending", value: "desc" },
-                ] as { label: string; value: FilterState["sortOrder"] }[]
-              ).map((o) => (
-                <SingleSelectItem
-                  key={o.value}
-                  label={o.label}
-                  selected={draft.sortOrder === o.value}
-                  onPress={() => {
-                    setDraft((d) => ({ ...d, sortOrder: o.value }));
-                    setOpenDropdown(null);
-                  }}
-                />
-              ))}
-            </DropdownList>
-          )}
-        </View>
+          </View>
+        </FilterRow>
 
       </ScrollView>
 
@@ -483,6 +521,48 @@ export function FilterPanel({
           <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>Apply</Text>
         </Pressable>
       </View>
+
+      {/* ── Overlay dropdown — Modal so it floats above all content ─ */}
+      <Modal
+        visible={openDropdown !== null}
+        transparent
+        animationType="none"
+        onRequestClose={closeDropdown}
+      >
+        {/* Full-screen backdrop — tap anywhere outside list to close */}
+        <Pressable style={{ flex: 1 }} onPress={closeDropdown} />
+
+        {/* Dropdown list — anchored below the tapped button */}
+        {dropdownLayout && (
+          <View
+            style={{
+              position: "absolute",
+              top: dropdownLayout.y + dropdownLayout.height + 2,
+              left: 16,
+              right: 16,
+              backgroundColor: colors.background,
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: 8,
+              maxHeight: 240,
+              overflow: "hidden",
+              elevation: 20,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+            }}
+          >
+            <ScrollView
+              bounces={false}
+              showsVerticalScrollIndicator={true}
+              keyboardShouldPersistTaps="handled"
+            >
+              {renderDropdownContent()}
+            </ScrollView>
+          </View>
+        )}
+      </Modal>
     </Animated.View>
   );
 }
@@ -490,7 +570,6 @@ export function FilterPanel({
 // ── Sub-components — all defined outside export function ──────────
 
 // Horizontal row: label left (flex 1), control right (flex 2).
-// Matches the Add/Edit form row pattern.
 function FilterRow({
   label,
   children,
@@ -568,22 +647,6 @@ function DropdownButton({
         />
       </Animated.View>
     </Pressable>
-  );
-}
-
-function DropdownList({ children }: { children: React.ReactNode }) {
-  return (
-    <View
-      style={{
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: 8,
-        backgroundColor: colors.background,
-        overflow: "hidden",
-      }}
-    >
-      {children}
-    </View>
   );
 }
 
