@@ -1,17 +1,10 @@
-// components/FilterPanel.tsx — Build 3.2.18
-// Changed: full-page panel — fills screen from topOffset to bottom edge.
-// Added: header bar with back-arrow (chevron-back) and "Sort & Filter Listings" title,
-//        matching the Edit Listing subtitle bar style exactly.
-// Added: "FILTER" section label above existing filter controls.
-// Added: "SORT" section below filters — sortKey chip row + Ascending/Descending toggle.
-// Added: sortKey and sortOrder fields to FilterState and DEFAULT_FILTERS.
-// Updated: isFiltersActive — returns true when a sortKey is set.
-// Changed: Clear + Apply buttons pinned to fixed bottom bar outside ScrollView.
-// Removed: half-screen width constraint (panelW). Panel is now full width.
-// Removed: tap-outside overlay (back arrow is the only non-apply close path).
-// All existing sub-components (FilterRow, DropdownButton, DropdownList,
-//   MultiSelectItem, SingleSelectItem, ListDivider) are unchanged.
-// New sub-components: SortKeyChip, SortOrderButton — defined outside export function.
+// components/FilterPanel.tsx — Build 3.2.18.2 Hotfix
+// Changed: SORT BY converted from chip row to standard DropdownButton + DropdownList
+//          with SingleSelectItem for each sort key — matching filter dropdown style.
+// Changed: ORDER converted from two-button toggle to standard DropdownButton +
+//          DropdownList with SingleSelectItem for Ascending / Descending.
+// Removed: SortKeyChip and SortOrderButton sub-components (no longer used).
+// All other logic and sub-components unchanged from Build 3.2.18.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -183,6 +176,8 @@ export function FilterPanel({
       ? "No Fee"
       : "With Fee";
   const prefLabel = draft.preferred === "both" ? "Both" : "Yes";
+  const sortKeyLabel = draft.sortKey === "" ? "None" : draft.sortKey;
+  const sortOrderLabel = draft.sortOrder === "asc" ? "Ascending" : "Descending";
 
   return (
     <Animated.View
@@ -431,39 +426,68 @@ export function FilterPanel({
         {/* ── SORT section label ───────────────────────────────── */}
         <Text style={[headingLabel, { marginBottom: 2 }]}>SORT</Text>
 
-        {/* SORT BY — chip row */}
+        {/* SORT BY — single-select dropdown */}
         <FilterRow label="SORT BY">
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {SORT_KEYS.map((key) => (
-              <SortKeyChip
-                key={key}
-                label={key}
-                selected={draft.sortKey === key}
-                onPress={() =>
-                  setDraft((d) => ({
-                    ...d,
-                    sortKey: d.sortKey === key ? "" : key,
-                  }))
-                }
+          <DropdownButton
+            label={sortKeyLabel}
+            open={openDropdown === "sortKey"}
+            active={draft.sortKey !== ""}
+            onPress={() => toggleDropdown("sortKey")}
+          />
+          {openDropdown === "sortKey" && (
+            <DropdownList>
+              <SingleSelectItem
+                label="None"
+                selected={draft.sortKey === ""}
+                onPress={() => {
+                  setDraft((d) => ({ ...d, sortKey: "" }));
+                  setOpenDropdown(null);
+                }}
               />
-            ))}
-          </View>
+              <ListDivider />
+              {SORT_KEYS.map((key) => (
+                <SingleSelectItem
+                  key={key}
+                  label={key}
+                  selected={draft.sortKey === key}
+                  onPress={() => {
+                    setDraft((d) => ({ ...d, sortKey: key }));
+                    setOpenDropdown(null);
+                  }}
+                />
+              ))}
+            </DropdownList>
+          )}
         </FilterRow>
 
-        {/* ORDER — Ascending / Descending toggle */}
+        {/* ORDER — single-select dropdown */}
         <FilterRow label="ORDER">
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <SortOrderButton
-              label="Ascending"
-              selected={draft.sortOrder === "asc"}
-              onPress={() => setDraft((d) => ({ ...d, sortOrder: "asc" }))}
-            />
-            <SortOrderButton
-              label="Descending"
-              selected={draft.sortOrder === "desc"}
-              onPress={() => setDraft((d) => ({ ...d, sortOrder: "desc" }))}
-            />
-          </View>
+          <DropdownButton
+            label={sortOrderLabel}
+            open={openDropdown === "sortOrder"}
+            active={draft.sortKey !== ""}
+            onPress={() => toggleDropdown("sortOrder")}
+          />
+          {openDropdown === "sortOrder" && (
+            <DropdownList>
+              {(
+                [
+                  { label: "Ascending",  value: "asc"  },
+                  { label: "Descending", value: "desc" },
+                ] as { label: string; value: FilterState["sortOrder"] }[]
+              ).map((o) => (
+                <SingleSelectItem
+                  key={o.value}
+                  label={o.label}
+                  selected={draft.sortOrder === o.value}
+                  onPress={() => {
+                    setDraft((d) => ({ ...d, sortOrder: o.value }));
+                    setOpenDropdown(null);
+                  }}
+                />
+              ))}
+            </DropdownList>
+          )}
         </FilterRow>
 
       </ScrollView>
@@ -688,81 +712,6 @@ function SingleSelectItem({
       {selected && (
         <Ionicons name="checkmark" size={14} color={colors.primaryBlue} />
       )}
-    </Pressable>
-  );
-}
-
-function SortKeyChip({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => ({
-        paddingHorizontal: 12,
-        paddingVertical: 7,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: selected ? colors.primaryBlue : colors.border,
-        backgroundColor: selected
-          ? `${colors.primaryBlue}20`
-          : colors.cardHover,
-        opacity: pressed ? 0.75 : 1,
-      })}
-    >
-      <Text
-        style={{
-          color: selected ? colors.primaryBlue : colors.textSecondary,
-          fontSize: 12,
-          fontWeight: selected ? "700" : "400",
-        }}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-function SortOrderButton({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => ({
-        flex: 1,
-        paddingVertical: 9,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: selected ? colors.primaryBlue : colors.border,
-        backgroundColor: selected
-          ? `${colors.primaryBlue}20`
-          : colors.cardHover,
-        alignItems: "center",
-        opacity: pressed ? 0.75 : 1,
-      })}
-    >
-      <Text
-        style={{
-          color: selected ? colors.primaryBlue : colors.textSecondary,
-          fontSize: 12,
-          fontWeight: selected ? "700" : "400",
-        }}
-      >
-        {label}
-      </Text>
     </Pressable>
   );
 }
