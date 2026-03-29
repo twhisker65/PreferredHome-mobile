@@ -1,84 +1,111 @@
-PreferredHome — Build 3.2.16
+PreferredHome — Build 3.2.17
 ============================
-Add/Edit Unification — single shared form component.
-Mobile repo only. No API changes. No Render deploy required.
+Neighborhood section — Transportation renamed to Neighborhood.
+Neighborhood field moved from Property section. Near By moved from
+Features section. New fields added: safetyScore and noiseScore.
+All fields manually enterable. Both mobile and API updated.
 Generated: March 2026
 
 CHANGED FILES (in folder order)
 ---------------------------------
-app/(tabs)/add.tsx               — refactored to use shared ListingForm
-app/edit.tsx                     — refactored to use shared ListingForm
-components/ListingForm.tsx       — new shared form component (new file)
+PreferredHome-mobile/
+  components/ListingForm.tsx        — Neighborhood section, new fields, moved fields
+  components/ViewPanel.tsx          — Neighborhood section, safetyScore/noiseScore display
+
+PreferredHome-api/
+  preferredhome_api/core/config_constants.py  — safetyScore and noiseScore registered
 
 WHAT CHANGED IN THIS BUILD
 ----------------------------
-A single shared form component (ListingForm.tsx) now contains all form
-logic previously duplicated across add.tsx and edit.tsx. Both screens
-are refactored to use it. No user-visible changes. No field changes.
-No section changes. No UI changes.
 
-1. components/ListingForm.tsx (NEW FILE)
-   - Contains: Draft type, BLANK_DRAFT, all option arrays (copied exactly
-     from source), all utility functions (boolStr, boolVal, str, numStr,
-     multiVal, clampRating, rawToDraft, buildPayload, buildViewingAppointment).
-   - Contains: all sub-components (Section, Field, Toggle, SelectRow,
-     MultiRow, DateRow) — all defined OUTSIDE the export function.
-   - Contains: the complete 8-section form JSX (Property, Costs, Features,
-     Transportation, Schools, Listing, Timeline, Notes).
-   - Contains: picker Modal and date picker Modal.
-   - Contains: zip lookup useEffect (fires when zip reaches 5 digits,
-     auto-fills City and State — both remain manually editable).
-   - Contains: detectListingSite useEffect.
-   - Props: initialDraft, toggles, saving, onSave(payload, draft), insets.
-   - Exports: ListingForm (default), BLANK_DRAFT, Draft type, rawToDraft,
-     buildPayload, boolStr.
+1. components/ListingForm.tsx
+   - Draft type: safetyScore and noiseScore added as string fields.
+   - BLANK_DRAFT: safetyScore and noiseScore initialised to "".
+   - rawToDraft: safetyScore and noiseScore mapped from raw data.
+   - buildPayload: safetyScore and noiseScore included as numeric values.
+   - open state: key renamed from "transportation" to "neighborhood".
+   - Property section: Neighborhood field REMOVED (moved to Neighborhood section).
+   - Features section: Close By picker REMOVED (moved to Neighborhood section).
+   - Transportation section RENAMED to Neighborhood section with new field order:
+       1. Neighborhood (text field — first)
+       2. Commute Time (min)
+       3. Walk Score (0-100)
+       4. Transit Score (0-100)
+       5. Bike Score (0-100)
+       6. Safety Score (0-100) — NEW
+       7. Noise Score (0-100) — NEW
+       8. Close By (multi-select — last)
 
-2. app/(tabs)/add.tsx (CHANGED)
-   - Imports ListingForm, BLANK_DRAFT from components/ListingForm.
-   - Retains: useFocusEffect to load profile/toggles on screen focus.
-   - Retains: postListing API call, calculateCommute fire-and-forget.
-   - Retains: post-save navigation to listings screen.
-   - Uses formKey to remount ListingForm with blank draft after each save.
-   - Menu panel pattern matches all other tab screens (onSelectPanel +
-     separate sub-panel rendering).
+2. components/ViewPanel.tsx
+   - safetyScore and noiseScore extracted from raw data.
+   - hasScores updated to include safetyScore and noiseScore.
+   - Neighborhood field (hood) REMOVED from Property display area.
+   - Features section: Close By REMOVED (moved to Neighborhood section).
+   - Transportation SectionHead RENAMED to "Neighborhood".
+   - Neighborhood section now shows:
+       - Neighborhood name (first, conditional on value)
+       - Commute time (conditional on value)
+       - Score badges: Walk, Transit, Bike, Safety, Noise
+       - Close By (last, always shown via CommaField)
 
-3. app/edit.tsx (CHANGED)
-   - Imports ListingForm, rawToDraft from components/ListingForm.
-   - Retains: listing fetch via getListings on mount.
-   - Retains: updateListing API call, calculateCommute fire-and-forget.
-   - Retains: post-save router.back() navigation.
-   - Shows ActivityIndicator spinner while listing loads.
-   - Once listing is loaded, renders ListingForm with rawToDraft(raw).
+3. preferredhome_api/core/config_constants.py
+   - "safetyScore" and "noiseScore" appended to LISTINGS_COLUMNS.
+   - "safetyScore" and "noiseScore" added to NUMERIC_FIELDS after "bikeScore".
+   - No other constants changed.
 
-COMMIT MESSAGE
---------------
-Copy and paste exactly:
+DEPLOY STEPS
+------------
+Mobile repo:
+1. Copy components/ListingForm.tsx into PreferredHome-mobile/components/
+2. Copy components/ViewPanel.tsx into PreferredHome-mobile/components/
+3. Commit in GitHub Desktop using the commit message below.
+4. Push to GitHub.
+5. Restart Expo using the command below.
+6. Test on your physical device.
 
-Build 3.2.16 - Add/Edit Unification — single shared form component
+API repo:
+1. Copy preferredhome_api/core/config_constants.py into the matching path.
+2. Commit in GitHub Desktop using the commit message below.
+3. Push to GitHub — Render will auto-deploy.
+4. Wait ~60 seconds, then verify: https://preferredhome-api.onrender.com/health
+
+COMMIT MESSAGES
+---------------
+Mobile repo — copy and paste exactly:
+
+Build 3.2.17 - Neighborhood section — Transportation renamed, Neighborhood and Close By moved in, safetyScore and noiseScore added
+
+API repo — copy and paste exactly:
+
+Build 3.2.17 - Register safetyScore and noiseScore in config_constants
 
 EXPO RESTART COMMAND
 --------------------
-Copy and paste exactly (run in order):
+Copy and paste exactly:
 
-cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile
-npx expo start --tunnel --clear
+cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel --clear
 
 RENDER HEALTH CHECK
 -------------------
-No API changes — no Render deploy required.
 https://preferredhome-api.onrender.com/health
 
 TEST CHECKLIST
 --------------
-[ ] Open app. Tap Add. Confirm form loads with all sections visible and all fields blank.
-[ ] Fill in Building Name and Street Address. Enter a 5-digit zip — confirm City and State auto-fill.
-[ ] Fill in Base Rent. Save. Confirm listing appears in Listings screen with correct data.
-[ ] Tap Edit on that listing. Confirm all saved fields pre-populate correctly.
-[ ] Change Base Rent on Edit. Save. Confirm Listings screen shows updated rent.
-[ ] On Add: toggle Children ON in Profile. Confirm Schools section appears. Toggle OFF — confirm it disappears.
-[ ] On Add: toggle Car ON. Confirm Parking Fee and Parking Type fields appear.
-[ ] On Edit: same toggle tests as above.
-[ ] Open a picker (e.g. Property Type). Select a value. Confirm it saves correctly on both Add and Edit.
-[ ] Open a date picker (e.g. Date Available). Set a date. Confirm it saves correctly.
-[ ] Add a listing with a street address while Work Address is set in Profile. Confirm commute time populates.
-[ ] No red screen on any screen throughout testing.
+[ ] 1. Open Add screen → Property section: confirm NO Neighborhood text field present.
+[ ] 2. Open Add screen → Features section: confirm NO Close By picker present.
+[ ] 3. Open Add screen → Neighborhood section: confirm label reads "Neighborhood" (not "Transportation").
+[ ] 4. Open Add screen → Neighborhood section: confirm field order is:
+        Neighborhood → Commute Time → Walk Score → Transit Score →
+        Bike Score → Safety Score → Noise Score → Close By
+[ ] 5. Enter a value in Safety Score and Noise Score. Tap Save.
+        Open the listing in ViewPanel. Confirm both scores appear as
+        circular badges in the Neighborhood section.
+[ ] 6. Open ViewPanel for any listing → Neighborhood section shows
+        neighborhood name first (if set), then commute, then score
+        badges, then Close By last.
+[ ] 7. Open ViewPanel → Features section: confirm Close By is NOT shown there.
+[ ] 8. Open ViewPanel → confirm no standalone Neighborhood row appears
+        in the property area at the top.
+[ ] 9. Select Close By values in Neighborhood section. Save.
+        Open ViewPanel. Confirm Close By values display under Neighborhood.
+[ ] 10. Verify /health returns OK after Render deploy.

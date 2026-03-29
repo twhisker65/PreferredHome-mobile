@@ -1,15 +1,8 @@
-// components/ViewPanel.tsx — Build 3.2.13
-// Changes from 3.2.12.1:
-// - COSTS section redesigned as 2-column layout: MONTHLY (left) | MOVE-IN (right).
-// - Monthly column: Base Rent + all fees listed individually + Total row.
-// - Move-In column: all upfront costs listed individually + Total row.
-// - Both "Total" rows appear on the same horizontal line.
-// - Values right-aligned within each column (label left, amount right).
-// - totalMonthly and totalUpfront calculated locally — no longer uses API totalMonthly field.
-// - New sub-component CostTwoCol added for the new layout.
-// - secDepNum, appFeeNum, totalStartup, totalMo variables removed (replaced by local calc).
-// All other sections (Features, Transportation, Schools, Listing, Timeline, Notes),
-// animation, toggle loading, and tap-to-contact links are unchanged.
+// components/ViewPanel.tsx — Build 3.2.17
+// Transportation section renamed to Neighborhood.
+// neighborhood field moved from Property display to Neighborhood section (first).
+// closeBy moved from Features display to Neighborhood section (last).
+// safetyScore and noiseScore added to score badge row in Neighborhood section.
 
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -18,225 +11,123 @@ import {
   Linking,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/colors";
+import { headingLabel } from "../styles/typography";
 import { loadProfileToggles, type ProfileToggles } from "../lib/profileStorage";
-import type { ListingUI } from "../lib/types";
 
-// ── Constants ─────────────────────────────────────────────────────
-const PANEL_LEFT = 40;
+const PANEL_LEFT = 48;
 
-// ── Props ─────────────────────────────────────────────────────────
-interface Props {
+// ── Types ─────────────────────────────────────────────────────────
+
+type Props = {
   visible: boolean;
-  listing: ListingUI | null;
+  listing: any;
   topOffset: number;
   onClose: () => void;
-}
+};
 
-// ── Helper functions ──────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────
 
-function str(v: any): string {
+function str(v: unknown): string {
   if (v === null || v === undefined) return "";
-  return String(v).trim();
+  return String(v);
 }
 
-function num(v: any): number | null {
+function num(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
   const n = Number(v);
-  return Number.isFinite(n) ? n : null;
+  return isNaN(n) ? null : n;
 }
 
-function bool(v: any): boolean {
+function bool(v: unknown): boolean {
+  if (typeof v === "boolean") return v;
   return String(v ?? "").trim().toUpperCase() === "TRUE";
 }
 
-function fmt$(v: any): string {
-  const n = num(v);
-  if (n === null) return "—";
-  return "$" + Math.round(n).toLocaleString();
+function fmtComma(v: unknown): string {
+  if (!v || v === "") return "";
+  if (Array.isArray(v)) return v.filter(Boolean).join(", ");
+  return String(v);
 }
 
-function fmtComma(v: any): string {
+function fmtDate(v: unknown): string {
   const s = str(v);
-  if (!s) return "—";
-  return s.split(",").map((x) => x.trim()).filter(Boolean).join(", ");
+  if (!s) return "";
+  const parts = s.split("-");
+  if (parts.length === 3) return `${parts[1]}/${parts[2]}/${parts[0]}`;
+  return s;
 }
 
-function fmtDate(v: any): string {
-  const s = str(v);
-  if (!s) return "—";
-  const d = new Date(s + "T00:00:00");
-  if (isNaN(d.getTime())) return s;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-function fmtScore(v: any): number | null {
+function fmtScore(v: unknown): number | null {
   const n = num(v);
-  if (n === null) return null;
-  return Math.round(n);
+  return n !== null ? Math.round(n) : null;
 }
 
-// ── Sub-components ────────────────────────────────────────────────
+// ── Sub-components — defined OUTSIDE main export (DRIFT 10) ───────
 
-function SectionHead({ title }: { title: string }) {
+function ScoreBadge({ score, label }: { score: number; label: string }) {
+  const color = score >= 70 ? colors.green ?? "#10B981" : score >= 40 ? "#F59E0B" : colors.red ?? "#EF4444";
   return (
-    <Text
-      style={{
-        color: colors.textSecondary,
-        fontSize: 10,
-        fontWeight: "700",
-        letterSpacing: 1,
-        marginTop: 14,
-        marginBottom: 6,
-      }}
-    >
-      {title.toUpperCase()}
-    </Text>
+    <View style={{ alignItems: "center", marginRight: 10, marginBottom: 4 }}>
+      <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: color, alignItems: "center", justifyContent: "center" }}>
+        <Text style={{ color: "#fff", fontSize: 12, fontWeight: "800" }}>{score}</Text>
+      </View>
+      <Text style={{ color: colors.textSecondary, fontSize: 9, fontWeight: "600", marginTop: 2 }}>{label}</Text>
+    </View>
   );
 }
 
-function FieldRow({
-  label,
-  value,
-  valueColor,
-}: {
-  label: string;
-  value: string;
-  valueColor?: string;
-}) {
-  if (!value || value === "—") {
-    return (
-      <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}>
-        <Text style={styles.label}>{label} </Text>
-        <Text style={[styles.value, { color: colors.textSecondary }]}>—</Text>
-      </View>
-    );
-  }
+function FieldRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}>
       <Text style={styles.label}>{label} </Text>
-      <Text style={[styles.value, valueColor ? { color: valueColor } : null]}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-function TwoCol({
-  left,
-  right,
-}: {
-  left: [string, string, string?];
-  right: [string, string, string?];
-}) {
-  return (
-    <View style={{ flexDirection: "row", marginBottom: 3 }}>
-      <View style={{ flex: 1 }}>
-        <FieldRow label={left[0]} value={left[1]} valueColor={left[2]} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <FieldRow label={right[0]} value={right[1]} valueColor={right[2]} />
-      </View>
-    </View>
-  );
-}
-
-// CostTwoCol — label left, amount right-aligned within each half-column
-function CostTwoCol({
-  left,
-  right,
-}: {
-  left: [string, string];
-  right: [string, string];
-}) {
-  return (
-    <View style={{ flexDirection: "row", marginBottom: 3 }}>
-      <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingRight: 8 }}>
-        {left[0] ? (
-          <>
-            <Text style={styles.label}>{left[0]}</Text>
-            <Text style={styles.value}>{left[1] || "—"}</Text>
-          </>
-        ) : null}
-      </View>
-      <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingLeft: 8 }}>
-        {right[0] ? (
-          <>
-            <Text style={styles.label}>{right[0]}</Text>
-            <Text style={styles.value}>{right[1] || "—"}</Text>
-          </>
-        ) : null}
-      </View>
+      <Text style={styles.value}>{value || "—"}</Text>
     </View>
   );
 }
 
 function CommaField({ label, value }: { label: string; value: string }) {
-  if (!value || value === "—") return null;
   return (
-    <View style={{ marginBottom: 4 }}>
-      <Text style={styles.label}>
-        {label}{" "}
-        <Text style={styles.value}>{value}</Text>
-      </Text>
+    <View style={{ marginBottom: 3 }}>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.value, { marginTop: 1 }]}>{value || "—"}</Text>
     </View>
   );
 }
 
-function ScoreBadge({ score, label }: { score: number; label: string }) {
+function CostTwoCol({ left, right }: { left: [string, string]; right: [string, string] }) {
   return (
-    <View style={{ alignItems: "center", flex: 1 }}>
-      <View
-        style={{
-          width: 48,
-          height: 48,
-          borderRadius: 24,
-          backgroundColor: colors.primaryBlue,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "900" }}>
-          {score}
-        </Text>
+    <View style={{ flexDirection: "row", marginBottom: 3 }}>
+      <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingRight: 8 }}>
+        <Text style={styles.label}>{left[0]}</Text>
+        <Text style={styles.value}>{left[1] || "—"}</Text>
       </View>
-      <Text style={{ color: colors.textSecondary, fontSize: 9, marginTop: 5, textAlign: "center" }}>
-        {label}
-      </Text>
+      <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingLeft: 8 }}>
+        <Text style={styles.label}>{right[0]}</Text>
+        <Text style={right[1] ? styles.value : [styles.value, { color: "transparent" }]}>{right[1] || "—"}</Text>
+      </View>
     </View>
   );
 }
 
-function SchoolRow({
-  rating,
-  name,
-  grades,
-  distance,
-}: {
-  rating: number | null;
-  name: string;
-  grades: string;
-  distance: string;
-}) {
+function SectionHead({ title }: { title: string }) {
+  return (
+    <View style={{ borderBottomWidth: 1, borderBottomColor: colors.border, marginTop: 12, marginBottom: 6 }}>
+      <Text style={[headingLabel, { fontSize: 10, marginBottom: 4 }]}>{title.toUpperCase()}</Text>
+    </View>
+  );
+}
+
+function SchoolRow({ rating, name, grades, distance }: { rating: number | null; name: string | null; grades: string | null; distance: string | null }) {
   if (!name) return null;
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}>
-      <View
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: "#1E3A8A",
-          alignItems: "center",
-          justifyContent: "center",
-          marginRight: 10,
-        }}
-      >
-        <Text style={{ color: colors.textPrimary, fontSize: 12, fontWeight: "900" }}>
+    <View style={{ flexDirection: "row", marginBottom: 6, alignItems: "flex-start" }}>
+      <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", marginRight: 8 }}>
+        <Text style={{ color: colors.primaryBlue, fontSize: 11, fontWeight: "800" }}>
           {rating !== null ? String(rating) : "—"}
         </Text>
       </View>
@@ -324,37 +215,39 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
   const baths     = str(raw.bathrooms);
   const sqft      = str(raw.squareFootage);
   const hood      = str(raw.neighborhood);
-  const unitLine  = [propType, beds ? `${beds} bd` : null, baths ? `${baths} ba` : null, sqft ? `${sqft} sqft` : null, hood].filter(Boolean).join("  ·  ");
+  const unitLine  = [propType, beds ? `${beds} bd` : null, baths ? `${baths} ba` : null, sqft ? `${sqft} sqft` : null].filter(Boolean).join(" · ") || "—";
 
-  const isPreferred  = listing.preferred;
-  const isTopFloor   = bool(raw.topFloor);
-  const isCorner     = bool(raw.cornerUnit);
-  const isFurnished  = bool(raw.furnished);
-  const isShortTerm  = bool(raw.shortTermAvailable);
+  const isPreferred = bool(raw.preferred);
+  const isFurnished = bool(raw.furnished);
+  const isTopFloor  = bool(raw.topFloor);
+  const isCorner    = bool(raw.cornerUnit);
+  const isShortTerm = bool(raw.shortTermAvailable);
   const isRentersIns = bool(raw.rentersInsuranceRequired);
+  const noBrdApproval = bool(raw.noBoardApproval);
+  const noBrkFee      = bool(raw.noBrokerFee);
 
-  // ── COSTS — formatted display strings ─────────────────────────────
-  const baseRent    = fmt$(raw.baseRent);
-  const secDep      = fmt$(raw.securityDeposit);
-  const amenity     = fmt$(raw.amenityFee);
-  const appFee      = fmt$(raw.applicationFee);
-  const adminFee    = fmt$(raw.adminFee);
-  const utilFee     = fmt$(raw.utilityFee);
-  const parkFee     = fmt$(raw.parkingFee);
-  const otherFee    = fmt$(raw.otherFee);
-  const storageRent = fmt$(raw.storageRent);
-  const petFeeAmt   = fmt$(raw.petFee);
-  const brokerFee   = fmt$(raw.brokerFee);
-  const moveInFee   = fmt$(raw.moveInFee);
+  // ── COSTS ──────────────────────────────────────────────────────────
+  const fmt = (v: unknown) => v !== null && v !== undefined && v !== "" ? `$${Number(v).toLocaleString()}` : "";
+  const baseRentAmt    = fmt(raw.baseRent);
+  const amenityFeeAmt  = fmt(raw.amenityFee);
+  const adminFeeAmt    = fmt(raw.adminFee);
+  const utilityFeeAmt  = fmt(raw.utilityFee);
+  const storageRent    = fmt(raw.storageRent);
+  const petFeeAmt      = fmt(raw.petFee);
+  const parkFee        = fmt(raw.parkingFee);
+  const otherFee       = fmt(raw.otherFee);
+  const secDep         = fmt(raw.securityDeposit);
+  const appFee         = fmt(raw.applicationFee);
+  const brkFee         = fmt(raw.brokerFee);
+  const mvInFee        = fmt(raw.moveInFee);
 
-  // ── COSTS — local auto-calculations ───────────────────────────────
   const calcTotalMonthly = "$" + Math.round(
     (num(raw.baseRent)        ?? 0) +
-    (num(raw.parkingFee)      ?? 0) +
     (num(raw.amenityFee)      ?? 0) +
     (num(raw.adminFee)        ?? 0) +
     (num(raw.utilityFee)      ?? 0) +
     (num(raw.storageRent)     ?? 0) +
+    (num(raw.parkingFee)      ?? 0) +
     (num(raw.petFee)          ?? 0) +
     (num(raw.otherFee)        ?? 0)
   ).toLocaleString();
@@ -380,12 +273,14 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
   const privateOutdoor = fmtComma(raw.privateOutdoorSpaceTypes);
   const storageTypes   = fmtComma(raw.storageTypes);
 
-  // ── TRANSPORTATION ─────────────────────────────────────────────────
+  // ── NEIGHBORHOOD ───────────────────────────────────────────────────
   const commute      = str(raw.commuteTime);
   const walkScore    = fmtScore(raw.walkScore);
   const transitScore = fmtScore(raw.transitScore);
   const bikeScore    = fmtScore(raw.bikeScore);
-  const hasScores    = walkScore !== null || transitScore !== null || bikeScore !== null;
+  const safetyScore  = fmtScore(raw.safetyScore);
+  const noiseScore   = fmtScore(raw.noiseScore);
+  const hasScores    = walkScore !== null || transitScore !== null || bikeScore !== null || safetyScore !== null || noiseScore !== null;
 
   // ── SCHOOLS ────────────────────────────────────────────────────────
   const elemName   = str(raw.elementarySchoolName);
@@ -403,14 +298,12 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
   const hasSchools = !!(elemName || midName || highName);
 
   // ── LISTING ────────────────────────────────────────────────────────
-  const site          = str(raw.listingSite) || "—";
-  const url           = str(raw.listingUrl);
-  const contact       = str(raw.contactName) || "—";
-  const phone         = str(raw.contactPhone) || "—";
-  const email         = str(raw.contactEmail) || "—";
-  const lease         = str(raw.leaseLength) || "—";
-  const noBrdApproval = bool(raw.noBoardApproval);
-  const noBrkFee      = bool(raw.noBrokerFee);
+  const site    = str(raw.listingSite) || "—";
+  const url     = str(raw.listingUrl);
+  const contact = str(raw.contactName) || "—";
+  const phone   = str(raw.contactPhone) || "—";
+  const email   = str(raw.contactEmail) || "—";
+  const lease   = str(raw.leaseLength) || "—";
 
   // ── TIMELINE ───────────────────────────────────────────────────────
   const dateAvail = fmtDate(raw.dateAvailable);
@@ -423,7 +316,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
         return timePart ? `${datePart} ${timePart}` : datePart;
       })()
     : "—";
-  const applied   = fmtDate(raw.appliedDate);
+  const applied = fmtDate(raw.appliedDate);
 
   // ── NOTES ──────────────────────────────────────────────────────────
   const pros = str(raw.pros);
@@ -512,40 +405,29 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
                   marginRight: 4,
                 }}
               >
-                ♥
+                {isPreferred ? "♥" : "♡"}
               </Text>
-              <Text
-                style={[
-                  styles.label,
-                  { color: isPreferred ? colors.primaryBlue : colors.textSecondary },
-                ]}
-              >
-                Preferred
-              </Text>
+              <Text style={styles.label}>Preferred</Text>
             </View>
-            {isAptCondoCoop && <BoolBadge label="Top Floor" value={isTopFloor} />}
-            {isAptCondoCoop && <BoolBadge label="Corner Unit" value={isCorner} />}
             <BoolBadge label="Furnished" value={isFurnished} />
+            {isAptCondoCoop && <BoolBadge label="Top Floor" value={isTopFloor} />}
+            {isAptCondoCoop && <BoolBadge label="Corner" value={isCorner} />}
+            <BoolBadge label="Short Term" value={isShortTerm} />
+            <BoolBadge label="Renters Ins." value={isRentersIns} />
+            <BoolBadge label="No Board" value={noBrdApproval} />
+            <BoolBadge label="No Broker" value={noBrkFee} />
           </View>
 
-          {/* ── COSTS ────────────────────────────────────────── */}
+          {/* ── COSTS ────────────────────────────────────── */}
           <SectionHead title="Costs" />
-
-          {/* Column headers */}
-          <View style={{ flexDirection: "row", marginBottom: 6 }}>
-            <Text style={{ flex: 1, color: colors.textSecondary, fontSize: 10, fontWeight: "700", letterSpacing: 0.8 }}>
-              MONTHLY
-            </Text>
-            <Text style={{ flex: 1, color: colors.textSecondary, fontSize: 10, fontWeight: "700", letterSpacing: 0.8 }}>
-              MOVE-IN
-            </Text>
+          <View style={{ flexDirection: "row", marginBottom: 2 }}>
+            <Text style={[styles.label, { flex: 1, textAlign: "center", fontWeight: "800" }]}>Monthly</Text>
+            <Text style={[styles.label, { flex: 1, textAlign: "center", fontWeight: "800" }]}>One-Time</Text>
           </View>
-
-          {/* Fee rows — left = Monthly fees, right = Move-In costs */}
-          <CostTwoCol left={["Base Rent", baseRent]}     right={["Security Deposit", secDep]} />
-          <CostTwoCol left={["Amenity Fee", amenity]}    right={["Application Fee", appFee]} />
-          <CostTwoCol left={["Admin Fee", adminFee]}     right={["Broker Fee", brokerFee]} />
-          <CostTwoCol left={["Utility Fee", utilFee]}    right={["Move-in Fee", moveInFee]} />
+          <CostTwoCol left={["Base Rent", baseRentAmt]}    right={["Security Dep.", secDep]} />
+          <CostTwoCol left={["Amenity Fee", amenityFeeAmt]} right={["Application Fee", appFee]} />
+          <CostTwoCol left={["Admin Fee", adminFeeAmt]}    right={["Broker Fee", brkFee]} />
+          <CostTwoCol left={["Utility Fee", utilityFeeAmt]} right={["Move-in Fee", mvInFee]} />
           <CostTwoCol left={["Storage Rent", storageRent]} right={["", ""]} />
           {toggles.pets && (
             <CostTwoCol left={["Pet Fee", petFeeAmt]} right={["", ""]} />
@@ -555,7 +437,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
           )}
           <CostTwoCol left={["Other Fee", otherFee]}     right={["", ""]} />
 
-          {/* Total row — both on the same horizontal line */}
+          {/* Total row */}
           <View style={{ height: 1, backgroundColor: colors.border, marginTop: 4, marginBottom: 6 }} />
           <View style={{ flexDirection: "row" }}>
             <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingRight: 8 }}>
@@ -579,7 +461,6 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
           {toggles.pets && (
             <CommaField label="Pet Amenities:" value={petAmen} />
           )}
-          <CommaField label="Close By:" value={closeBy} />
           <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 2, marginBottom: 4 }}>
             <Text style={styles.label}>Cooling: </Text>
             <Text style={[styles.value, { marginRight: 10 }]}>{coolingType}</Text>
@@ -595,22 +476,20 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
             )}
           </View>
 
-          {/* ── TRANSPORTATION ────────────────────────────────── */}
-          <SectionHead title="Transportation" />
-          {!commute && !hasScores ? (
-            <Text style={[styles.value, { color: colors.textSecondary }]}>—</Text>
-          ) : (
-            <>
-              {!!commute && <FieldRow label="Commute:" value={`${commute} min`} />}
-              {hasScores && (
-                <View style={{ flexDirection: "row", marginTop: 8 }}>
-                  {walkScore !== null && <ScoreBadge score={walkScore} label="Walk" />}
-                  {transitScore !== null && <ScoreBadge score={transitScore} label="Transit" />}
-                  {bikeScore !== null && <ScoreBadge score={bikeScore} label="Bike" />}
-                </View>
-              )}
-            </>
+          {/* ── NEIGHBORHOOD ──────────────────────────────────── */}
+          <SectionHead title="Neighborhood" />
+          {!!hood && <FieldRow label="Neighborhood:" value={hood} />}
+          {!!commute && <FieldRow label="Commute:" value={`${commute} min`} />}
+          {hasScores && (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 8 }}>
+              {walkScore !== null && <ScoreBadge score={walkScore} label="Walk" />}
+              {transitScore !== null && <ScoreBadge score={transitScore} label="Transit" />}
+              {bikeScore !== null && <ScoreBadge score={bikeScore} label="Bike" />}
+              {safetyScore !== null && <ScoreBadge score={safetyScore} label="Safety" />}
+              {noiseScore !== null && <ScoreBadge score={noiseScore} label="Noise" />}
+            </View>
           )}
+          <CommaField label="Close By:" value={closeBy} />
 
           {/* ── SCHOOLS ───────────────────────────────────────── */}
           {hasSchools && toggles.children && (
@@ -660,51 +539,22 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
             <FieldRow label="Email:" value={email} />
           )}
           <FieldRow label="Lease:" value={lease} />
-          <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 4, marginBottom: 4 }}>
-            <BoolBadge label="No Board Approval" value={noBrdApproval} />
-            <BoolBadge label="No Broker Fee" value={noBrkFee} />
-            <BoolBadge label="Short Term Available" value={isShortTerm} />
-            <BoolBadge label="Renters Ins. Required" value={isRentersIns} />
-          </View>
 
           {/* ── TIMELINE ──────────────────────────────────────── */}
           <SectionHead title="Timeline" />
-          <TwoCol
-            left={["Available:", dateAvail]}
-            right={["Contacted:", contacted]}
-          />
-          <TwoCol
-            left={["Viewing:", viewing]}
-            right={["Applied:", applied]}
-          />
+          <FieldRow label="Available:" value={dateAvail || "—"} />
+          <FieldRow label="Contacted:" value={contacted || "—"} />
+          <FieldRow label="Viewing:" value={viewing} />
+          <FieldRow label="Applied:" value={applied || "—"} />
 
-          {/* ── NOTES ────────────────────────────────────────── */}
+          {/* ── NOTES ─────────────────────────────────────────── */}
           {(!!pros || !!cons) && (
             <>
               <SectionHead title="Notes" />
-              {!!pros && (
-                <View style={{ marginBottom: 6 }}>
-                  <Text style={[styles.label, { marginBottom: 3 }]}>Pros:</Text>
-                  {pros.split(/\r?\n/).filter(Boolean).map((line, i) => (
-                    <Text key={i} style={[styles.value, { marginBottom: 2, paddingLeft: 6 }]}>
-                      {line}
-                    </Text>
-                  ))}
-                </View>
-              )}
-              {!!cons && (
-                <View style={{ marginBottom: 6 }}>
-                  <Text style={[styles.label, { marginBottom: 3 }]}>Cons:</Text>
-                  {cons.split(/\r?\n/).filter(Boolean).map((line, i) => (
-                    <Text key={i} style={[styles.value, { marginBottom: 2, paddingLeft: 6 }]}>
-                      {line}
-                    </Text>
-                  ))}
-                </View>
-              )}
+              {!!pros && <CommaField label="Pros:" value={pros} />}
+              {!!cons && <CommaField label="Cons:" value={cons} />}
             </>
           )}
-
         </ScrollView>
       </Animated.View>
     </>
@@ -713,29 +563,29 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
 
 // ── Styles ────────────────────────────────────────────────────────
 
+import { StyleSheet } from "react-native";
+
 const styles = StyleSheet.create({
   panel: {
     position: "absolute",
     backgroundColor: colors.card,
-    borderLeftWidth: 1,
-    borderLeftColor: colors.border,
     shadowColor: "#000",
-    shadowOffset: { width: -2, height: 0 },
-    shadowOpacity: 0.15,
+    shadowOffset: { width: -4, height: 0 },
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 10,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   closeBtn: {
-    marginRight: 10,
-    padding: 4,
+    paddingRight: 10,
+    paddingVertical: 4,
   },
   headerTitle: {
     flex: 1,

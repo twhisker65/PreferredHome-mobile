@@ -1,5 +1,8 @@
-// components/ListingForm.tsx — Build 3.2.16.1 Hotfix
-// Shared form component used by both Add and Edit screens.
+// components/ListingForm.tsx — Build 3.2.17
+// Neighborhood section: Transportation renamed to Neighborhood.
+// neighborhood field moved from Property to Neighborhood section (first field).
+// closeBy moved from Features to Neighborhood section (last field).
+// safetyScore and noiseScore added as new manually-enterable numeric fields.
 // All sub-components defined OUTSIDE the export function (DRIFT 10).
 // Option arrays copied exactly from source — never rewritten from memory (DRIFT 13).
 
@@ -39,7 +42,8 @@ export type Draft = {
   petAmenities: string[]; closeBy: string[]; coolingType: string; heatingType: string;
   laundry: string; parkingType: string; roomTypes: string[]; privateOutdoorSpaceTypes: string[];
   storageTypes: string[]; commuteTime: string; walkScore: string; transitScore: string;
-  bikeScore: string; elementarySchoolName: string; elementaryGrades: string;
+  bikeScore: string; safetyScore: string; noiseScore: string;
+  elementarySchoolName: string; elementaryGrades: string;
   elementaryRating: string; elementaryDistance: string; middleSchoolName: string;
   middleGrades: string; middleRating: string; middleDistance: string; highSchoolName: string;
   highGrades: string; highRating: string; highDistance: string; listingSite: string;
@@ -64,7 +68,8 @@ export const BLANK_DRAFT: Draft = {
   petAmenities: [], closeBy: [], coolingType: "", heatingType: "",
   laundry: "", parkingType: "", roomTypes: [], privateOutdoorSpaceTypes: [],
   storageTypes: [], commuteTime: "", walkScore: "", transitScore: "",
-  bikeScore: "", elementarySchoolName: "", elementaryGrades: "",
+  bikeScore: "", safetyScore: "", noiseScore: "",
+  elementarySchoolName: "", elementaryGrades: "",
   elementaryRating: "", elementaryDistance: "", middleSchoolName: "",
   middleGrades: "", middleRating: "", middleDistance: "", highSchoolName: "",
   highGrades: "", highRating: "", highDistance: "", listingSite: "Other",
@@ -133,7 +138,9 @@ export function rawToDraft(raw: any): Draft {
     privateOutdoorSpaceTypes: multiVal(raw?.privateOutdoorSpaceTypes),
     storageTypes: multiVal(raw?.storageTypes), commuteTime: numStr(raw?.commuteTime),
     walkScore: numStr(raw?.walkScore), transitScore: numStr(raw?.transitScore),
-    bikeScore: numStr(raw?.bikeScore), elementarySchoolName: str(raw?.elementarySchoolName),
+    bikeScore: numStr(raw?.bikeScore), safetyScore: numStr(raw?.safetyScore),
+    noiseScore: numStr(raw?.noiseScore),
+    elementarySchoolName: str(raw?.elementarySchoolName),
     elementaryRating: numStr(raw?.elementaryRating), elementaryGrades: str(raw?.elementaryGrades),
     elementaryDistance: numStr(raw?.elementaryDistance), middleSchoolName: str(raw?.middleSchoolName),
     middleRating: numStr(raw?.middleRating), middleGrades: str(raw?.middleGrades),
@@ -148,6 +155,18 @@ export function rawToDraft(raw: any): Draft {
     viewingDate: str(raw?.viewingDate), viewingTime: str(raw?.viewingTime) || "11:00 AM",
     appliedDate: str(raw?.appliedDate), pros: str(raw?.pros), cons: str(raw?.cons),
   };
+}
+
+function buildViewingAppointment(date: string, time: string): string {
+  if (!date) return "";
+  const parts = time.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+  if (!parts) return date;
+  let h = parseInt(parts[1], 10);
+  const m = parts[2];
+  const ampm = parts[3].toUpperCase();
+  if (ampm === "PM" && h !== 12) h += 12;
+  if (ampm === "AM" && h === 12) h = 0;
+  return `${date}T${String(h).padStart(2, "0")}:${m}`;
 }
 
 export function buildPayload(draft: Draft): any {
@@ -191,6 +210,8 @@ export function buildPayload(draft: Draft): any {
     walkScore: draft.walkScore ? Number(draft.walkScore) : null,
     transitScore: draft.transitScore ? Number(draft.transitScore) : null,
     bikeScore: draft.bikeScore ? Number(draft.bikeScore) : null,
+    safetyScore: draft.safetyScore ? Number(draft.safetyScore) : null,
+    noiseScore: draft.noiseScore ? Number(draft.noiseScore) : null,
     elementarySchoolName: draft.elementarySchoolName,
     elementaryRating: draft.elementaryRating ? Math.min(Number(draft.elementaryRating), 10) : null,
     elementaryGrades: draft.elementaryGrades,
@@ -203,62 +224,51 @@ export function buildPayload(draft: Draft): any {
     highRating: draft.highRating ? Math.min(Number(draft.highRating), 10) : null,
     highGrades: draft.highGrades,
     highDistance: draft.highDistance ? Number(draft.highDistance) : null,
-    listingSite: draft.listingSite, listingUrl: draft.listingUrl,
-    photoUrl: draft.photoUrl, contactName: draft.contactName,
-    contactPhone: draft.contactPhone, contactEmail: draft.contactEmail,
-    leaseLength: draft.leaseLength,
+    listingSite: draft.listingSite,
+    listingUrl: draft.listingUrl, photoUrl: draft.photoUrl,
+    contactName: draft.contactName, contactPhone: draft.contactPhone,
+    contactEmail: draft.contactEmail, leaseLength: draft.leaseLength,
     noBoardApproval: boolStr(draft.noBoardApproval), noBrokerFee: boolStr(draft.noBrokerFee),
-    dateAvailable: draft.dateAvailable || null, contactedDate: draft.contactedDate || null,
-    viewingAppointment: buildViewingAppointment(draft) || null,
-    appliedDate: draft.appliedDate || null, pros: draft.pros, cons: draft.cons,
+    dateAvailable: draft.dateAvailable,
+    contactedDate: draft.contactedDate,
+    viewingAppointment: buildViewingAppointment(draft.viewingDate, draft.viewingTime),
+    appliedDate: draft.appliedDate,
+    pros: draft.pros, cons: draft.cons,
   };
 }
 
-function buildViewingAppointment(d: Draft): string | null {
-  if (!d.viewingDate) return null;
-  return `${d.viewingDate}T${d.viewingTime || "11:00 AM"}`;
-}
+// ── Sub-components — defined OUTSIDE export function (DRIFT 10) ────
 
-// ── Sub-components — defined OUTSIDE main export function (DRIFT 10) ──
-
-function Section({ title, open: isOpen, onToggle, children }: {
-  title: string; open: boolean; onToggle: () => void; children: React.ReactNode;
-}) {
+function Section({ title, open, onToggle, children }: { title: string; open: boolean; onToggle: () => void; children: React.ReactNode }) {
   return (
-    <View style={{ marginBottom: 8 }}>
-      <Pressable onPress={onToggle} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        <Text style={headingLabel}>{title.toUpperCase()}</Text>
-        <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={16} color={colors.textSecondary} />
+    <View style={{ marginBottom: 12 }}>
+      <Pressable onPress={onToggle} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <Text style={[headingLabel, { fontSize: 11 }]}>{title.toUpperCase()}</Text>
+        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={colors.textSecondary} />
       </Pressable>
-      {isOpen && <View style={{ paddingTop: 4 }}>{children}</View>}
+      {open && <View style={{ paddingTop: 4 }}>{children}</View>}
     </View>
   );
 }
 
-function Field({ label, fieldKey, inputRefs, onNext, value, onChangeText, keyboardType, multiline, placeholder }: {
+function Field({ label, fieldKey, inputRefs, onNext, value, onChangeText, keyboardType, editable }: {
   label: string; fieldKey: string; inputRefs: React.MutableRefObject<Record<string, any>>;
-  onNext: (k: string) => void; value: string; onChangeText: (t: string) => void;
-  keyboardType?: any; multiline?: boolean; placeholder?: string;
+  onNext: (key: string) => void; value: string; onChangeText: (t: string) => void;
+  keyboardType?: any; editable?: boolean;
 }) {
   return (
-    <View style={{ gap: 3, marginBottom: 8 }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "600" }}>{label}</Text>
+    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+      <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600", flex: 1 }}>{label}</Text>
       <TextInput
         ref={(r) => { if (r) inputRefs.current[fieldKey] = r; }}
+        style={{ color: editable === false ? colors.textSecondary : colors.textPrimary, fontSize: 14, textAlign: "right", flex: 1 }}
         value={value}
         onChangeText={onChangeText}
-        onSubmitEditing={() => onNext(fieldKey)}
-        returnKeyType="next"
         keyboardType={keyboardType ?? "default"}
-        multiline={multiline}
-        placeholder={placeholder ?? ""}
+        returnKeyType="next"
+        onSubmitEditing={() => onNext(fieldKey)}
+        editable={editable !== false}
         placeholderTextColor={colors.textSecondary}
-        style={{
-          backgroundColor: colors.cardHover, borderWidth: 1, borderColor: colors.border,
-          borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8,
-          color: colors.textPrimary, fontSize: 14,
-          ...(multiline ? { minHeight: 80, textAlignVertical: "top" } : {}),
-        }}
       />
     </View>
   );
@@ -326,46 +336,79 @@ type ListingFormProps = {
 export default function ListingForm({ initialDraft, toggles, saving, onSave, insets }: ListingFormProps) {
   const inputRefs = useRef<Record<string, any>>({});
   const [draft, setDraft] = useState<Draft>(initialDraft);
-  const [open, setOpen] = useState({ property: true, costs: true, features: true, transportation: true, schools: true, listing: true, timeline: true, notes: true });
+  const [open, setOpen] = useState({ property: true, costs: true, features: true, neighborhood: true, schools: true, listing: true, timeline: true, notes: true });
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerTitle, setPickerTitle] = useState("");
   const [pickerOptions, setPickerOptions] = useState<string[]>([]);
-  const [pickerSelected, setPickerSelected] = useState<string | string[]>("");
+  const [pickerSelected, setPickerSelected] = useState<string[]>([]);
   const [pickerMulti, setPickerMulti] = useState(false);
   const [pickerCallback, setPickerCallback] = useState<(v: any) => void>(() => () => {});
   const [datePickerVisible, setDatePickerVisible] = useState(false);
-  const [datePickerField, setDatePickerField] = useState<keyof Draft | null>(null);
-  const [datePickerTitle, setDatePickerTitle] = useState("");
+  const [datePickerField, setDatePickerField] = useState<keyof Draft>("dateAvailable");
   const [zipLooking, setZipLooking] = useState(false);
 
-  // Sync draft when initialDraft changes (edit screen: listing loads after mount)
-  useEffect(() => { setDraft(initialDraft); }, [initialDraft]);
-
-  // Zip lookup — fires when zip reaches 5 digits
   useEffect(() => {
-    const z = draft.zipCode;
-    if (z.length !== 5) return;
-    let cancelled = false;
-    setZipLooking(true);
-    lookupZip(z).then((result) => {
-      if (cancelled) return;
-      if (result?.city && result?.state) setDraft((d) => ({ ...d, city: result.city, state: result.state }));
-    }).catch(() => {}).finally(() => { if (!cancelled) setZipLooking(false); });
-    return () => { cancelled = true; };
+    setDraft(initialDraft);
+  }, [initialDraft]);
+
+  // ZIP lookup — fires when zip reaches 5 digits
+  useEffect(() => {
+    if (draft.zipCode.length === 5) {
+      setZipLooking(true);
+      lookupZip(draft.zipCode)
+        .then((result: { city?: string; state?: string } | null) => {
+          if (result?.city) setDraft((d) => ({ ...d, city: result.city!, state: result.state ?? d.state }));
+        })
+        .catch(() => {})
+        .finally(() => setZipLooking(false));
+    }
   }, [draft.zipCode]);
 
   // Listing site auto-detect from URL
   useEffect(() => {
-    const detected = detectListingSite(draft.listingUrl);
-    setDraft((d) => ({ ...d, listingSite: detected }));
+    if (draft.listingUrl.length > 8) {
+      detectListingSite(draft.listingUrl)
+        .then((site: string) => { if (site && site !== "Other") setDraft((d) => ({ ...d, listingSite: site })); })
+        .catch(() => {});
+    }
   }, [draft.listingUrl]);
 
-  function toggleSection(key: keyof typeof open) { setOpen((o) => ({ ...o, [key]: !o[key] })); }
-  function focusNext(currentKey: string) { const keys = Object.keys(inputRefs.current); const idx = keys.indexOf(currentKey); if (idx >= 0 && idx < keys.length - 1) inputRefs.current[keys[idx + 1]]?.focus(); }
-  function openSingle(title: string, options: string[], current: string, cb: (v: string) => void) { setPickerTitle(title); setPickerOptions(options); setPickerSelected(current); setPickerMulti(false); setPickerCallback(() => cb); setPickerVisible(true); }
-  function openMulti(title: string, options: string[], current: string[], cb: (v: string[]) => void) { setPickerTitle(title); setPickerOptions(options); setPickerSelected(current); setPickerMulti(true); setPickerCallback(() => cb); setPickerVisible(true); }
-  function openDatePicker(field: keyof Draft, title: string) { setDatePickerField(field); setDatePickerTitle(title); setDatePickerVisible(true); }
-  function set(field: keyof Draft) { return (val: any) => setDraft((d) => ({ ...d, [field]: val })); }
+  function set(key: keyof Draft) {
+    return (value: any) => setDraft((d) => ({ ...d, [key]: value }));
+  }
+
+  function toggleSection(key: keyof typeof open) {
+    setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function focusNext(currentKey: string) {
+    const keys = Object.keys(inputRefs.current);
+    const idx = keys.indexOf(currentKey);
+    if (idx >= 0 && idx < keys.length - 1) inputRefs.current[keys[idx + 1]]?.focus();
+  }
+
+  function openSingle(title: string, options: string[], current: string, callback: (v: string) => void) {
+    setPickerTitle(title);
+    setPickerOptions(options);
+    setPickerSelected([current]);
+    setPickerMulti(false);
+    setPickerCallback(() => callback);
+    setPickerVisible(true);
+  }
+
+  function openMulti(title: string, options: string[], current: string[], callback: (v: string[]) => void) {
+    setPickerTitle(title);
+    setPickerOptions(options);
+    setPickerSelected([...current]);
+    setPickerMulti(true);
+    setPickerCallback(() => callback);
+    setPickerVisible(true);
+  }
+
+  function openDatePicker(field: keyof Draft) {
+    setDatePickerField(field);
+    setDatePickerVisible(true);
+  }
 
   async function handleSave() {
     if (!draft.buildingName.trim()) { Alert.alert("Required", "Building Name is required."); return; }
@@ -392,7 +435,6 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
           <Field label="Zip Code" fieldKey="zipCode" inputRefs={inputRefs} onNext={focusNext} value={draft.zipCode} onChangeText={set("zipCode")} keyboardType="number-pad" />
           <Field label={`City${zipLooking ? " …" : ""}`} fieldKey="city" inputRefs={inputRefs} onNext={focusNext} value={draft.city} onChangeText={set("city")} />
           <Field label="State" fieldKey="state" inputRefs={inputRefs} onNext={focusNext} value={draft.state} onChangeText={set("state")} />
-          <Field label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={set("neighborhood")} />
           {isAptCondoCoop && <Field label="Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={set("unitNumber")} />}
           {isAptCondoCoop && <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={set("floorNumber")} keyboardType="number-pad" />}
           <Field label="Number of Floors" fieldKey="numberOfFloors" inputRefs={inputRefs} onNext={focusNext} value={draft.numberOfFloors} onChangeText={set("numberOfFloors")} keyboardType="decimal-pad" />
@@ -403,6 +445,7 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
           {isAptCondoCoop && <Toggle label="Corner Unit" value={draft.cornerUnit} onValueChange={set("cornerUnit")} />}
           <Toggle label="Furnished" value={draft.furnished} onValueChange={set("furnished")} />
           <Toggle label="Short Term Available" value={draft.shortTermAvailable} onValueChange={set("shortTermAvailable")} />
+          <Toggle label="Renters Insurance Required" value={draft.rentersInsuranceRequired} onValueChange={set("rentersInsuranceRequired")} />
         </Section>
 
         {/* COSTS */}
@@ -412,9 +455,9 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
           <Field label="Amenity Fee ($)" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={set("amenityFee")} keyboardType="number-pad" />
           <Field label="Admin Fee ($)" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={set("adminFee")} keyboardType="number-pad" />
           <Field label="Utility Fee ($)" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={set("utilityFee")} keyboardType="number-pad" />
-          <Field label="Other Fee ($)" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={set("otherFee")} keyboardType="number-pad" />
-          {toggles.pets && <Field label="Pet Fee ($)" fieldKey="petFee" inputRefs={inputRefs} onNext={focusNext} value={draft.petFee} onChangeText={set("petFee")} keyboardType="number-pad" />}
           <Field label="Storage Rent ($)" fieldKey="storageRent" inputRefs={inputRefs} onNext={focusNext} value={draft.storageRent} onChangeText={set("storageRent")} keyboardType="number-pad" />
+          {toggles.pets && <Field label="Pet Fee ($)" fieldKey="petFee" inputRefs={inputRefs} onNext={focusNext} value={draft.petFee} onChangeText={set("petFee")} keyboardType="number-pad" />}
+          <Field label="Other Fee ($)" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={set("otherFee")} keyboardType="number-pad" />
           <Field label="Security Deposit ($)" fieldKey="securityDeposit" inputRefs={inputRefs} onNext={focusNext} value={draft.securityDeposit} onChangeText={set("securityDeposit")} keyboardType="number-pad" />
           <Field label="Application Fee ($)" fieldKey="applicationFee" inputRefs={inputRefs} onNext={focusNext} value={draft.applicationFee} onChangeText={set("applicationFee")} keyboardType="number-pad" />
           <Field label="Broker Fee ($)" fieldKey="brokerFee" inputRefs={inputRefs} onNext={focusNext} value={draft.brokerFee} onChangeText={set("brokerFee")} keyboardType="number-pad" />
@@ -434,15 +477,18 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
           <MultiRow label="Storage" values={draft.storageTypes} onPress={() => openMulti("Storage", STORAGE_TYPES, draft.storageTypes, set("storageTypes"))} />
           {toggles.car && <SelectRow label="Parking Type" value={draft.parkingType} onPress={() => openSingle("Parking Type", PARKING, draft.parkingType, set("parkingType"))} />}
           {toggles.pets && <MultiRow label="Pet Amenities" values={draft.petAmenities} onPress={() => openMulti("Pet Amenities", PET_AMENITIES, draft.petAmenities, set("petAmenities"))} />}
-          <MultiRow label="Close By" values={draft.closeBy} onPress={() => openMulti("Close By", CLOSE_BY, draft.closeBy, set("closeBy"))} />
         </Section>
 
-        {/* TRANSPORTATION */}
-        <Section title="Transportation" open={open.transportation} onToggle={() => toggleSection("transportation")}>
+        {/* NEIGHBORHOOD */}
+        <Section title="Neighborhood" open={open.neighborhood} onToggle={() => toggleSection("neighborhood")}>
+          <Field label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={set("neighborhood")} />
           <Field label="Commute Time (min)" fieldKey="commuteTime" inputRefs={inputRefs} onNext={focusNext} value={draft.commuteTime} onChangeText={set("commuteTime")} keyboardType="number-pad" />
           <Field label="Walk Score (0–100)" fieldKey="walkScore" inputRefs={inputRefs} onNext={focusNext} value={draft.walkScore} onChangeText={set("walkScore")} keyboardType="number-pad" />
           <Field label="Transit Score (0–100)" fieldKey="transitScore" inputRefs={inputRefs} onNext={focusNext} value={draft.transitScore} onChangeText={set("transitScore")} keyboardType="number-pad" />
           <Field label="Bike Score (0–100)" fieldKey="bikeScore" inputRefs={inputRefs} onNext={focusNext} value={draft.bikeScore} onChangeText={set("bikeScore")} keyboardType="number-pad" />
+          <Field label="Safety Score (0–100)" fieldKey="safetyScore" inputRefs={inputRefs} onNext={focusNext} value={draft.safetyScore} onChangeText={set("safetyScore")} keyboardType="number-pad" />
+          <Field label="Noise Score (0–100)" fieldKey="noiseScore" inputRefs={inputRefs} onNext={focusNext} value={draft.noiseScore} onChangeText={set("noiseScore")} keyboardType="number-pad" />
+          <MultiRow label="Close By" values={draft.closeBy} onPress={() => openMulti("Close By", CLOSE_BY, draft.closeBy, set("closeBy"))} />
         </Section>
 
         {/* SCHOOLS — children toggle gated */}
@@ -469,105 +515,108 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
         {/* LISTING */}
         <Section title="Listing" open={open.listing} onToggle={() => toggleSection("listing")}>
           <SelectRow label="Listing Site" value={draft.listingSite} onPress={() => openSingle("Listing Site", LISTING_SITES, draft.listingSite, set("listingSite"))} />
-          <Field label="Listing URL" fieldKey="listingUrl" inputRefs={inputRefs} onNext={focusNext} value={draft.listingUrl} onChangeText={set("listingUrl")} />
-          <Field label="Photo URL" fieldKey="photoUrl" inputRefs={inputRefs} onNext={focusNext} value={draft.photoUrl} onChangeText={set("photoUrl")} />
+          <Field label="Listing URL" fieldKey="listingUrl" inputRefs={inputRefs} onNext={focusNext} value={draft.listingUrl} onChangeText={set("listingUrl")} keyboardType="url" />
+          <Field label="Photo URL" fieldKey="photoUrl" inputRefs={inputRefs} onNext={focusNext} value={draft.photoUrl} onChangeText={set("photoUrl")} keyboardType="url" />
           <Field label="Contact Name" fieldKey="contactName" inputRefs={inputRefs} onNext={focusNext} value={draft.contactName} onChangeText={set("contactName")} />
           <Field label="Contact Phone" fieldKey="contactPhone" inputRefs={inputRefs} onNext={focusNext} value={draft.contactPhone} onChangeText={set("contactPhone")} keyboardType="phone-pad" />
           <Field label="Contact Email" fieldKey="contactEmail" inputRefs={inputRefs} onNext={focusNext} value={draft.contactEmail} onChangeText={set("contactEmail")} keyboardType="email-address" />
           <Field label="Lease Length" fieldKey="leaseLength" inputRefs={inputRefs} onNext={focusNext} value={draft.leaseLength} onChangeText={set("leaseLength")} />
           <Toggle label="No Board Approval" value={draft.noBoardApproval} onValueChange={set("noBoardApproval")} />
           <Toggle label="No Broker Fee" value={draft.noBrokerFee} onValueChange={set("noBrokerFee")} />
-          <Toggle label="Short Term Available" value={draft.shortTermAvailable} onValueChange={set("shortTermAvailable")} />
-          <Toggle label="Renters Insurance Required" value={draft.rentersInsuranceRequired} onValueChange={set("rentersInsuranceRequired")} />
         </Section>
 
         {/* TIMELINE */}
         <Section title="Timeline" open={open.timeline} onToggle={() => toggleSection("timeline")}>
-          <DateRow label="Date Available" value={draft.dateAvailable} onPress={() => openDatePicker("dateAvailable", "Date Available")} onClear={() => set("dateAvailable")("")} />
-          <DateRow label="Contacted Date" value={draft.contactedDate} onPress={() => openDatePicker("contactedDate", "Contacted Date")} onClear={() => set("contactedDate")("")} />
-          <DateRow label="Viewing Date" value={draft.viewingDate} onPress={() => openDatePicker("viewingDate", "Viewing Date")} onClear={() => set("viewingDate")("")} />
+          <DateRow label="Date Available" value={draft.dateAvailable} onPress={() => openDatePicker("dateAvailable")} onClear={() => set("dateAvailable")("")} />
+          <DateRow label="Contacted Date" value={draft.contactedDate} onPress={() => openDatePicker("contactedDate")} onClear={() => set("contactedDate")("")} />
+          <DateRow label="Viewing Date" value={draft.viewingDate} onPress={() => openDatePicker("viewingDate")} onClear={() => set("viewingDate")("")} />
           <SelectRow label="Viewing Time" value={draft.viewingTime} onPress={() => openSingle("Viewing Time", TIME_OPTIONS, draft.viewingTime, set("viewingTime"))} />
-          <DateRow label="Applied Date" value={draft.appliedDate} onPress={() => openDatePicker("appliedDate", "Applied Date")} onClear={() => set("appliedDate")("")} />
+          <DateRow label="Applied Date" value={draft.appliedDate} onPress={() => openDatePicker("appliedDate")} onClear={() => set("appliedDate")("")} />
         </Section>
 
         {/* NOTES */}
         <Section title="Notes" open={open.notes} onToggle={() => toggleSection("notes")}>
-          <Field label="Pros" fieldKey="pros" inputRefs={inputRefs} onNext={focusNext} value={draft.pros} onChangeText={set("pros")} multiline />
-          <Field label="Cons" fieldKey="cons" inputRefs={inputRefs} onNext={focusNext} value={draft.cons} onChangeText={set("cons")} multiline />
+          <Field label="Pros" fieldKey="pros" inputRefs={inputRefs} onNext={focusNext} value={draft.pros} onChangeText={set("pros")} />
+          <Field label="Cons" fieldKey="cons" inputRefs={inputRefs} onNext={focusNext} value={draft.cons} onChangeText={set("cons")} />
         </Section>
 
         {/* Save button */}
-        <Pressable onPress={handleSave} disabled={saving} style={{ backgroundColor: colors.primaryBlue, borderRadius: 12, paddingVertical: 14, alignItems: "center", marginTop: 8 }}>
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontSize: 16, fontWeight: "700" }}>Save</Text>}
+        <Pressable
+          onPress={handleSave}
+          disabled={saving}
+          style={{ backgroundColor: colors.primaryBlue, borderRadius: 10, paddingVertical: 14, alignItems: "center", marginTop: 8 }}
+        >
+          {saving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>Save Listing</Text>
+          )}
         </Pressable>
-
       </ScrollView>
 
-      {/* Picker Modal */}
+      {/* Single/Multi picker modal */}
       <Modal visible={pickerVisible} transparent animationType="slide">
         <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => setPickerVisible(false)} />
-        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: "60%", paddingBottom: 24 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>{pickerTitle}</Text>
-            <Pressable onPress={() => setPickerVisible(false)}><Ionicons name="close" size={22} color={colors.textSecondary} /></Pressable>
-          </View>
+        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: "60%", padding: 16 }}>
+          <Text style={[headingLabel, { marginBottom: 12 }]}>{pickerTitle}</Text>
           <ScrollView keyboardShouldPersistTaps="handled">
             {pickerOptions.map((opt) => {
-              const isSelected = pickerMulti
-                ? (Array.isArray(pickerSelected) ? pickerSelected.includes(opt) : false)
-                : pickerSelected === opt;
+              const selected = pickerSelected.includes(opt);
               return (
-                <Pressable key={opt} onPress={() => {
-                  if (pickerMulti) {
-                    const cur = Array.isArray(pickerSelected) ? pickerSelected : [];
-                    const next = cur.includes(opt) ? cur.filter((x) => x !== opt) : [...cur, opt];
-                    setPickerSelected(next);
-                    pickerCallback(next);
-                  } else {
-                    setPickerSelected(opt);
-                    pickerCallback(opt);
-                    setPickerVisible(false);
-                  }
-                }} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                  <Text style={{ color: colors.textPrimary, fontSize: 15 }}>{opt}</Text>
-                  {isSelected && <Ionicons name="checkmark" size={18} color={colors.primaryBlue} />}
+                <Pressable
+                  key={opt}
+                  onPress={() => {
+                    if (pickerMulti) {
+                      const next = selected ? pickerSelected.filter((s) => s !== opt) : [...pickerSelected, opt];
+                      setPickerSelected(next);
+                    } else {
+                      pickerCallback(opt);
+                      setPickerVisible(false);
+                    }
+                  }}
+                  style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}
+                >
+                  <Text style={{ color: selected ? colors.primaryBlue : colors.textPrimary, fontSize: 15 }}>{opt}</Text>
+                  {selected && <Ionicons name="checkmark" size={18} color={colors.primaryBlue} />}
                 </Pressable>
               );
             })}
           </ScrollView>
           {pickerMulti && (
-            <Pressable onPress={() => setPickerVisible(false)} style={{ margin: 16, backgroundColor: colors.primaryBlue, borderRadius: 10, paddingVertical: 12, alignItems: "center" }}>
+            <Pressable
+              onPress={() => { pickerCallback(pickerSelected); setPickerVisible(false); }}
+              style={{ backgroundColor: colors.primaryBlue, borderRadius: 8, paddingVertical: 12, alignItems: "center", marginTop: 12 }}
+            >
               <Text style={{ color: "#fff", fontWeight: "700" }}>Done</Text>
             </Pressable>
           )}
         </View>
       </Modal>
 
-      {/* Date Picker Modal */}
+      {/* Date picker modal */}
       <Modal visible={datePickerVisible} transparent animationType="slide">
         <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => setDatePickerVisible(false)} />
-        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 24 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>{datePickerTitle}</Text>
-            <Pressable onPress={() => setDatePickerVisible(false)}><Ionicons name="close" size={22} color={colors.textSecondary} /></Pressable>
-          </View>
+        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16 }}>
           <Calendar
-            onDayPress={(day: any) => {
-              if (datePickerField) setDraft((d) => ({ ...d, [datePickerField]: day.dateString }));
+            onDayPress={(day: { dateString: string }) => {
+              set(datePickerField)(day.dateString);
               setDatePickerVisible(false);
             }}
             theme={{
-              backgroundColor: colors.card, calendarBackground: colors.card,
+              backgroundColor: colors.card,
+              calendarBackground: colors.card,
               textSectionTitleColor: colors.textSecondary,
-              selectedDayBackgroundColor: colors.primaryBlue, selectedDayTextColor: "#fff",
-              todayTextColor: colors.primaryBlue, dayTextColor: colors.textPrimary,
-              textDisabledColor: colors.textSecondary, arrowColor: colors.primaryBlue,
+              selectedDayBackgroundColor: colors.primaryBlue,
+              selectedDayTextColor: "#fff",
+              todayTextColor: colors.primaryBlue,
+              dayTextColor: colors.textPrimary,
+              textDisabledColor: colors.textSecondary,
+              arrowColor: colors.primaryBlue,
               monthTextColor: colors.textPrimary,
             }}
           />
         </View>
       </Modal>
-
     </KeyboardAvoidingView>
   );
 }
