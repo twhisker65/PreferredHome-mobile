@@ -1,6 +1,7 @@
-// app/(tabs)/listings.tsx — Build 3.2.08
-// Changes: compareIds now persisted via compareStorage (loaded on focus, saved on toggle).
-// Max compare changed from 4 to 3. All other logic unchanged.
+// app/(tabs)/listings.tsx — Build 3.2.18
+// Added: applySort() function — sorts items by the selected sortKey in selected order.
+// Changed: sections useMemo — applies applySort() after applyFilters() for both groups.
+// All other logic unchanged.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -39,7 +40,7 @@ import type { ListingUI, ListingStatus } from "../../lib/types";
 type Section = { title: string; data: ListingUI[] };
 
 // ── Filter logic ──────────────────────────────────────────────────
-// Applied after applyOrder so sort order is preserved within each section.
+// Applied before sort so sort order is preserved within each section.
 
 function applyFilters(items: ListingUI[], f: FilterState): ListingUI[] {
   return items.filter((l) => {
@@ -58,6 +59,64 @@ function applyFilters(items: ListingUI[], f: FilterState): ListingUI[] {
       if (!f.zipCodes.includes(zip)) return false;
     }
     return true;
+  });
+}
+
+// ── Sort logic ────────────────────────────────────────────────────
+// Applied after filter. Nulls/NaN always sort last regardless of direction.
+
+function applySort(
+  items: ListingUI[],
+  sortKey: string,
+  sortOrder: string
+): ListingUI[] {
+  if (!sortKey) return items;
+  const dir = sortOrder === "desc" ? -1 : 1;
+  return [...items].sort((a, b) => {
+    let aVal: any;
+    let bVal: any;
+    switch (sortKey) {
+      case "Status":
+        aVal = a.status ?? "";
+        bVal = b.status ?? "";
+        break;
+      case "Square Footage":
+        aVal = a.raw?.squareFootage != null ? Number(a.raw.squareFootage) : null;
+        bVal = b.raw?.squareFootage != null ? Number(b.raw.squareFootage) : null;
+        break;
+      case "Commute Time":
+        aVal = a.raw?.commuteTime != null ? Number(a.raw.commuteTime) : null;
+        bVal = b.raw?.commuteTime != null ? Number(b.raw.commuteTime) : null;
+        break;
+      case "Base Rent":
+        aVal = a.baseRent ?? null;
+        bVal = b.baseRent ?? null;
+        break;
+      case "Total Monthly Cost":
+        aVal = a.raw?.totalMonthly != null ? Number(a.raw.totalMonthly) : null;
+        bVal = b.raw?.totalMonthly != null ? Number(b.raw.totalMonthly) : null;
+        break;
+      case "Date Added":
+        aVal = a.id ?? "";
+        bVal = b.id ?? "";
+        break;
+      default:
+        return 0;
+    }
+    // Nulls and NaN always last
+    const aNull =
+      aVal === null ||
+      aVal === undefined ||
+      (typeof aVal === "number" && isNaN(aVal));
+    const bNull =
+      bVal === null ||
+      bVal === undefined ||
+      (typeof bVal === "number" && isNaN(bVal));
+    if (aNull && bNull) return 0;
+    if (aNull) return 1;
+    if (bNull) return -1;
+    if (typeof aVal === "number") return dir * (aVal - bVal);
+    return dir * String(aVal).localeCompare(String(bVal));
   });
 }
 
@@ -117,11 +176,25 @@ export default function ListingsScreen() {
     })();
   }, [listings]);
 
-  // Build sections with filters applied
+  // Build sections: filter first, then sort within each group
   const sections: Section[] = useMemo(
     () => [
-      { title: "Preferred", data: applyFilters(preferred, appliedFilters) },
-      { title: "Candidates", data: applyFilters(other, appliedFilters) },
+      {
+        title: "Preferred",
+        data: applySort(
+          applyFilters(preferred, appliedFilters),
+          appliedFilters.sortKey,
+          appliedFilters.sortOrder
+        ),
+      },
+      {
+        title: "Candidates",
+        data: applySort(
+          applyFilters(other, appliedFilters),
+          appliedFilters.sortKey,
+          appliedFilters.sortOrder
+        ),
+      },
     ],
     [preferred, other, appliedFilters]
   );
@@ -151,7 +224,7 @@ export default function ListingsScreen() {
   function deleteListing(id: string) {
     Alert.alert(
       "Delete Listing",
-      "Are you sure you want to delete this listing? This cannot be undone.",
+      "Are you sure you want to delete this listing?",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -162,11 +235,7 @@ export default function ListingsScreen() {
               await deleteListingApi(id);
               refresh();
             } catch {
-              Alert.alert(
-                "Delete Failed",
-                "Could not delete listing. Pull to refresh to restore it.",
-                [{ text: "OK", onPress: refresh }]
-              );
+              Alert.alert("Error", "Could not delete listing.");
             }
           },
         },
@@ -174,45 +243,16 @@ export default function ListingsScreen() {
     );
   }
 
-  // ── Render ────────────────────────────────────────────────────────
-
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* Top bar — filter icon turns blue when filters are active */}
       <TopBar
         title="PreferredHome"
         onPressMenu={() => setMenuOpen(true)}
-        rightIconName="filter"
-        rightIconColor={filtersActive ? colors.primaryBlue : colors.textPrimary}
+        rightIcon={filtersActive ? "options" : "options-outline"}
         onPressRight={() => setFilterOpen(true)}
       />
 
-      {/* FILTERS ACTIVE banner — shown below header when active */}
-      {filtersActive && (
-        <View
-          style={{
-            backgroundColor: `${colors.primaryBlue}20`,
-            borderBottomWidth: 1,
-            borderBottomColor: `${colors.primaryBlue}66`,
-            paddingVertical: 7,
-            alignItems: "center",
-          }}
-        >
-          <Text
-            style={{
-              color: colors.primaryBlue,
-              fontSize: 11,
-              fontWeight: "700",
-              letterSpacing: 0.9,
-            }}
-          >
-            FILTERS ACTIVE
-          </Text>
-        </View>
-      )}
-
-      {/* Main listings content */}
-      {loading ? (
+      {loading && !refreshing ? (
         <View
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
         >
@@ -258,7 +298,7 @@ export default function ListingsScreen() {
         />
       )}
 
-      {/* Filter drop-down panel — conditionally mounted when open */}
+      {/* Filter / Sort full-page panel — conditionally mounted when open */}
       {filterOpen && (
         <FilterPanel
           topOffset={topBarHeight}

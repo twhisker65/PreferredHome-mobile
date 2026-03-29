@@ -1,13 +1,21 @@
-// components/FilterPanel.tsx — Build 3.2.04 (rev 3)
-// Revised: non-default filter controls highlight blue when closed, not just when open.
-// DropdownButton receives an `active` prop — blue border + blue bg tint + blue text
-// when the filter differs from its default, regardless of open/closed state.
-// Max Rent text input also highlights blue when a value is present.
+// components/FilterPanel.tsx — Build 3.2.18
+// Changed: full-page panel — fills screen from topOffset to bottom edge.
+// Added: header bar with back-arrow (chevron-back) and "Sort & Filter Listings" title,
+//        matching the Edit Listing subtitle bar style exactly.
+// Added: "FILTER" section label above existing filter controls.
+// Added: "SORT" section below filters — sortKey chip row + Ascending/Descending toggle.
+// Added: sortKey and sortOrder fields to FilterState and DEFAULT_FILTERS.
+// Updated: isFiltersActive — returns true when a sortKey is set.
+// Changed: Clear + Apply buttons pinned to fixed bottom bar outside ScrollView.
+// Removed: half-screen width constraint (panelW). Panel is now full width.
+// Removed: tap-outside overlay (back arrow is the only non-apply close path).
+// All existing sub-components (FilterRow, DropdownButton, DropdownList,
+//   MultiSelectItem, SingleSelectItem, ListDivider) are unchanged.
+// New sub-components: SortKeyChip, SortOrderButton — defined outside export function.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
-  Dimensions,
   Pressable,
   ScrollView,
   Text,
@@ -19,6 +27,8 @@ import { colors } from "../styles/colors";
 import { headingLabel } from "../styles/typography";
 import type { ListingUI, ListingStatus } from "../lib/types";
 
+// ── Types & constants ─────────────────────────────────────────────
+
 export type FilterState = {
   statuses: ListingStatus[];
   unitTypes: string[];
@@ -26,6 +36,8 @@ export type FilterState = {
   preferred: "both" | "yes";
   maxRent: string;
   zipCodes: string[];
+  sortKey: string;
+  sortOrder: "asc" | "desc";
 };
 
 export const DEFAULT_FILTERS: FilterState = {
@@ -35,6 +47,8 @@ export const DEFAULT_FILTERS: FilterState = {
   preferred: "both",
   maxRent: "",
   zipCodes: [],
+  sortKey: "",
+  sortOrder: "asc",
 };
 
 export const ALL_STATUSES: ListingStatus[] = [
@@ -44,19 +58,39 @@ export const ALL_STATUSES: ListingStatus[] = [
 
 const UNIT_TYPES = ["Rental", "Condo", "Co-op", "Townhouse", "House"];
 
+export const SORT_KEYS = [
+  "Status",
+  "Square Footage",
+  "Commute Time",
+  "Base Rent",
+  "Total Monthly Cost",
+  "Date Added",
+];
+
+// ── Active-state helpers ──────────────────────────────────────────
+
 export function isFiltersActive(f: FilterState): boolean {
   const statusActive = f.statuses.length > 0 && f.statuses.length < ALL_STATUSES.length;
   const unitTypeActive = f.unitTypes.length > 0;
-  return statusActive || unitTypeActive || f.brokerFee !== "both" ||
-    f.preferred !== "both" || f.maxRent !== "" || f.zipCodes.length > 0;
+  return (
+    statusActive ||
+    unitTypeActive ||
+    f.brokerFee !== "both" ||
+    f.preferred !== "both" ||
+    f.maxRent !== "" ||
+    f.zipCodes.length > 0 ||
+    f.sortKey !== ""
+  );
 }
 
-function statusIsActive(f: FilterState)   { return f.statuses.length > 0 && f.statuses.length < ALL_STATUSES.length; }
-function unitTypeIsActive(f: FilterState) { return f.unitTypes.length > 0; }
-function brokerFeeIsActive(f: FilterState){ return f.brokerFee !== "both"; }
-function preferredIsActive(f: FilterState){ return f.preferred !== "both"; }
-function maxRentIsActive(f: FilterState)  { return f.maxRent !== ""; }
-function zipIsActive(f: FilterState)      { return f.zipCodes.length > 0; }
+function statusIsActive(f: FilterState)    { return f.statuses.length > 0 && f.statuses.length < ALL_STATUSES.length; }
+function unitTypeIsActive(f: FilterState)  { return f.unitTypes.length > 0; }
+function brokerFeeIsActive(f: FilterState) { return f.brokerFee !== "both"; }
+function preferredIsActive(f: FilterState) { return f.preferred !== "both"; }
+function maxRentIsActive(f: FilterState)   { return f.maxRent !== ""; }
+function zipIsActive(f: FilterState)       { return f.zipCodes.length > 0; }
+
+// ── Main component ────────────────────────────────────────────────
 
 type Props = {
   topOffset: number;
@@ -67,10 +101,14 @@ type Props = {
   onClose: () => void;
 };
 
-export function FilterPanel({ topOffset, listings, appliedFilters, onApply, onClear, onClose }: Props) {
-  const screenW = Dimensions.get("window").width;
-  const panelW  = Math.floor(screenW / 2);
-
+export function FilterPanel({
+  topOffset,
+  listings,
+  appliedFilters,
+  onApply,
+  onClear,
+  onClose,
+}: Props) {
   const [draft, setDraft] = useState<FilterState>({ ...appliedFilters });
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
@@ -78,7 +116,7 @@ export function FilterPanel({ topOffset, listings, appliedFilters, onApply, onCl
     setOpenDropdown((prev) => (prev === key ? null : key));
   }
 
-  const opacity   = useRef(new Animated.Value(0)).current;
+  const opacity    = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(-14)).current;
 
   useEffect(() => {
@@ -98,139 +136,393 @@ export function FilterPanel({ topOffset, listings, appliedFilters, onApply, onCl
   }, [listings]);
 
   function toggleStatus(s: ListingStatus) {
-    setDraft((d) => ({ ...d, statuses: d.statuses.includes(s) ? d.statuses.filter((x) => x !== s) : [...d.statuses, s] }));
+    setDraft((d) => ({
+      ...d,
+      statuses: d.statuses.includes(s)
+        ? d.statuses.filter((x) => x !== s)
+        : [...d.statuses, s],
+    }));
   }
   function toggleUnitType(t: string) {
-    setDraft((d) => ({ ...d, unitTypes: d.unitTypes.includes(t) ? d.unitTypes.filter((x) => x !== t) : [...d.unitTypes, t] }));
+    setDraft((d) => ({
+      ...d,
+      unitTypes: d.unitTypes.includes(t)
+        ? d.unitTypes.filter((x) => x !== t)
+        : [...d.unitTypes, t],
+    }));
   }
   function toggleZip(z: string) {
-    setDraft((d) => ({ ...d, zipCodes: d.zipCodes.includes(z) ? d.zipCodes.filter((x) => x !== z) : [...d.zipCodes, z] }));
+    setDraft((d) => ({
+      ...d,
+      zipCodes: d.zipCodes.includes(z)
+        ? d.zipCodes.filter((x) => x !== z)
+        : [...d.zipCodes, z],
+    }));
   }
 
-  function statusLabel()   { if (!d_statusIsActive()) return "All"; if (draft.statuses.length === 1) return draft.statuses[0]; return `${draft.statuses.length} selected`; }
-  function unitTypeLabel() { if (draft.unitTypes.length === 0) return "All"; if (draft.unitTypes.length === 1) return draft.unitTypes[0]; return `${draft.unitTypes.length} selected`; }
-  function zipLabel()      { if (draft.zipCodes.length === 0) return "All"; if (draft.zipCodes.length === 1) return draft.zipCodes[0]; return `${draft.zipCodes.length} selected`; }
+  function statusLabel() {
+    if (!statusIsActive(draft)) return "All";
+    if (draft.statuses.length === 1) return draft.statuses[0];
+    return `${draft.statuses.length} selected`;
+  }
+  function unitTypeLabel() {
+    if (draft.unitTypes.length === 0) return "All";
+    if (draft.unitTypes.length === 1) return draft.unitTypes[0];
+    return `${draft.unitTypes.length} selected`;
+  }
+  function zipLabel() {
+    if (draft.zipCodes.length === 0) return "All";
+    if (draft.zipCodes.length === 1) return draft.zipCodes[0];
+    return `${draft.zipCodes.length} selected`;
+  }
 
-  function d_statusIsActive()   { return statusIsActive(draft); }
-
-  const brokerLabel = draft.brokerFee === "both" ? "Both" : draft.brokerFee === "without" ? "No Fee" : "With Fee";
-  const prefLabel   = draft.preferred === "both" ? "Both" : "Yes";
+  const brokerLabel =
+    draft.brokerFee === "both"
+      ? "Both"
+      : draft.brokerFee === "without"
+      ? "No Fee"
+      : "With Fee";
+  const prefLabel = draft.preferred === "both" ? "Both" : "Yes";
 
   return (
-    <>
-      <Pressable onPress={onClose} style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 90 }} />
+    <Animated.View
+      style={{
+        position: "absolute",
+        top: topOffset,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 100,
+        opacity,
+        transform: [{ translateY }],
+        backgroundColor: colors.card,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        elevation: 10,
+      }}
+    >
+      {/* ── Header bar — matches Edit Listing subtitle bar ──────── */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+          backgroundColor: colors.card,
+        }}
+      >
+        <Pressable
+          onPress={onClose}
+          style={{ position: "absolute", left: 16, zIndex: 1, padding: 4 }}
+        >
+          <Ionicons name="chevron-back" size={22} color={colors.primaryBlue} />
+        </Pressable>
+        <Text
+          style={{
+            flex: 1,
+            textAlign: "center",
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: "700",
+          }}
+        >
+          Sort &amp; Filter Listings
+        </Text>
+      </View>
 
-      <Animated.View style={{
-        position: "absolute", top: topOffset, right: 0, width: panelW,
-        zIndex: 100, opacity, transform: [{ translateY }],
-        backgroundColor: colors.card, borderLeftWidth: 1, borderBottomWidth: 1,
-        borderColor: colors.border, borderBottomLeftRadius: 14,
-        shadowColor: "#000", shadowOffset: { width: -3, height: 6 },
-        shadowOpacity: 0.35, shadowRadius: 10, elevation: 10, maxHeight: "85%",
-      }}>
-        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 14, gap: 10 }}>
+      {/* ── Scrollable content ───────────────────────────────────── */}
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 16, gap: 12 }}
+      >
+        {/* ── FILTER section label ─────────────────────────────── */}
+        <Text style={[headingLabel, { marginBottom: 2 }]}>FILTER</Text>
 
-          {/* STATUS */}
-          <FilterRow label="STATUS">
-            <DropdownButton label={statusLabel()} open={openDropdown === "status"} active={statusIsActive(draft)} onPress={() => toggleDropdown("status")} />
-            {openDropdown === "status" && (
-              <DropdownList>
-                <MultiSelectItem label="Select All" selected={draft.statuses.length === ALL_STATUSES.length} onPress={() => setDraft((d) => ({ ...d, statuses: [...ALL_STATUSES] }))} isBold />
-                <MultiSelectItem label="Clear All" selected={false} onPress={() => setDraft((d) => ({ ...d, statuses: [] }))} isBold />
-                <ListDivider />
-                {ALL_STATUSES.map((s) => <MultiSelectItem key={s} label={s} selected={draft.statuses.includes(s)} onPress={() => toggleStatus(s)} />)}
-              </DropdownList>
-            )}
-          </FilterRow>
-
-          {/* UNIT TYPE */}
-          <FilterRow label="UNIT TYPE">
-            <DropdownButton label={unitTypeLabel()} open={openDropdown === "unitType"} active={unitTypeIsActive(draft)} onPress={() => toggleDropdown("unitType")} />
-            {openDropdown === "unitType" && (
-              <DropdownList>
-                {UNIT_TYPES.map((t) => <MultiSelectItem key={t} label={t} selected={draft.unitTypes.includes(t)} onPress={() => toggleUnitType(t)} />)}
-              </DropdownList>
-            )}
-          </FilterRow>
-
-          {/* BROKER FEE */}
-          <FilterRow label="BROKER FEE">
-            <DropdownButton label={brokerLabel} open={openDropdown === "brokerFee"} active={brokerFeeIsActive(draft)} onPress={() => toggleDropdown("brokerFee")} />
-            {openDropdown === "brokerFee" && (
-              <DropdownList>
-                {([{ label: "Both", value: "both" }, { label: "No Fee", value: "without" }, { label: "With Fee", value: "with" }] as { label: string; value: FilterState["brokerFee"] }[]).map((o) => (
-                  <SingleSelectItem key={o.value} label={o.label} selected={draft.brokerFee === o.value} onPress={() => { setDraft((d) => ({ ...d, brokerFee: o.value })); setOpenDropdown(null); }} />
-                ))}
-              </DropdownList>
-            )}
-          </FilterRow>
-
-          {/* PREFERRED */}
-          <FilterRow label="PREFERRED">
-            <DropdownButton label={prefLabel} open={openDropdown === "preferred"} active={preferredIsActive(draft)} onPress={() => toggleDropdown("preferred")} />
-            {openDropdown === "preferred" && (
-              <DropdownList>
-                {([{ label: "Both", value: "both" }, { label: "Yes", value: "yes" }] as { label: string; value: FilterState["preferred"] }[]).map((o) => (
-                  <SingleSelectItem key={o.value} label={o.label} selected={draft.preferred === o.value} onPress={() => { setDraft((d) => ({ ...d, preferred: o.value })); setOpenDropdown(null); }} />
-                ))}
-              </DropdownList>
-            )}
-          </FilterRow>
-
-          {/* MAX RENT */}
-          <FilterRow label="MAX RENT">
-            <TextInput
-              value={draft.maxRent}
-              onChangeText={(t) => setDraft((d) => ({ ...d, maxRent: t.replace(/[^0-9]/g, "") }))}
-              onFocus={() => setOpenDropdown(null)}
-              keyboardType="number-pad"
-              placeholder="No limit"
-              placeholderTextColor={colors.textSecondary}
-              style={{
-                backgroundColor: maxRentIsActive(draft) ? `${colors.primaryBlue}15` : colors.cardHover,
-                borderWidth: 1,
-                borderColor: maxRentIsActive(draft) ? colors.primaryBlue : colors.border,
-                borderRadius: 8,
-                paddingHorizontal: 10,
-                paddingVertical: 8,
-                color: maxRentIsActive(draft) ? colors.primaryBlue : colors.textPrimary,
-                fontSize: 12,
-                fontWeight: maxRentIsActive(draft) ? "700" : "400",
-              }}
-            />
-          </FilterRow>
-
-          {/* ZIP CODE */}
-          {uniqueZips.length > 0 && (
-            <FilterRow label="ZIP CODE">
-              <DropdownButton label={zipLabel()} open={openDropdown === "zip"} active={zipIsActive(draft)} onPress={() => toggleDropdown("zip")} />
-              {openDropdown === "zip" && (
-                <DropdownList>
-                  {uniqueZips.map((z) => <MultiSelectItem key={z} label={z} selected={draft.zipCodes.includes(z)} onPress={() => toggleZip(z)} />)}
-                </DropdownList>
-              )}
-            </FilterRow>
+        {/* STATUS */}
+        <FilterRow label="STATUS">
+          <DropdownButton
+            label={statusLabel()}
+            open={openDropdown === "status"}
+            active={statusIsActive(draft)}
+            onPress={() => toggleDropdown("status")}
+          />
+          {openDropdown === "status" && (
+            <DropdownList>
+              <MultiSelectItem
+                label="Select All"
+                selected={draft.statuses.length === ALL_STATUSES.length}
+                onPress={() => setDraft((d) => ({ ...d, statuses: [...ALL_STATUSES] }))}
+                isBold
+              />
+              <MultiSelectItem
+                label="Clear All"
+                selected={false}
+                onPress={() => setDraft((d) => ({ ...d, statuses: [] }))}
+                isBold
+              />
+              <ListDivider />
+              {ALL_STATUSES.map((s) => (
+                <MultiSelectItem
+                  key={s}
+                  label={s}
+                  selected={draft.statuses.includes(s)}
+                  onPress={() => toggleStatus(s)}
+                />
+              ))}
+            </DropdownList>
           )}
+        </FilterRow>
 
-          {/* BUTTONS */}
-          <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
-            <Pressable onPress={() => { onClear(); onClose(); }} style={({ pressed }) => ({ flex: 1, paddingVertical: 11, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: "center", backgroundColor: colors.cardHover, opacity: pressed ? 0.7 : 1 })}>
-              <Text style={{ color: colors.textPrimary, fontWeight: "700", fontSize: 13 }}>Clear</Text>
-            </Pressable>
-            <Pressable onPress={() => { onApply(draft); onClose(); }} style={({ pressed }) => ({ flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: "center", backgroundColor: colors.primaryBlue, opacity: pressed ? 0.75 : 1 })}>
-              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>Apply</Text>
-            </Pressable>
+        {/* UNIT TYPE */}
+        <FilterRow label="UNIT TYPE">
+          <DropdownButton
+            label={unitTypeLabel()}
+            open={openDropdown === "unitType"}
+            active={unitTypeIsActive(draft)}
+            onPress={() => toggleDropdown("unitType")}
+          />
+          {openDropdown === "unitType" && (
+            <DropdownList>
+              {UNIT_TYPES.map((t) => (
+                <MultiSelectItem
+                  key={t}
+                  label={t}
+                  selected={draft.unitTypes.includes(t)}
+                  onPress={() => toggleUnitType(t)}
+                />
+              ))}
+            </DropdownList>
+          )}
+        </FilterRow>
+
+        {/* BROKER FEE */}
+        <FilterRow label="BROKER FEE">
+          <DropdownButton
+            label={brokerLabel}
+            open={openDropdown === "brokerFee"}
+            active={brokerFeeIsActive(draft)}
+            onPress={() => toggleDropdown("brokerFee")}
+          />
+          {openDropdown === "brokerFee" && (
+            <DropdownList>
+              {(
+                [
+                  { label: "Both",     value: "both"    },
+                  { label: "No Fee",   value: "without" },
+                  { label: "With Fee", value: "with"    },
+                ] as { label: string; value: FilterState["brokerFee"] }[]
+              ).map((o) => (
+                <SingleSelectItem
+                  key={o.value}
+                  label={o.label}
+                  selected={draft.brokerFee === o.value}
+                  onPress={() => {
+                    setDraft((d) => ({ ...d, brokerFee: o.value }));
+                    setOpenDropdown(null);
+                  }}
+                />
+              ))}
+            </DropdownList>
+          )}
+        </FilterRow>
+
+        {/* PREFERRED */}
+        <FilterRow label="PREFERRED">
+          <DropdownButton
+            label={prefLabel}
+            open={openDropdown === "preferred"}
+            active={preferredIsActive(draft)}
+            onPress={() => toggleDropdown("preferred")}
+          />
+          {openDropdown === "preferred" && (
+            <DropdownList>
+              {(
+                [
+                  { label: "Both", value: "both" },
+                  { label: "Yes",  value: "yes"  },
+                ] as { label: string; value: FilterState["preferred"] }[]
+              ).map((o) => (
+                <SingleSelectItem
+                  key={o.value}
+                  label={o.label}
+                  selected={draft.preferred === o.value}
+                  onPress={() => {
+                    setDraft((d) => ({ ...d, preferred: o.value }));
+                    setOpenDropdown(null);
+                  }}
+                />
+              ))}
+            </DropdownList>
+          )}
+        </FilterRow>
+
+        {/* MAX RENT */}
+        <FilterRow label="MAX RENT">
+          <TextInput
+            value={draft.maxRent}
+            onChangeText={(t) =>
+              setDraft((d) => ({ ...d, maxRent: t.replace(/[^0-9]/g, "") }))
+            }
+            onFocus={() => setOpenDropdown(null)}
+            keyboardType="number-pad"
+            placeholder="No limit"
+            placeholderTextColor={colors.textSecondary}
+            style={{
+              backgroundColor: maxRentIsActive(draft)
+                ? `${colors.primaryBlue}15`
+                : colors.cardHover,
+              borderWidth: 1,
+              borderColor: maxRentIsActive(draft)
+                ? colors.primaryBlue
+                : colors.border,
+              borderRadius: 8,
+              paddingHorizontal: 10,
+              paddingVertical: 8,
+              color: maxRentIsActive(draft)
+                ? colors.primaryBlue
+                : colors.textPrimary,
+              fontSize: 12,
+              fontWeight: maxRentIsActive(draft) ? "700" : "400",
+            }}
+          />
+        </FilterRow>
+
+        {/* ZIP CODE */}
+        {uniqueZips.length > 0 && (
+          <FilterRow label="ZIP CODE">
+            <DropdownButton
+              label={zipLabel()}
+              open={openDropdown === "zip"}
+              active={zipIsActive(draft)}
+              onPress={() => toggleDropdown("zip")}
+            />
+            {openDropdown === "zip" && (
+              <DropdownList>
+                {uniqueZips.map((z) => (
+                  <MultiSelectItem
+                    key={z}
+                    label={z}
+                    selected={draft.zipCodes.includes(z)}
+                    onPress={() => toggleZip(z)}
+                  />
+                ))}
+              </DropdownList>
+            )}
+          </FilterRow>
+        )}
+
+        {/* ── Divider between FILTER and SORT ─────────────────── */}
+        <View
+          style={{
+            height: 1,
+            backgroundColor: colors.border,
+            marginTop: 4,
+            marginBottom: 2,
+          }}
+        />
+
+        {/* ── SORT section label ───────────────────────────────── */}
+        <Text style={[headingLabel, { marginBottom: 2 }]}>SORT</Text>
+
+        {/* SORT BY — chip row */}
+        <FilterRow label="SORT BY">
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {SORT_KEYS.map((key) => (
+              <SortKeyChip
+                key={key}
+                label={key}
+                selected={draft.sortKey === key}
+                onPress={() =>
+                  setDraft((d) => ({
+                    ...d,
+                    sortKey: d.sortKey === key ? "" : key,
+                  }))
+                }
+              />
+            ))}
           </View>
+        </FilterRow>
 
-        </ScrollView>
-      </Animated.View>
-    </>
+        {/* ORDER — Ascending / Descending toggle */}
+        <FilterRow label="ORDER">
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <SortOrderButton
+              label="Ascending"
+              selected={draft.sortOrder === "asc"}
+              onPress={() => setDraft((d) => ({ ...d, sortOrder: "asc" }))}
+            />
+            <SortOrderButton
+              label="Descending"
+              selected={draft.sortOrder === "desc"}
+              onPress={() => setDraft((d) => ({ ...d, sortOrder: "desc" }))}
+            />
+          </View>
+        </FilterRow>
+
+      </ScrollView>
+
+      {/* ── Fixed bottom bar — Clear + Apply ────────────────────── */}
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 8,
+          padding: 14,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          backgroundColor: colors.card,
+        }}
+      >
+        <Pressable
+          onPress={() => { onClear(); onClose(); }}
+          style={({ pressed }) => ({
+            flex: 1,
+            paddingVertical: 11,
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: colors.border,
+            alignItems: "center",
+            backgroundColor: colors.cardHover,
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <Text style={{ color: colors.textPrimary, fontWeight: "700", fontSize: 13 }}>
+            Clear
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => { onApply(draft); onClose(); }}
+          style={({ pressed }) => ({
+            flex: 1,
+            paddingVertical: 11,
+            borderRadius: 10,
+            alignItems: "center",
+            backgroundColor: colors.primaryBlue,
+            opacity: pressed ? 0.75 : 1,
+          })}
+        >
+          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>Apply</Text>
+        </Pressable>
+      </View>
+    </Animated.View>
   );
 }
 
-// ── Sub-components ────────────────────────────────────────────────
+// ── Sub-components — all defined outside export function ──────────
 
-function FilterRow({ label, children }: { label: string; children: React.ReactNode }) {
+function FilterRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <View style={{ gap: 5 }}>
       <Text style={[headingLabel, { fontSize: 10 }]}>{label}</Text>
@@ -239,36 +531,68 @@ function FilterRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-// active = filter differs from default → blue even when closed
-// open   = dropdown is expanded → also blue
-// open || active → highlighted
-
-function DropdownButton({ label, open, active, onPress }: { label: string; open: boolean; active: boolean; onPress: () => void }) {
+function DropdownButton({
+  label,
+  open,
+  active,
+  onPress,
+}: {
+  label: string;
+  open: boolean;
+  active: boolean;
+  onPress: () => void;
+}) {
   const highlighted = open || active;
   const rot = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(rot, { toValue: open ? 1 : 0, duration: 140, useNativeDriver: true }).start();
+    Animated.timing(rot, {
+      toValue: open ? 1 : 0,
+      duration: 140,
+      useNativeDriver: true,
+    }).start();
   }, [open]);
 
-  const rotate = rot.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "180deg"] });
+  const rotate = rot.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
 
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-        paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, borderWidth: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        borderRadius: 8,
+        borderWidth: 1,
         borderColor: highlighted ? colors.primaryBlue : colors.border,
-        backgroundColor: highlighted ? `${colors.primaryBlue}15` : colors.cardHover,
+        backgroundColor: highlighted
+          ? `${colors.primaryBlue}15`
+          : colors.cardHover,
         opacity: pressed ? 0.8 : 1,
       })}
     >
-      <Text style={{ color: highlighted ? colors.primaryBlue : colors.textPrimary, fontSize: 12, fontWeight: highlighted ? "700" : "400", flex: 1 }} numberOfLines={1}>
+      <Text
+        style={{
+          color: highlighted ? colors.primaryBlue : colors.textPrimary,
+          fontSize: 12,
+          fontWeight: highlighted ? "700" : "400",
+          flex: 1,
+        }}
+        numberOfLines={1}
+      >
         {label}
       </Text>
       <Animated.View style={{ transform: [{ rotate }] }}>
-        <Ionicons name="chevron-down" size={14} color={highlighted ? colors.primaryBlue : colors.textSecondary} />
+        <Ionicons
+          name="chevron-down"
+          size={14}
+          color={highlighted ? colors.primaryBlue : colors.textSecondary}
+        />
       </Animated.View>
     </Pressable>
   );
@@ -276,30 +600,181 @@ function DropdownButton({ label, open, active, onPress }: { label: string; open:
 
 function DropdownList({ children }: { children: React.ReactNode }) {
   return (
-    <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.background, overflow: "hidden" }}>
+    <View
+      style={{
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 8,
+        backgroundColor: colors.background,
+        overflow: "hidden",
+      }}
+    >
       {children}
     </View>
   );
 }
 
-function MultiSelectItem({ label, selected, onPress, isBold }: { label: string; selected: boolean; onPress: () => void; isBold?: boolean }) {
+function MultiSelectItem({
+  label,
+  selected,
+  onPress,
+  isBold,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  isBold?: boolean;
+}) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 10, paddingVertical: 9, backgroundColor: pressed ? colors.cardHover : "transparent" })}>
-      <Text style={{ color: selected ? colors.primaryBlue : colors.textPrimary, fontSize: 12, fontWeight: isBold || selected ? "700" : "400", flex: 1 }}>{label}</Text>
-      {selected && <Ionicons name="checkmark" size={14} color={colors.primaryBlue} />}
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 10,
+        paddingVertical: 9,
+        backgroundColor: pressed ? colors.cardHover : "transparent",
+      })}
+    >
+      <Text
+        style={{
+          color: selected ? colors.primaryBlue : colors.textPrimary,
+          fontSize: 12,
+          fontWeight: isBold || selected ? "700" : "400",
+          flex: 1,
+        }}
+      >
+        {label}
+      </Text>
+      {selected && (
+        <Ionicons name="checkmark" size={14} color={colors.primaryBlue} />
+      )}
     </Pressable>
   );
 }
 
-function SingleSelectItem({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+function SingleSelectItem({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 10, paddingVertical: 9, backgroundColor: pressed ? colors.cardHover : "transparent" })}>
-      <Text style={{ color: selected ? colors.primaryBlue : colors.textPrimary, fontSize: 12, fontWeight: selected ? "700" : "400", flex: 1 }}>{label}</Text>
-      {selected && <Ionicons name="checkmark" size={14} color={colors.primaryBlue} />}
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: 10,
+        paddingVertical: 9,
+        backgroundColor: pressed ? colors.cardHover : "transparent",
+      })}
+    >
+      <Text
+        style={{
+          color: selected ? colors.primaryBlue : colors.textPrimary,
+          fontSize: 12,
+          fontWeight: selected ? "700" : "400",
+          flex: 1,
+        }}
+      >
+        {label}
+      </Text>
+      {selected && (
+        <Ionicons name="checkmark" size={14} color={colors.primaryBlue} />
+      )}
+    </Pressable>
+  );
+}
+
+function SortKeyChip({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: selected ? colors.primaryBlue : colors.border,
+        backgroundColor: selected
+          ? `${colors.primaryBlue}20`
+          : colors.cardHover,
+        opacity: pressed ? 0.75 : 1,
+      })}
+    >
+      <Text
+        style={{
+          color: selected ? colors.primaryBlue : colors.textSecondary,
+          fontSize: 12,
+          fontWeight: selected ? "700" : "400",
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function SortOrderButton({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flex: 1,
+        paddingVertical: 9,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: selected ? colors.primaryBlue : colors.border,
+        backgroundColor: selected
+          ? `${colors.primaryBlue}20`
+          : colors.cardHover,
+        alignItems: "center",
+        opacity: pressed ? 0.75 : 1,
+      })}
+    >
+      <Text
+        style={{
+          color: selected ? colors.primaryBlue : colors.textSecondary,
+          fontSize: 12,
+          fontWeight: selected ? "700" : "400",
+        }}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 function ListDivider() {
-  return <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: 8 }} />;
+  return (
+    <View
+      style={{
+        height: 1,
+        backgroundColor: colors.border,
+        marginHorizontal: 8,
+      }}
+    />
+  );
 }
