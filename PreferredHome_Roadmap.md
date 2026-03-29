@@ -1,5 +1,5 @@
 # PreferredHome — Product Roadmap
-**Version V9 | March 2026**
+**Version V10 | March 2026**
 
 ---
 
@@ -25,6 +25,10 @@
 | 3.2.11 / .1–.2 | All new data fields: propertyType, numberOfFloors, heatingType, shortTermAvailable, rentersInsuranceRequired, petFee, storageRent, brokerFee, moveInFee, roomTypes, privateOutdoorSpaceTypes, storageTypes. Field renames: unitType → propertyType, acType → coolingType. |
 | 3.2.12 / .1–.4.1 | Property Type visibility rules on Add, Edit, ViewPanel, Compare. All new 3.2.11 fields displayed. |
 | 3.2.13 / .1–.2 | Auto-calculations: Total Monthly + Total Upfront. All screens calculate locally from raw fee fields. API stores calculated totals on save. |
+| 3.2.14 | ZIP to City/State auto-fill + Listing Site auto-detect from URL pattern match. |
+| 3.2.15 | Commute Calculation — calculated by API using Profile work address vs each listing address. Stored per listing. |
+| 3.2.16 | Add/Edit Unification — single shared form component. Efficiency cleanup. |
+| 3.2.17 | Neighborhood section — Transportation renamed to Neighborhood. Neighborhood name moved from Property section. Near By moved from Features section. New fields added: safetyScore, noiseScore. All fields manually enterable. All screens and data model updated. |
 
 ---
 
@@ -32,17 +36,13 @@
 
 | Build | Scope |
 |---|---|
-| 3.2.14 | ZIP to City/State auto-fill + Listing Site auto-detect from URL pattern match. |
-| 3.2.15 | Commute Calculation — calculated by API using Profile work address vs each listing address. Stored per listing. |
-| 3.2.16 | Add/Edit Unification — single shared form component. Efficiency cleanup. |
-| 3.2.17 | Neighborhood section — Transportation renamed to Neighborhood. Neighborhood name moved from Property section. Near By moved from Features section. New fields added: safetyScore, noiseScore. All fields manually enterable. All screens and data model updated. |
-| 3.2.18 | Canonical Data Model — buildingName → propertyName full rename across code, sheet, and UI. One master field list across all screens and the API. totalMonthly / totalUpfront stored fields reviewed for removal. |
+| 3.2.18 | Sort — sort functionality added to Filter panel. Sort by Base Rent, Total Monthly, Status, Date Added. |
 | 3.2.19 | Card overhaul — tap-to-expand icon row on all cards. Only one card expanded at a time. Status pill letter spacing tightened. Rent + fees line aligned with status pill. Icons active from both Home and Listings screens. |
-| 3.2.20 | Sort — sort functionality added to Filter panel. Sort by Base Rent, Total Monthly, Status, Date Added. |
+| 3.2.20 | Canonical Data Model — buildingName → propertyName full rename across code, sheet, and UI. One master field list across all screens and the API. totalMonthly / totalUpfront stored fields reviewed for removal. |
 | 3.2.21 | UI Polish — spacing, typography, visual consistency. All panels except hamburger menu converted to full page. |
 | 3.2.22 | APK build for Android local testing before App Store submission. |
 
-**Free tier:** 5 listing cap. Local SQLite storage. No account required. Works fully offline. All fields manually enterable including scores and schools. Commute and neighborhood name auto-filled at no cost.
+**Free tier:** 5 listing cap. Local SQLite storage. No account required. Works fully offline. All fields manually enterable including scores and schools. Commute auto-filled at no cost. Neighborhood name auto-fill coming in V5.
 
 ---
 
@@ -71,6 +71,7 @@ No cost to user. No API costs. No account required. Local SQLite.
 | Map View | Map display of listing locations on Listings screen. |
 | Themes | Light, dark, and custom color themes. |
 | Manual Sort | User-defined drag-to-reorder on Listings screen. |
+| Neighborhood Name auto-populate | Auto-filled from listing address via Google geocoding. |
 
 ---
 
@@ -87,7 +88,6 @@ All score and school fields are visible to free users for manual entry. Auto-pop
 | Walk / Transit / Bike Score auto-populate | Auto-filled from listing address via Walk Score API. |
 | Safety Score auto-populate | Auto-filled from listing address via AreaVibes / SpotCrime API. |
 | Noise Score auto-populate | Auto-filled from listing address via HowLoud API. |
-| Neighborhood Name auto-populate | Auto-filled from listing address via Google geocoding. |
 | School Data auto-populate | Auto-filled from listing address via GreatSchools API. |
 | Notifications / Reminders | Tour reminders, follow-up prompts, lease deadline alerts. |
 | Import / Export | Backup and restore listing data. Export to CSV or PDF. |
@@ -125,6 +125,6 @@ Cloud PostgreSQL. Account required. Subscription funds ongoing infrastructure co
 
 | Type | Format | Example |
 |---|---|---|
-| Standard build | `Build X.X.YY - description` | `Build 3.2.14 - ZIP to City/State auto-fill, listing site auto-detect` |
+| Standard build | `Build X.X.YY - description` | `Build 3.2.17 - Neighborhood section — Transportation renamed, safetyScore and noiseScore added` |
 | Hotfix | `Build X.X.YY.N Hotfix - description` | `Build 3.2.13.2 Hotfix - Compare Total Rent now always calculated locally` |
-| Closeout | `Build X.X.YY Closeout - description` | `Build 3.2.13 Closeout - closing docs updated` |
+| Closeout | `Build X.X.YY Closeout - description` | `Build 3.2.17 Closeout - closing docs updated` |
