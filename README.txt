@@ -1,79 +1,84 @@
-PreferredHome — Build 3.2.15.1 Hotfix
-======================================
-Commute calculation fix — restore separate calculate endpoint.
+PreferredHome — Build 3.2.16
+============================
+Add/Edit Unification — single shared form component.
+Mobile repo only. No API changes. No Render deploy required.
 Generated: March 2026
 
-ROOT CAUSE
-----------
-Build 3.2.15 injected commute calculation inline inside the POST/PUT handlers.
-If the Google Maps call returned None for any reason, the listing saved with 200 OK
-and no trace appeared in the logs. The previous working approach used a separate
-endpoint called after save, which is more reliable and debuggable.
+CHANGED FILES (in folder order)
+---------------------------------
+app/(tabs)/add.tsx               — refactored to use shared ListingForm
+app/edit.tsx                     — refactored to use shared ListingForm
+components/ListingForm.tsx       — new shared form component (new file)
 
-CHANGED FILES
--------------
+WHAT CHANGED IN THIS BUILD
+----------------------------
+A single shared form component (ListingForm.tsx) now contains all form
+logic previously duplicated across add.tsx and edit.tsx. Both screens
+are refactored to use it. No user-visible changes. No field changes.
+No section changes. No UI changes.
 
-API repo (PreferredHome-api):
-  main.py   — POST/PUT handlers reverted to 3.2.14.1 (no inline commute).
-              Restored: POST /commute/calculate/{listing_id} as standalone endpoint.
-              Kept: POST /commute/recalculate-all unchanged.
-              Version: 3.2.15.1
+1. components/ListingForm.tsx (NEW FILE)
+   - Contains: Draft type, BLANK_DRAFT, all option arrays (copied exactly
+     from source), all utility functions (boolStr, boolVal, str, numStr,
+     multiVal, clampRating, rawToDraft, buildPayload, buildViewingAppointment).
+   - Contains: all sub-components (Section, Field, Toggle, SelectRow,
+     MultiRow, DateRow) — all defined OUTSIDE the export function.
+   - Contains: the complete 8-section form JSX (Property, Costs, Features,
+     Transportation, Schools, Listing, Timeline, Notes).
+   - Contains: picker Modal and date picker Modal.
+   - Contains: zip lookup useEffect (fires when zip reaches 5 digits,
+     auto-fills City and State — both remain manually editable).
+   - Contains: detectListingSite useEffect.
+   - Props: initialDraft, toggles, saving, onSave(payload, draft), insets.
+   - Exports: ListingForm (default), BLANK_DRAFT, Draft type, rawToDraft,
+     buildPayload, boolStr.
 
-Mobile repo (PreferredHome-mobile):
-  lib/api.ts      — added calculateCommute(listingId, params)
-  app/(tabs)/add.tsx — removed 3 commute fields from payload;
-                       fires calculateCommute after postListing succeeds (fire-and-forget)
-  app/edit.tsx    — same as add.tsx
+2. app/(tabs)/add.tsx (CHANGED)
+   - Imports ListingForm, BLANK_DRAFT from components/ListingForm.
+   - Retains: useFocusEffect to load profile/toggles on screen focus.
+   - Retains: postListing API call, calculateCommute fire-and-forget.
+   - Retains: post-save navigation to listings screen.
+   - Uses formKey to remount ListingForm with blank draft after each save.
+   - Menu panel pattern matches all other tab screens (onSelectPanel +
+     separate sub-panel rendering).
 
-NOT CHANGED
------------
-  components/ProfilePanel.tsx — unchanged from 3.2.15 delivery
-  requirements.txt            — unchanged from 3.2.15 delivery
-  preferredhome_api/utils/helpers.py — unchanged from 3.2.15 delivery
-
-DEPLOY STEPS — API
-------------------
-1. Copy main.py into PreferredHome-api repo (overwrite existing)
-2. Commit in GitHub Desktop:
-     Build 3.2.15.1 Hotfix - restore separate commute calculate endpoint
-3. Push to MAIN
-4. Render: "Deploy latest commit"
-5. Verify: https://preferredhome-api.onrender.com/health
-   Expected: { "ok": "PreferredHome API 3.2.15.1" }
-
-DEPLOY STEPS — MOBILE
-----------------------
-1. Copy these 3 files into PreferredHome-mobile repo (overwrite existing):
-     lib/api.ts
-     app/(tabs)/add.tsx
-     app/edit.tsx
-2. Commit in GitHub Desktop (same message as above)
-3. Push to MAIN
-4. Restart Expo (see command below)
-5. Test on physical device
-
-TEST CHECKLIST
---------------
-[ ] T1 — Add a new listing with a full street address. Save.
-         Open listing in ViewPanel — Commute Time shows a number (minutes).
-[ ] T2 — Edit an existing listing. Change the street address. Save.
-         Open listing — Commute Time updated.
-[ ] T3 — Open Profile. Change Work Address. Close panel.
-         Open any listing — Commute Time updated across all listings.
-[ ] T4 — Open Profile. Change Commute Method. Close panel.
-         Commute times updated.
-[ ] T5 — Open Profile. Change Departure Time. Close panel.
-         Commute times updated.
-[ ] T6 — Google Sheet: no duplicate rows after any operation.
+3. app/edit.tsx (CHANGED)
+   - Imports ListingForm, rawToDraft from components/ListingForm.
+   - Retains: listing fetch via getListings on mount.
+   - Retains: updateListing API call, calculateCommute fire-and-forget.
+   - Retains: post-save router.back() navigation.
+   - Shows ActivityIndicator spinner while listing loads.
+   - Once listing is loaded, renders ListingForm with rawToDraft(raw).
 
 COMMIT MESSAGE
 --------------
-Build 3.2.15.1 Hotfix - restore separate commute calculate endpoint
+Copy and paste exactly:
+
+Build 3.2.16 - Add/Edit Unification — single shared form component
 
 EXPO RESTART COMMAND
 --------------------
-cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel --clear
+Copy and paste exactly (run in order):
+
+cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile
+npx expo start --tunnel --clear
 
 RENDER HEALTH CHECK
 -------------------
+No API changes — no Render deploy required.
 https://preferredhome-api.onrender.com/health
+
+TEST CHECKLIST
+--------------
+[ ] Open app. Tap Add. Confirm form loads with all sections visible and all fields blank.
+[ ] Fill in Building Name and Street Address. Enter a 5-digit zip — confirm City and State auto-fill.
+[ ] Fill in Base Rent. Save. Confirm listing appears in Listings screen with correct data.
+[ ] Tap Edit on that listing. Confirm all saved fields pre-populate correctly.
+[ ] Change Base Rent on Edit. Save. Confirm Listings screen shows updated rent.
+[ ] On Add: toggle Children ON in Profile. Confirm Schools section appears. Toggle OFF — confirm it disappears.
+[ ] On Add: toggle Car ON. Confirm Parking Fee and Parking Type fields appear.
+[ ] On Edit: same toggle tests as above.
+[ ] Open a picker (e.g. Property Type). Select a value. Confirm it saves correctly on both Add and Edit.
+[ ] Open a date picker (e.g. Date Available). Set a date. Confirm it saves correctly.
+[ ] Add a listing with a street address while Work Address is set in Profile. Confirm commute time populates.
+[ ] No red screen on any screen throughout testing.
