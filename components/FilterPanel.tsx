@@ -1,18 +1,11 @@
-// components/FilterPanel.tsx — Build 3.2.18.4 Hotfix
-// Changed: Dropdown lists now render as an overlay Modal — they float above the
-//          panel content and do not push other rows down.
-// Changed: Each open dropdown list is scrollable internally (maxHeight 240,
-//          ScrollView inside Modal). Full-width list anchored below the tapped button.
-// Changed: All inline DropdownList renders removed from the ScrollView.
-//          A single renderDropdownContent() helper renders the correct items
-//          into the Modal based on which dropdown is open.
-// Added:   buttonRefs dict — measureInWindow on each button to position the overlay.
-// Added:   dropdownLayout state — stores {y, height} of the open button.
-// Added:   Modal import from react-native.
-// All types, constants, FilterState, DEFAULT_FILTERS, isFiltersActive,
-//   active-state helpers, sub-components, and layout from 3.2.18.3 unchanged.
-// ALL_STATUSES copied exactly — not rewritten from memory (DRIFT 13 compliant).
-// All sub-components defined outside export function (DRIFT 10 compliant).
+// components/FilterPanel.tsx — Build 3.2.18.5 Hotfix
+// Fixed:   Dropdown overlay now aligns to the control column — x and width
+//          captured from measureInWindow so list matches button width exactly.
+// Removed: Select All and Clear All from STATUS list — default empty = all,
+//          Clear button at bottom handles full reset.
+// Fixed:   Clear button now resets draft only — panel stays open.
+//          Only Apply closes the panel. Back arrow closes without applying.
+// All other logic unchanged from Build 3.2.18.4.
 
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -107,7 +100,7 @@ export function FilterPanel({
 }: Props) {
   const [draft, setDraft] = useState<FilterState>({ ...appliedFilters });
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const [dropdownLayout, setDropdownLayout] = useState<{ y: number; height: number } | null>(null);
+  const [dropdownLayout, setDropdownLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
   // One ref slot per dropdown key — used to measure button position for overlay
   const buttonRefs = useRef<Record<string, View | null>>({});
@@ -120,8 +113,8 @@ export function FilterPanel({
     }
     const ref = buttonRefs.current[key];
     if (ref) {
-      ref.measureInWindow((_x, y, _w, h) => {
-        setDropdownLayout({ y, height: h });
+      ref.measureInWindow((x, y, w, h) => {
+        setDropdownLayout({ x, y, width: w, height: h });
         setOpenDropdown(key);
       });
     } else {
@@ -183,19 +176,6 @@ export function FilterPanel({
       case "status":
         return (
           <>
-            <MultiSelectItem
-              label="Select All"
-              selected={draft.statuses.length === ALL_STATUSES.length}
-              onPress={() => setDraft((d) => ({ ...d, statuses: [...ALL_STATUSES] }))}
-              isBold
-            />
-            <MultiSelectItem
-              label="Clear All"
-              selected={false}
-              onPress={() => setDraft((d) => ({ ...d, statuses: [] }))}
-              isBold
-            />
-            <ListDivider />
             {ALL_STATUSES.map((s) => (
               <MultiSelectItem
                 key={s}
@@ -491,7 +471,10 @@ export function FilterPanel({
         }}
       >
         <Pressable
-          onPress={() => { onClear(); onClose(); }}
+          onPress={() => {
+            setDraft({ ...DEFAULT_FILTERS });
+            onClear();
+          }}
           style={({ pressed }) => ({
             flex: 1,
             paddingVertical: 11,
@@ -538,8 +521,8 @@ export function FilterPanel({
             style={{
               position: "absolute",
               top: dropdownLayout.y + dropdownLayout.height + 2,
-              left: 16,
-              right: 16,
+              left: dropdownLayout.x,
+              width: dropdownLayout.width,
               backgroundColor: colors.background,
               borderWidth: 1,
               borderColor: colors.border,

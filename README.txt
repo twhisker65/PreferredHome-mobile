@@ -1,35 +1,31 @@
-PreferredHome — Build 3.2.18.4 Hotfix
+PreferredHome — Build 3.2.18.5 Hotfix
 ======================================
-Dropdown lists now overlay content — do not push rows down. Scrollable.
+Dropdown width aligned to control column, Select All/Clear All removed,
+Clear button keeps panel open.
 Mobile repo only. No API changes. No Render deploy required.
 Generated: March 2026
 
 CHANGED FILES (in folder order)
 ---------------------------------
-components/FilterPanel.tsx    — overlay Modal dropdown with internal ScrollView
+components/FilterPanel.tsx    — dropdown width fix, STATUS cleanup, Clear behaviour fix
 
 WHAT CHANGED IN THIS HOTFIX
 -----------------------------
 
-Dropdown lists now float above the panel content instead of pushing rows down.
+1. Dropdown list width aligned to control column
+   measureInWindow now captures x and width in addition to y and height.
+   The overlay list is positioned at left: x, width: w — matching the
+   right-hand control column exactly, not full panel width.
 
-Mechanism:
-- Each DropdownButton is wrapped in a View with a ref.
-- When tapped, measureInWindow() records the button's exact screen position.
-- A transparent Modal renders over the entire screen.
-- The dropdown list is positioned absolutely at {top: buttonY + buttonHeight},
-  left: 16, right: 16 — anchored directly below the tapped button.
-- The list is wrapped in a ScrollView with maxHeight: 240 — always scrollable
-  regardless of how many items it contains.
-- Tapping anywhere outside the list (the full-screen backdrop Pressable)
-  closes the dropdown without applying any selection.
-- Single-select items (Broker Fee, Preferred, Sort By, Order) close the
-  dropdown automatically after selection.
-- Multi-select items (Status, Unit Type) keep the dropdown open so multiple
-  items can be selected — tap outside to close.
+2. Select All / Clear All removed from STATUS list
+   Default empty selection already means "all statuses shown".
+   The Clear button at the bottom handles full reset. These two items
+   were redundant and added visual noise.
 
-All types, constants, FilterState, DEFAULT_FILTERS, isFiltersActive,
-filter logic helpers, and sub-components unchanged from Build 3.2.18.3.
+3. Clear button keeps panel open
+   Clear now resets the draft state in place — panel stays open so the
+   user can see the reset state and make new selections before applying.
+   Only Apply closes the panel. Back arrow closes without applying.
 
 DEPLOY STEPS
 ------------
@@ -53,39 +49,29 @@ cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo sta
 
 COMMIT MESSAGE
 --------------
-Build 3.2.18.4 Hotfix - dropdown lists overlay content via Modal, scrollable with maxHeight
+Build 3.2.18.5 Hotfix - dropdown aligned to control column, Select All removed, Clear stays open
 
 TEST CHECKLIST
 --------------
 [ ] 1. Open Sort & Filter Listings panel.
-       All rows visible at once — no list open by default.
 
 [ ] 2. Tap STATUS dropdown.
-       List floats over the rows below it. UNIT TYPE, BROKER FEE etc.
-       remain visible and stationary beneath the overlay.
+       List width matches the dropdown button — not full panel width.
+       No "Select All" or "Clear All" items — just the 10 statuses.
+       Select a few. Tap outside to close.
 
-[ ] 3. STATUS list is scrollable — scroll through all 10 statuses.
-       Select multiple. Tap outside the list to close.
-       STATUS button shows correct label (e.g. "3 selected").
+[ ] 3. Tap UNIT TYPE. List width matches the button. Select one. Tap outside.
 
-[ ] 4. Tap UNIT TYPE — list floats over content below. Select one.
-       Tap outside to close.
+[ ] 4. Tap Clear.
+       Panel stays open. All dropdowns reset to default (All / Both / None).
+       No selections remain.
 
-[ ] 5. Tap BROKER FEE — list appears. Tap "No Fee" — list closes
-       automatically. BROKER FEE button shows "No Fee".
+[ ] 5. Make new selections. Tap Apply.
+       Panel closes. Filters applied to listings.
 
-[ ] 6. Tap PREFERRED — list appears. Tap "Yes" — closes automatically.
+[ ] 6. Tap filter icon. Panel reopens showing the applied selections.
 
-[ ] 7. Tap SORT BY — list appears and is scrollable. Tap a key —
-       closes automatically.
-
-[ ] 8. Tap ORDER — list appears. Tap "Descending" — closes automatically.
-
-[ ] 9. Tap Apply. Correct filter and sort applied to listings.
-
-[ ] 10. Tap Clear. All selections reset. Panel closes.
-
-[ ] 11. No rows shift or reflow when any dropdown opens or closes.
+[ ] 7. Tap back arrow. Panel closes. Listings unchanged.
 
 NO API DEPLOY REQUIRED
 -----------------------
