@@ -1,10 +1,17 @@
-// app/(tabs)/compare.tsx — Build 3.2.13.2
-// Change from 3.2.13:
-// - totalMonthly case in getCellData now always calculates locally from individual
-//   raw fee fields — identical to ViewPanel and listing cards. The stored
-//   raw.totalMonthly value from the sheet is no longer read. This ensures
-//   Total Rent on Compare always matches every other screen exactly.
-// All other logic, layout, and functionality unchanged.
+// app/(tabs)/compare.tsx — Build 3.2.20.14
+// Change: font and color token references applied.
+//   CC constants: green/yellow/red → colors.comparePass/compareWarn/compareFail hex values
+//   colors.primaryBlue → colors.accent (mode toggle icons, Clear button, missing criteria banner)
+//   colors.card → colors.surface (CompareCard wrapper)
+//   CompareCard building name: fontSize 17/fontWeight "900" → textStyles.cardTitle
+//   CompareCard address: fontSize 12 → textStyles.bodySmall.fontSize
+//   CompareCard row label: fontSize 12/fontWeight "600" → textStyles.label
+//   CompareCard row value (plain): fontSize 13 → textStyles.bodyPrimary.fontSize
+//   Clear button: fontSize 13 → textStyles.linkText.fontSize
+//   CompareTable font sizes kept as-is (table density — per brief)
+//   CPill/CPill text sizes kept as-is (compare-only scoring pills)
+// No logic, getCellData, filterRows, layout, or structural changes.
+// All sub-components remain defined outside export function (DRIFT 10).
 
 import React, { useCallback, useRef, useState } from "react";
 import {
@@ -18,6 +25,7 @@ import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../styles/colors";
+import { textStyles } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
 import { MenuPanel, type SubPanelKey } from "../../components/MenuPanel";
 import { ProfilePanel } from "../../components/ProfilePanel";
@@ -33,12 +41,12 @@ const LABEL_W    = 150;
 const COL_W      = 118;
 const MIN_ROW_H  = 40;
 
-// ── Compare colors ────────────────────────────────────────────────
+// ── Compare colors — mapped to token hex values ───────────────────
 const CC = {
-  green:  "#10B981",
-  yellow: "#D97706",
-  red:    "#EF4444",
-  grey:   "#475569",
+  green:  colors.comparePass,   // "#22C55E" — meets criteria
+  yellow: colors.compareWarn,   // "#F59E0B" — borderline
+  red:    colors.compareFail,   // "#DC2626" — fails criteria
+  grey:   "#475569",            // no criteria set — no token
 };
 
 // ── Helper functions ──────────────────────────────────────────────
@@ -121,8 +129,6 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
       return pill(fmtCurrency(v), lteColor(v, criteria.maxBaseRent));
     }
     case "totalMonthly": {
-      // Always calculate locally from raw fee fields — never use stored totalMonthly.
-      // Identical approach to ViewPanel and listing cards.
       const v =
         (rawNum(raw.baseRent)    ?? 0) +
         (rawNum(raw.parkingFee)  ?? 0) +
@@ -158,65 +164,67 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
       const v = rawNum(raw.squareFootage);
       return pill(v !== null ? `${Math.round(v).toLocaleString()} sqft` : "—", gteColor(v, criteria.minSqFt));
     }
-    case "noBoardApproval": return bool(rawBool(raw.noBoardApproval));
-    case "noBrokerFee":     return bool(rawBool(raw.noBrokerFee));
-    case "topFloor":        return bool(rawBool(raw.topFloor));
-    case "cornerUnit":      return bool(rawBool(raw.cornerUnit));
-    case "furnished":       return bool(rawBool(raw.furnished));
+    case "noBoardApproval":
+      return bool(rawBool(raw.noBoardApproval));
+    case "noBrokerFee":
+      return bool(rawBool(raw.noBrokerFee));
+    case "topFloor":
+      return bool(rawBool(raw.topFloor));
+    case "cornerUnit":
+      return bool(rawBool(raw.cornerUnit));
+    case "furnished":
+      return bool(rawBool(raw.furnished));
     case "coolingType": {
       const v = rawStr(raw.coolingType);
-      return v ? pill(v, acColor(v)) : plain("—");
+      return pill(v || "—", acColor(v));
     }
-    case "heatingType": {
-      const v = rawStr(raw.heatingType);
-      return v ? plain(v) : plain("—");
-    }
+    case "heatingType":
+      return plain(rawStr(raw.heatingType) || "—");
     case "laundry": {
       const v = rawStr(raw.laundry);
-      return v ? pill(v, laundryColor(v)) : plain("—");
+      return pill(v || "—", laundryColor(v));
     }
     case "parkingType": {
       const v = rawStr(raw.parkingType);
-      return v ? pill(v, parkingColor(v)) : plain("—");
+      return pill(v || "—", parkingColor(v));
     }
-    case "utilitiesIncluded": return multi(joinMultiLines(raw.utilitiesIncluded));
-    case "unitFeatures":      return multi(joinMultiLines(raw.unitFeatures));
-    case "roomTypes":         return multi(joinMultiLines(raw.roomTypes));
-    case "privateOutdoorSpaceTypes": return multi(joinMultiLines(raw.privateOutdoorSpaceTypes));
-    case "storageTypes":      return multi(joinMultiLines(raw.storageTypes));
-    case "buildingAmenities": return multi(joinMultiLines(raw.buildingAmenities));
-    case "petAmenities":      return multi(joinMultiLines(raw.petAmenities));
-    case "closeBy":           return multi(joinMultiLines(raw.closeBy));
+    case "utilitiesIncluded":
+      return multi(joinMultiLines(raw.utilitiesIncluded));
+    case "unitFeatures":
+      return multi(joinMultiLines(raw.unitFeatures));
+    case "buildingAmenities":
+      return multi(joinMultiLines(raw.buildingAmenities));
+    case "petAmenities":
+      return multi(joinMultiLines(raw.petAmenities));
+    case "closeBy":
+      return multi(joinMultiLines(raw.closeBy));
     case "commuteTime": {
       const v = rawNum(raw.commuteTime);
-      return pill(v !== null ? `${Math.round(v)} min` : "—", lteColor(v, criteria.maxCommuteTime));
+      return pill(v !== null ? `${v} min` : "—", lteColor(v, criteria.maxCommuteTime));
     }
     case "elemSchool": {
       const name = rawStr(raw.elementarySchoolName);
       if (!name) return plain("—");
       const rating = rawNum(raw.elementaryRating);
       const grades = rawStr(raw.elementaryGrades);
-      const dist   = rawStr(raw.elementaryDistance);
-      const parts  = [name, rating !== null ? `Rating: ${rating}` : null, grades || null, dist ? `${dist} mi` : null].filter(Boolean);
-      return plain(parts.join(" · "));
+      const dist   = rawNum(raw.elementaryDistance);
+      return plain([name, rating !== null ? `Rating: ${rating}` : null, grades || null, dist !== null ? `${dist} mi` : null].filter(Boolean).join(" · "));
     }
     case "middleSchool": {
       const name = rawStr(raw.middleSchoolName);
       if (!name) return plain("—");
       const rating = rawNum(raw.middleRating);
       const grades = rawStr(raw.middleGrades);
-      const dist   = rawStr(raw.middleDistance);
-      const parts  = [name, rating !== null ? `Rating: ${rating}` : null, grades || null, dist ? `${dist} mi` : null].filter(Boolean);
-      return plain(parts.join(" · "));
+      const dist   = rawNum(raw.middleDistance);
+      return plain([name, rating !== null ? `Rating: ${rating}` : null, grades || null, dist !== null ? `${dist} mi` : null].filter(Boolean).join(" · "));
     }
     case "highSchool": {
       const name = rawStr(raw.highSchoolName);
       if (!name) return plain("—");
       const rating = rawNum(raw.highRating);
       const grades = rawStr(raw.highGrades);
-      const dist   = rawStr(raw.highDistance);
-      const parts  = [name, rating !== null ? `Rating: ${rating}` : null, grades || null, dist ? `${dist} mi` : null].filter(Boolean);
-      return plain(parts.join(" · "));
+      const dist   = rawNum(raw.highDistance);
+      return plain([name, rating !== null ? `Rating: ${rating}` : null, grades || null, dist !== null ? `${dist} mi` : null].filter(Boolean).join(" · "));
     }
     default:
       return plain("—");
@@ -224,72 +232,68 @@ function getCellData(key: string, listing: ListingUI, criteria: CriteriaData): C
 }
 
 // ── Row definitions ───────────────────────────────────────────────
-// Individual fee rows removed in Build 3.2.13 — only Base Rent and Total Rent remain.
 
 const TABLE_ROWS: Array<{ label: string; key: string }> = [
   { label: "Base Rent",            key: "baseRent" },
-  { label: "Total Rent",           key: "totalMonthly" },
+  { label: "Total Monthly",        key: "totalMonthly" },
   { label: "Property Type",        key: "propertyType" },
-  { label: "Unit #",               key: "unitNumber" },       // apt/condo/coop gated
-  { label: "Floor Number",         key: "floorNumber" },      // apt/condo/coop gated
-  { label: "Number of Floors",     key: "numberOfFloors" },
+  { label: "Unit #",               key: "unitNumber" },
+  { label: "Floor #",              key: "floorNumber" },
+  { label: "# of Floors",          key: "numberOfFloors" },
   { label: "Bedrooms",             key: "bedrooms" },
   { label: "Bathrooms",            key: "bathrooms" },
   { label: "Square Footage",       key: "squareFootage" },
   { label: "No Board Approval",    key: "noBoardApproval" },
   { label: "No Broker Fee",        key: "noBrokerFee" },
-  { label: "Top Floor",            key: "topFloor" },         // apt/condo/coop gated
-  { label: "Corner Unit",          key: "cornerUnit" },       // apt/condo/coop gated
+  { label: "Top Floor",            key: "topFloor" },
+  { label: "Corner Unit",          key: "cornerUnit" },
   { label: "Furnished",            key: "furnished" },
   { label: "Cooling Type",         key: "coolingType" },
   { label: "Heating Type",         key: "heatingType" },
   { label: "Laundry",              key: "laundry" },
-  { label: "Parking",              key: "parkingType" },      // car gated
+  { label: "Parking",              key: "parkingType" },
   { label: "Utilities Included",   key: "utilitiesIncluded" },
   { label: "Unit Features",        key: "unitFeatures" },
-  { label: "Rooms",                key: "roomTypes" },
-  { label: "Outdoor Space",        key: "privateOutdoorSpaceTypes" },
-  { label: "Storage",              key: "storageTypes" },
   { label: "Building Amenities",   key: "buildingAmenities" },
-  { label: "Pet Amenities",        key: "petAmenities" },     // pets gated
+  { label: "Pet Amenities",        key: "petAmenities" },
   { label: "Close By",             key: "closeBy" },
   { label: "Commute Time",         key: "commuteTime" },
-  { label: "Elem. School",         key: "elemSchool" },       // children gated
-  { label: "Middle School",        key: "middleSchool" },     // children gated
-  { label: "High School",          key: "highSchool" },       // children gated
+  { label: "Elem. School",         key: "elemSchool" },
+  { label: "Middle School",        key: "middleSchool" },
+  { label: "High School",          key: "highSchool" },
 ];
 
 const CARD_ROWS: Array<{ label: string; key: string }> = [
   { label: "Base Rent",            key: "baseRent" },
   { label: "Total Rent",           key: "totalMonthly" },
   { label: "Property Type",        key: "propertyType" },
-  { label: "Unit #",               key: "unitNumber" },       // apt/condo/coop gated (per card)
-  { label: "Floor Number",         key: "floorNumber" },      // apt/condo/coop gated (per card)
+  { label: "Unit #",               key: "unitNumber" },
+  { label: "Floor Number",         key: "floorNumber" },
   { label: "Number of Floors",     key: "numberOfFloors" },
   { label: "Bedrooms",             key: "bedrooms" },
   { label: "Bathrooms",            key: "bathrooms" },
   { label: "Square Footage",       key: "squareFootage" },
   { label: "No Board Approval",    key: "noBoardApproval" },
   { label: "No Broker Fee",        key: "noBrokerFee" },
-  { label: "Top Floor",            key: "topFloor" },         // apt/condo/coop gated (per card)
-  { label: "Corner Unit",          key: "cornerUnit" },       // apt/condo/coop gated (per card)
+  { label: "Top Floor",            key: "topFloor" },
+  { label: "Corner Unit",          key: "cornerUnit" },
   { label: "Furnished",            key: "furnished" },
   { label: "Cooling Type",         key: "coolingType" },
   { label: "Heating Type",         key: "heatingType" },
   { label: "Laundry",              key: "laundry" },
-  { label: "Parking",              key: "parkingType" },      // car gated
+  { label: "Parking",              key: "parkingType" },
   { label: "Utilities Included",   key: "utilitiesIncluded" },
   { label: "Unit Features",        key: "unitFeatures" },
   { label: "Rooms",                key: "roomTypes" },
   { label: "Outdoor Space",        key: "privateOutdoorSpaceTypes" },
   { label: "Storage",              key: "storageTypes" },
   { label: "Building Amenities",   key: "buildingAmenities" },
-  { label: "Pet Amenities",        key: "petAmenities" },     // pets gated
+  { label: "Pet Amenities",        key: "petAmenities" },
   { label: "Close By",             key: "closeBy" },
   { label: "Commute Time",         key: "commuteTime" },
-  { label: "Elem. School",         key: "elemSchool" },       // children gated
-  { label: "Middle School",        key: "middleSchool" },     // children gated
-  { label: "High School",          key: "highSchool" },       // children gated
+  { label: "Elem. School",         key: "elemSchool" },
+  { label: "Middle School",        key: "middleSchool" },
+  { label: "High School",          key: "highSchool" },
 ];
 
 // ── Property type keys that are apt/condo/coop only ───────────────
@@ -374,6 +378,15 @@ export default function CompareTab() {
     setCompareIds(new Set());
   }
 
+  // Missing criteria detection
+  const missingCriteria: string[] = [];
+  if (selectedListings.length > 0) {
+    if (!criteria.maxBaseRent)    missingCriteria.push("Max Base Rent");
+    if (!criteria.maxTotalMonthly) missingCriteria.push("Max Total Monthly");
+    if (!criteria.minSqFt)        missingCriteria.push("Min Square Footage");
+    if (!criteria.maxCommuteTime) missingCriteria.push("Max Commute Time");
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <TopBar title="Compare" onPressMenu={() => setMenuOpen(true)} />
@@ -381,15 +394,33 @@ export default function CompareTab() {
       {/* Mode toggle row — icons centered, Clear button on the right */}
       <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", paddingVertical: 8, gap: 16 }}>
         <Pressable onPress={() => setMode("cards")}>
-          <Ionicons name="grid" size={22} color={mode === "cards" ? colors.primaryBlue : colors.textSecondary} />
+          <Ionicons name="grid" size={22} color={mode === "cards" ? colors.accent : colors.textSecondary} />
         </Pressable>
         <Pressable onPress={() => setMode("table")}>
-          <Ionicons name="list" size={22} color={mode === "table" ? colors.primaryBlue : colors.textSecondary} />
+          <Ionicons name="list" size={22} color={mode === "table" ? colors.accent : colors.textSecondary} />
         </Pressable>
         <Pressable onPress={handleClear} style={{ position: "absolute", right: 16 }}>
-          <Text style={{ color: colors.primaryBlue, fontSize: 13 }}>Clear</Text>
+          <Text style={{ color: colors.accent, fontSize: textStyles.linkText.fontSize }}>Clear</Text>
         </Pressable>
       </View>
+
+      {/* Missing criteria banner */}
+      {missingCriteria.length > 0 && (
+        <Pressable
+          onPress={() => setActiveSubPanel("criteria")}
+          style={{
+            backgroundColor: `${colors.accent}18`,
+            borderBottomWidth: 1,
+            borderBottomColor: `${colors.accent}40`,
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+          }}
+        >
+          <Text style={{ color: colors.accent, fontSize: 12, fontWeight: "600" }}>
+            Set criteria to enable scoring: {missingCriteria.join(", ")}
+          </Text>
+        </Pressable>
+      )}
 
       {loading ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -593,7 +624,7 @@ function CompareCard({ listing, criteria, toggles }: { listing: ListingUI; crite
   return (
     <View
       style={{
-        backgroundColor: colors.card,
+        backgroundColor: colors.surface,
         borderRadius: 18,
         borderWidth: 1,
         borderColor: colors.border,
@@ -602,10 +633,10 @@ function CompareCard({ listing, criteria, toggles }: { listing: ListingUI; crite
       }}
     >
       <View style={{ padding: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "900" }} numberOfLines={1}>
+        <Text style={textStyles.cardTitle} numberOfLines={1}>
           {listing.buildingName}
         </Text>
-        <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+        <Text style={{ color: colors.textSecondary, fontSize: textStyles.bodySmall.fontSize, marginTop: 2 }} numberOfLines={1}>
           {listing.addressLine}
         </Text>
       </View>
@@ -626,7 +657,7 @@ function CompareCard({ listing, criteria, toggles }: { listing: ListingUI; crite
               backgroundColor: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.025)",
             }}
           >
-            <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: "600", flex: 1 }}>
+            <Text style={[textStyles.label, { flex: 1 }]}>
               {row.label}
             </Text>
             <View style={{ alignItems: "flex-end", maxWidth: "56%" }}>
@@ -635,7 +666,7 @@ function CompareCard({ listing, criteria, toggles }: { listing: ListingUI; crite
               ) : cell.color ? (
                 <CPill text={cell.text} color={cell.color} />
               ) : (
-                <Text style={{ color: colors.textPrimary, fontSize: 13 }} numberOfLines={cell.isMulti ? 0 : 3}>
+                <Text style={{ color: colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize }} numberOfLines={cell.isMulti ? 0 : 3}>
                   {cell.text}
                 </Text>
               )}

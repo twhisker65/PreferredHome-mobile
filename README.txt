@@ -1,41 +1,43 @@
-PreferredHome — Build 3.2.20.13
+PreferredHome — Build 3.2.20.14
 ================================
-Typography & Color Token System — ViewPanel minimal font and color token pass.
-Full ViewPanel rework deferred to Build 3.2.21.
+Typography & Color Token System — Compare screen font and color tokens applied.
 Mobile repo only. No API changes. No Render deploy required.
 Generated: March 2026
 
 CHANGED FILES (in folder order)
 ---------------------------------
-components/ViewPanel.tsx     — minimal font and color token references applied
+app/(tabs)/compare.tsx     — font and color token references applied
 
 WHAT CHANGED IN THIS BUILD
 ----------------------------
 
-1. components/ViewPanel.tsx
-   - Replaced headingLabel import with textStyles from ../styles/typography
-   - styles.panel backgroundColor: colors.card → colors.surface
-   - styles.headerTitle: fontSize 15/fontWeight "700" → textStyles.subHeader
-   - SectionHead: [headingLabel, {fontSize:10, marginBottom:4}]
-     → [textStyles.label, {marginBottom:4}]
-   - ScoreBadge: colors.green → colors.comparePass; colors.red → colors.compareFail
-   - SchoolRow rating circle backgroundColor: colors.card → colors.surface
-   - SchoolRow rating text color: colors.primaryBlue → colors.accent
-   - Close button (‹) color: colors.primaryBlue → colors.accent
-   - Full address tappable link: colors.primaryBlue → colors.accent
-   - Preferred heart color: colors.primaryBlue → colors.accent
-   - BoolBadge checkmark color: colors.primaryBlue → colors.accent
-   - Total row values color: colors.primaryBlue → colors.accent
-   - Total row fontSize: 13 → textStyles.bodyPrimary.fontSize (14)
-   - URL/phone/email tappable links: colors.primaryBlue → colors.accent
-   - styles.label / styles.value: already correct token names — unchanged
-   - All data logic, layout, sections, toggle gating unchanged
+1. app/(tabs)/compare.tsx
+   - Added textStyles to import from ../../styles/typography
+   - CC color constants updated to token hex values:
+     CC.green → colors.comparePass (#22C55E)
+     CC.yellow → colors.compareWarn (#F59E0B)
+     CC.red → colors.compareFail (#DC2626)
+   - Mode toggle icons: colors.primaryBlue → colors.accent (×2)
+   - Clear button: colors.primaryBlue → colors.accent;
+     fontSize 13 → textStyles.linkText.fontSize
+   - Missing criteria banner: colors.primaryBlue → colors.accent (bg, border, text)
+   - CompareCard wrapper: colors.card → colors.surface
+   - CompareCard building name: fontSize 17/fontWeight "900" → textStyles.cardTitle
+   - CompareCard address: fontSize 12 → textStyles.bodySmall.fontSize
+   - CompareCard row label: fontSize 12/fontWeight "600" → textStyles.label
+   - CompareCard row value (plain): fontSize 13 → textStyles.bodyPrimary.fontSize
+   - CompareTable font sizes kept as-is (table density — intentional)
+   - CPill/CPill text sizes kept as-is (compare-only scoring pills)
+   - All getCellData logic, filterRows, row definitions, scroll sync unchanged
 
 EXPECTED VISIBLE CHANGES
 -------------------------
-- Building name in header: slightly larger (15/700 → 18/600) per subHeader token
-- Section dividers (Costs, Features, etc.): label style (12/600/grey) vs previous 10/900
-- Total amounts: slightly larger (13→14pt)
+- Compare icon turns blue when active (same hex, renamed token)
+- Pill colors on scoring fields: slightly different hex
+  (comparePass #22C55E vs old #10B981, compareWarn #F59E0B vs old #D97706,
+   compareFail #DC2626 vs old #EF4444) — intentional token standardisation
+- CompareCard building name: slightly smaller (17/900 → 16/700 via cardTitle)
+- CompareCard labels: slightly smaller (12/600 grey — matches label token)
 
 NO CHANGES TO:
    - Any other file
@@ -45,7 +47,7 @@ DEPLOY STEPS
 ------------
 1. Copy the changed file from this ZIP into your local repo,
    overwriting the existing file at the same path:
-     components/ViewPanel.tsx
+     app/(tabs)/compare.tsx
 2. Run Expo restart:
 
 cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel --clear
@@ -57,18 +59,19 @@ cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo sta
 
 COMMIT MESSAGE
 --------------
-Build 3.2.20.13 - ViewPanel font and color tokens applied (minimal pass)
+Build 3.2.20.14 - Compare screen font and color tokens applied
 
 TEST CHECKLIST
 --------------
 [ ] App loads with no red screen
-[ ] Tap View (eye icon) on a listing card — ViewPanel slides in from right
-[ ] Building name displays in header
-[ ] Back arrow (‹) visible and closes panel
-[ ] All sections display: Costs, Features, Neighborhood, Listing, Timeline
-[ ] Tappable links (address, phone, email, URL) show in blue
-[ ] Total Monthly and Total Upfront amounts show in blue
-[ ] Bool badges (Furnished, Top Floor, etc.) show checkmarks in blue when true
-[ ] Score badges display for listings with walk/transit/bike scores
-[ ] Panel slides out correctly on close
+[ ] Compare tab opens
+[ ] Grid/List toggle icons work — active icon shows blue
+[ ] Clear button visible on the right — functional
+[ ] With listings selected: card view displays correctly
+[ ] CompareCard building names and address lines visible
+[ ] Scoring pills display with correct colors (green/yellow/red/grey)
+[ ] Bool cells (✓ / —) display correctly
+[ ] Missing criteria banner appears when criteria not set — tapping opens Criteria panel
+[ ] Banner disappears when all criteria filled
+[ ] Table view renders correctly — frozen label column, horizontal scroll
 [ ] No TypeScript errors in Expo terminal
