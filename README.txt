@@ -1,80 +1,62 @@
-PreferredHome — Build 3.2.20.1
-============================
-Typography & Color Token System — system lock.
+PreferredHome — Build 3.2.20.2
+==============================
+Typography & Color Token System — StatusPill color tokens applied.
 Mobile repo only. No API changes. No Render deploy required.
 Generated: March 2026
 
 CHANGED FILES (in folder order)
 ---------------------------------
-styles/colors.ts     — new color tokens; legacy aliases preserved
-styles/typography.ts — new textStyles token object; legacy exports preserved
+components/StatusPill.tsx     — color token references applied
 
 WHAT CHANGED IN THIS BUILD
 ----------------------------
 
-1. styles/colors.ts
-   NEW TOKENS (replacing hardcoded hex values across the app in subsequent sub-builds):
-     background:     #112240   (was #0B1220 — true navy, replaces near-black)
-     surface:        #1B2A4A   (was card #111827 — visible card lift)
-     surfacePressed: #162A45   (state token only — pressed/active containers)
-     border:         #223A70   (was #1F2937 — navy-blue dividers)
-     accent:         #2563EB   (was primaryBlue — same hex, rename only)
-     comparePass:    #22C55E   (compare logic only)
-     compareWarn:    #F59E0B   (compare logic only)
-     compareFail:    #DC2626   (compare logic only)
-   REMOVED:
-     accentBlue #3B82F6 — confirmed dead token, never used in RN app
-   LEGACY ALIASES KEPT (until 3.2.20 Closeout):
-     card, cardHover, primaryBlue, text, primary, green, yellow, purple, red
-     These point to the new hex values so no component breaks before migration.
-
-2. styles/typography.ts
-   NEW EXPORT: textStyles object with 14 named tokens:
-     mainTitleBlue, mainTitleWhite, subHeader, sectionTitle,
-     cardTitle, cardSecondary, bodyPrimary, bodyEmphasis,
-     label, bodySmall, linkText, button, navLabel, micro
-   LEGACY EXPORTS KEPT (until 3.2.20 Closeout):
-     headingLabel — unchanged
-     typography (h1, h2, body, muted) — unchanged
-   No existing import in any component file breaks.
-
-WHAT THOMAS WILL SEE
----------------------
-Nothing visible changes on device in this build.
-The token files are the foundation. Each subsequent sub-build
-(3.2.20.1 through 3.2.20.15) consumes these tokens one component at a time.
+1. components/StatusPill.tsx
+   - Added import: colors from ../styles/colors
+   - bgFor() local hex map removed entirely.
+     Replaced with colors.status[safeStatus] direct reference.
+     The status map lives in colors.ts only — no duplication.
+   - textFor() white return value: "#FFFFFF" → colors.textPrimary (#F8FAFC)
+   - "#111827" (dark text on New/white pill) kept hardcoded — intentional.
+     No dark-on-light text token exists in the design system.
+   - "#D1D5DB" (New pill border) kept hardcoded — pill-specific edge case.
+   - Pill text fontSize (12), fontWeight ("800"), letterSpacing (-0.4) unchanged.
+     Pill text is not part of the textStyles token library per spec.
+   - No layout, sizing, padding, or structural changes.
 
 NO CHANGES TO:
-   - Any component file
-   - Any screen file
-   - Any lib/ file
+   - Any other component or screen file
+   - styles/colors.ts
+   - styles/typography.ts
    - PreferredHome-api (no backend changes)
 
 DEPLOY STEPS
 ------------
 Mobile repo only. No API or Render changes needed.
 
-1. Copy the 2 changed files from this ZIP into your local repo,
-   overwriting the existing files at the same paths:
-     styles/colors.ts
-     styles/typography.ts
+1. Copy the changed file from this ZIP into your local repo,
+   overwriting the existing file at the same path:
+     components/StatusPill.tsx
 2. Run Expo restart:
 
 cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel --clear
 
-3. Confirm no red screen and all five tabs render.
+3. Confirm test checklist below on device.
 4. Commit via GitHub Desktop using the commit message below.
 5. Push to GitHub.
-6. Go to Claude Project → click Sync now on the GitHub connection.
+6. Go to Claude Project -> click Sync now on the GitHub connection.
 
 COMMIT MESSAGE
 --------------
-Build 3.2.20 - typography and color token system locked
+Build 3.2.20.2 - StatusPill color tokens applied
 
 TEST CHECKLIST
 --------------
-[ ] App loads with no red screen after replacing both files
-[ ] All five tabs render normally (Home, Listings, Add, Compare, Calendar)
-[ ] Listings screen shows cards — confirms colors import still works
-[ ] No TypeScript errors in Expo terminal output
-[ ] No visible change on device — this build locks tokens only
+[ ] App loads with no red screen
+[ ] All five tabs render normally
+[ ] Status pills display correct colors on Listings screen
+[ ] "New" pill — white background, grey border, dark text
+[ ] "Shortlisted" pill — blue background, white text
+[ ] "Rejected" pill — red background, white text
+[ ] "Approved" pill — green background, white text
+[ ] No TypeScript errors in Expo terminal
