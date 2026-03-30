@@ -1,4 +1,4 @@
-PreferredHome — Build 3.2.20
+PreferredHome — Build 3.2.20.1
 ============================
 Typography & Color Token System — system lock.
 Mobile repo only. No API changes. No Render deploy required.

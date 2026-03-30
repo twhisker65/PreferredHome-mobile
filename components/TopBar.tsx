@@ -1,12 +1,15 @@
-// components/TopBar.tsx — Build 3.2.04
-// Change: added rightIconColor prop so callers can tint the right icon
-// (used by Listings to turn filter icon blue when filters are active)
+// components/TopBar.tsx — Build 3.2.20.1
+// Change: font and color token references applied.
+//   colors.primaryBlue → colors.accent (same hex — rename only)
+//   styles.title fontSize, fontWeight, letterSpacing → textStyles.mainTitleWhite token
+// No layout, sizing, padding, or structural changes.
 
 import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/colors";
+import { textStyles } from "../styles/typography";
 
 type Props = {
   title?: string;
@@ -44,7 +47,7 @@ export function TopBar({
 
         {title === "PreferredHome" ? (
           <Text numberOfLines={1} style={styles.title}>
-            <Text style={{ color: colors.primaryBlue }}>Preferred</Text>
+            <Text style={{ color: colors.accent }}>Preferred</Text>
             <Text style={{ color: colors.textPrimary }}>Home</Text>
           </Text>
         ) : (
@@ -94,11 +97,11 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    color: colors.textPrimary,
-    fontSize: 20,
-    fontWeight: "800",
-    textAlign: "center",
-    letterSpacing: 0.2,
+    color:         textStyles.mainTitleWhite.color,
+    fontSize:      textStyles.mainTitleWhite.fontSize,
+    fontWeight:    textStyles.mainTitleWhite.fontWeight,
+    textAlign:     "center",
+    letterSpacing: textStyles.mainTitleWhite.letterSpacing,
   },
   divider: {
     height: 1,
