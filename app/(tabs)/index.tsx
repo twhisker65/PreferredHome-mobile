@@ -1,14 +1,20 @@
-// app/(tabs)/index.tsx — Build 3.2.06
-// Change: replaced SidePanel+MenuSheet with MenuPanel+sub-panel system.
-// Added useSafeAreaInsets + topBarHeight. Added activeSubPanel state.
-// All other logic unchanged.
+// app/(tabs)/index.tsx — Build 3.2.20.6
+// Change: font and color token references applied. All hardcoded values removed.
+//   StatPill label:  fontSize 11 → textStyles.micro.fontSize (10)
+//                    letterSpacing 0.7 kept — no token, existing style
+//   StatPill value:  fontSize 18 / fontWeight "900" → textStyles.cardTitle (16/700)
+//   Stats heading:   colors.text → colors.textPrimary (legacy alias migration)
+//                    fontSize 16 / fontWeight "800" → textStyles.subHeader (18/600)
+//   Count text:      fontSize 13 → textStyles.bodySmall.fontSize (12)
+//   headingLabel on "TOP 3" kept — legacy alias, stays until Closeout.
+// No logic, layout, or structural changes.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, ActivityIndicator, RefreshControl, ScrollView } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../styles/colors";
-import { headingLabel } from "../../styles/typography";
+import { headingLabel, textStyles } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
 import { ListingCard } from "../../components/ListingCard";
 import { MenuPanel, type SubPanelKey } from "../../components/MenuPanel";
@@ -23,8 +29,12 @@ import type { ListingUI } from "../../lib/types";
 function StatPill({ label, value }: { label: string; value: string }) {
   return (
     <View style={{ flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 12 }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 11, letterSpacing: 0.7 }}>{label.toUpperCase()}</Text>
-      <Text style={{ color: colors.textPrimary, marginTop: 6, fontSize: 18, fontWeight: "900" }}>{value}</Text>
+      <Text style={{ color: colors.textSecondary, fontSize: textStyles.micro.fontSize, letterSpacing: 0.7 }}>
+        {label.toUpperCase()}
+      </Text>
+      <Text style={{ color: colors.textPrimary, marginTop: 6, fontSize: textStyles.cardTitle.fontSize, fontWeight: textStyles.cardTitle.fontWeight }}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -42,6 +52,7 @@ export default function HomeScreen() {
   const [preferredTop, setPreferredTop] = useState<ListingUI[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
+
   // Refresh whenever this screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -86,12 +97,14 @@ export default function HomeScreen() {
         >
           {/* Stats section */}
           <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 18, padding: 14 }}>
-            <Text style={{ color: colors.text, fontSize: 16, fontWeight: "800" }}>Base Rent Snapshot</Text>
+            <Text style={{ color: colors.textPrimary, fontSize: textStyles.subHeader.fontSize, fontWeight: textStyles.subHeader.fontWeight }}>
+              Base Rent Snapshot
+            </Text>
             {!stats.min ? (
               <Text style={{ color: colors.textSecondary, marginTop: 8 }}>No rent data yet.</Text>
             ) : (
               <>
-                <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: 13 }}>
+                <Text style={{ color: colors.textSecondary, marginTop: 6, fontSize: textStyles.bodySmall.fontSize }}>
                   {stats.count} listings with base rent
                 </Text>
                 <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>

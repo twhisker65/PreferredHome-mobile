@@ -1,27 +1,36 @@
-PreferredHome — Build 3.2.20.5
+PreferredHome — Build 3.2.20.6
 ==============================
-Typography & Color Token System — Listings screen font and color tokens applied.
+Typography & Color Token System — Home screen font and color tokens applied.
 Mobile repo only. No API changes. No Render deploy required.
 Generated: March 2026
 
 CHANGED FILES (in folder order)
 ---------------------------------
-app/(tabs)/listings.tsx     — font and color token references applied
+app/(tabs)/index.tsx     — font and color token references applied
 
 WHAT CHANGED IN THIS BUILD
 ----------------------------
 
-1. app/(tabs)/listings.tsx
+1. app/(tabs)/index.tsx
    - Added textStyles to import from ../../styles/typography
-   - rightIconColor: colors.primaryBlue → colors.accent (same hex)
-   - FILTERS ACTIVE banner backgroundColor: ${colors.primaryBlue}20 → ${colors.accent}20
-   - FILTERS ACTIVE banner borderBottomColor: ${colors.primaryBlue}66 → ${colors.accent}66
-   - FILTERS ACTIVE banner Text color: colors.primaryBlue → colors.accent
-   - FILTERS ACTIVE banner fontSize:11/fontWeight:"700"/letterSpacing:0.9 kept as-is —
-     no matching token; existing style predating migration, not a new ad hoc value.
-   - Error text color: colors.red → colors.compareFail
-   - Error text fontSize: 14 → textStyles.bodyPrimary.fontSize
-   - All filter logic, sort logic, section data, state, API calls — unchanged.
+   - StatPill label fontSize: 11 → textStyles.micro.fontSize (10)
+   - StatPill label letterSpacing: 0.7 kept — no token, existing style
+   - StatPill value fontSize: 18 / fontWeight: "900"
+     → textStyles.cardTitle.fontSize / textStyles.cardTitle.fontWeight (16/700)
+     Matches card building name hierarchy as approved.
+   - Stats heading color: colors.text → colors.textPrimary (legacy alias migrated)
+   - Stats heading fontSize: 16 / fontWeight: "800"
+     → textStyles.subHeader.fontSize / textStyles.subHeader.fontWeight (18/600)
+   - Count text fontSize: 13 → textStyles.bodySmall.fontSize (12)
+   - headingLabel on "TOP 3" kept — legacy alias, stays until Closeout
+   - No logic, state, layout, or structural changes.
+
+EXPECTED VISIBLE CHANGES
+-------------------------
+- Stat values (e.g. $3,200): slightly smaller and lighter (18/900 → 16/700)
+  Intentional — matches cardTitle hierarchy, approximates future rework.
+- "Base Rent Snapshot" heading: slightly larger, lighter (16/800 → 18/600)
+- Count text: fractionally smaller (13 → 12)
 
 NO CHANGES TO:
    - Any other file
@@ -31,7 +40,7 @@ DEPLOY STEPS
 ------------
 1. Copy the changed file from this ZIP into your local repo,
    overwriting the existing file at the same path:
-     app/(tabs)/listings.tsx
+     app/(tabs)/index.tsx
 2. Run Expo restart:
 
 cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel --clear
@@ -43,15 +52,13 @@ cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo sta
 
 COMMIT MESSAGE
 --------------
-Build 3.2.20.5 - Listings screen font and color tokens applied
+Build 3.2.20.6 - Home screen font and color tokens applied
 
 TEST CHECKLIST
 --------------
 [ ] App loads with no red screen
-[ ] Listings screen loads and displays cards
-[ ] PREFERRED and CANDIDATES section headers visible and correct
-[ ] Filter icon turns blue when filters are active — unchanged appearance
-[ ] FILTERS ACTIVE banner appears when filters applied — unchanged appearance
-[ ] Pull to refresh works
-[ ] Tap to expand card icon row works
+[ ] Home tab renders normally
+[ ] Base Rent Snapshot section visible — heading slightly lighter than before (expected)
+[ ] Stat pills visible — values slightly smaller than before (expected)
+[ ] TOP 3 section and cards render correctly
 [ ] No TypeScript errors in Expo terminal
