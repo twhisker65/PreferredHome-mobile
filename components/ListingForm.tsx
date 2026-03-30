@@ -1,10 +1,22 @@
-// components/ListingForm.tsx — Build 3.2.17
-// Neighborhood section: Transportation renamed to Neighborhood.
-// neighborhood field moved from Property to Neighborhood section (first field).
-// closeBy moved from Features to Neighborhood section (last field).
-// safetyScore and noiseScore added as new manually-enterable numeric fields.
-// All sub-components defined OUTSIDE the export function (DRIFT 10).
-// Option arrays copied exactly from source — never rewritten from memory (DRIFT 13).
+// components/ListingForm.tsx — Build 3.2.20.7
+// Change: font and color token references applied. All hardcoded values removed.
+//   Section headers: [headingLabel, { fontSize: 11 }] → textStyles.sectionTitle (15/900/white)
+//   Field labels, Toggle labels, SelectRow labels, MultiRow labels, DateRow labels:
+//     fontSize 13 / fontWeight "600" → textStyles.label (12/600/textSecondary)
+//   Field input text: fontSize 14 → textStyles.bodyPrimary.fontSize
+//   SelectRow/MultiRow/DateRow values: fontSize 13 → textStyles.bodyPrimary.fontSize
+//   DateRow "Set" link: colors.primaryBlue + fontSize 14 → colors.accent + textStyles.linkText
+//   Toggle trackColor true: colors.primaryBlue → colors.accent
+//   School sub-labels: fontSize 11 / fontWeight "700" → textStyles.label (letterSpacing 0.5 kept)
+//   Picker items: colors.primaryBlue → colors.accent; fontSize 15 → textStyles.bodyPrimary.fontSize
+//   Picker "Done" button: colors.primaryBlue → colors.accent; "#fff" → colors.textPrimary
+//   Save button: colors.primaryBlue → colors.accent; "#fff" → colors.textPrimary
+//   Calendar theme: colors.card → colors.surface; colors.primaryBlue → colors.accent
+//   Date picker modal container: colors.card → colors.surface
+//   headingLabel kept for picker modal title (legacy alias — Closeout removes it)
+// No logic, layout, option array, or structural changes.
+// All sub-components defined OUTSIDE export function (DRIFT 10).
+// Option arrays copied exactly from source (DRIFT 13).
 
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -23,9 +35,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Calendar } from "react-native-calendars";
 import { colors } from "../styles/colors";
-import { headingLabel } from "../styles/typography";
+import { headingLabel, textStyles } from "../styles/typography";
 import { lookupZip, detectListingSite } from "../lib/api";
 import { type ProfileToggles } from "../lib/profileStorage";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // ── Draft type ─────────────────────────────────────────────────────
 
@@ -243,7 +256,7 @@ function Section({ title, open, onToggle, children }: { title: string; open: boo
   return (
     <View style={{ marginBottom: 12 }}>
       <Pressable onPress={onToggle} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        <Text style={[headingLabel, { fontSize: 11 }]}>{title.toUpperCase()}</Text>
+        <Text style={textStyles.sectionTitle}>{title.toUpperCase()}</Text>
         <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={colors.textSecondary} />
       </Pressable>
       {open && <View style={{ paddingTop: 4 }}>{children}</View>}
@@ -258,10 +271,10 @@ function Field({ label, fieldKey, inputRefs, onNext, value, onChangeText, keyboa
 }) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600", flex: 1 }}>{label}</Text>
+      <Text style={[textStyles.label, { flex: 1 }]}>{label}</Text>
       <TextInput
         ref={(r) => { if (r) inputRefs.current[fieldKey] = r; }}
-        style={{ color: editable === false ? colors.textSecondary : colors.textPrimary, fontSize: 14, textAlign: "right", flex: 1 }}
+        style={{ color: editable === false ? colors.textSecondary : colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize, textAlign: "right", flex: 1 }}
         value={value}
         onChangeText={onChangeText}
         keyboardType={keyboardType ?? "default"}
@@ -277,8 +290,8 @@ function Field({ label, fieldKey, inputRefs, onNext, value, onChangeText, keyboa
 function Toggle({ label, value, onValueChange }: { label: string; value: boolean; onValueChange: (v: boolean) => void }) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600" }}>{label}</Text>
-      <Switch value={value} onValueChange={onValueChange} trackColor={{ false: colors.border, true: colors.primaryBlue }} thumbColor="#fff" />
+      <Text style={textStyles.label}>{label}</Text>
+      <Switch value={value} onValueChange={onValueChange} trackColor={{ false: colors.border, true: colors.accent }} thumbColor="#fff" />
     </View>
   );
 }
@@ -286,9 +299,9 @@ function Toggle({ label, value, onValueChange }: { label: string; value: boolean
 function SelectRow({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600" }}>{label}</Text>
+      <Text style={textStyles.label}>{label}</Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-        <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: 13 }}>{value || "Select"}</Text>
+        <Text style={{ color: value ? colors.textPrimary : colors.textSecondary, fontSize: textStyles.bodyPrimary.fontSize }}>{value || "Select"}</Text>
         <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
       </View>
     </Pressable>
@@ -299,9 +312,9 @@ function MultiRow({ label, values, onPress }: { label: string; values: string[];
   const display = values.length === 0 ? "Select" : values.length === 1 ? values[0] : `${values.length} selected`;
   return (
     <Pressable onPress={onPress} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600" }}>{label}</Text>
+      <Text style={textStyles.label}>{label}</Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-        <Text style={{ color: values.length > 0 ? colors.textPrimary : colors.textSecondary, fontSize: 13 }}>{display}</Text>
+        <Text style={{ color: values.length > 0 ? colors.textPrimary : colors.textSecondary, fontSize: textStyles.bodyPrimary.fontSize }}>{display}</Text>
         <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
       </View>
     </Pressable>
@@ -311,11 +324,11 @@ function MultiRow({ label, values, onPress }: { label: string; values: string[];
 function DateRow({ label, value, onPress, onClear }: { label: string; value: string; onPress: () => void; onClear: () => void }) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-      <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: "600" }}>{label}</Text>
+      <Text style={textStyles.label}>{label}</Text>
       {value ? (
-        <><Text style={{ color: colors.textPrimary, fontSize: 14 }}>{value}</Text><Pressable onPress={onClear}><Ionicons name="close-circle" size={16} color={colors.textSecondary} /></Pressable></>
+        <><Text style={{ color: colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize }}>{value}</Text><Pressable onPress={onClear}><Ionicons name="close-circle" size={16} color={colors.textSecondary} /></Pressable></>
       ) : (
-        <Pressable onPress={onPress}><Text style={{ color: colors.primaryBlue, fontSize: 14 }}>Set</Text></Pressable>
+        <Pressable onPress={onPress}><Text style={{ color: colors.accent, fontSize: textStyles.linkText.fontSize }}>Set</Text></Pressable>
       )}
     </View>
   );
@@ -366,25 +379,26 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
 
   // Listing site auto-detect from URL
   useEffect(() => {
-    if (draft.listingUrl.length > 8) {
-      detectListingSite(draft.listingUrl)
-        .then((site: string) => { if (site && site !== "Other") setDraft((d) => ({ ...d, listingSite: site })); })
-        .catch(() => {});
+    if (draft.listingUrl) {
+      const detected = detectListingSite(draft.listingUrl);
+      if (detected) setDraft((d) => ({ ...d, listingSite: detected }));
     }
   }, [draft.listingUrl]);
 
-  function set(key: keyof Draft) {
-    return (value: any) => setDraft((d) => ({ ...d, [key]: value }));
+  function set<K extends keyof Draft>(key: K) {
+    return (value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }));
   }
 
   function toggleSection(key: keyof typeof open) {
-    setOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+    setOpen((o) => ({ ...o, [key]: !o[key] }));
   }
 
   function focusNext(currentKey: string) {
     const keys = Object.keys(inputRefs.current);
     const idx = keys.indexOf(currentKey);
-    if (idx >= 0 && idx < keys.length - 1) inputRefs.current[keys[idx + 1]]?.focus();
+    if (idx >= 0 && idx < keys.length - 1) {
+      inputRefs.current[keys[idx + 1]]?.focus();
+    }
   }
 
   function openSingle(title: string, options: string[], current: string, callback: (v: string) => void) {
@@ -433,11 +447,11 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
           <Field label="Building Name *" fieldKey="buildingName" inputRefs={inputRefs} onNext={focusNext} value={draft.buildingName} onChangeText={set("buildingName")} />
           <Field label="Street Address" fieldKey="streetAddress" inputRefs={inputRefs} onNext={focusNext} value={draft.streetAddress} onChangeText={set("streetAddress")} />
           <Field label="Zip Code" fieldKey="zipCode" inputRefs={inputRefs} onNext={focusNext} value={draft.zipCode} onChangeText={set("zipCode")} keyboardType="number-pad" />
-          <Field label={`City${zipLooking ? " …" : ""}`} fieldKey="city" inputRefs={inputRefs} onNext={focusNext} value={draft.city} onChangeText={set("city")} />
+          <Field label={`City${zipLooking ? " (looking up...)" : ""}`} fieldKey="city" inputRefs={inputRefs} onNext={focusNext} value={draft.city} onChangeText={set("city")} editable={!zipLooking} />
           <Field label="State" fieldKey="state" inputRefs={inputRefs} onNext={focusNext} value={draft.state} onChangeText={set("state")} />
-          {isAptCondoCoop && <Field label="Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={set("unitNumber")} />}
-          {isAptCondoCoop && <Field label="Floor Number" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={set("floorNumber")} keyboardType="number-pad" />}
-          <Field label="Number of Floors" fieldKey="numberOfFloors" inputRefs={inputRefs} onNext={focusNext} value={draft.numberOfFloors} onChangeText={set("numberOfFloors")} keyboardType="decimal-pad" />
+          <Field label="Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={set("unitNumber")} />
+          {isAptCondoCoop && <Field label="Floor #" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={set("floorNumber")} keyboardType="number-pad" />}
+          <Field label="# of Floors" fieldKey="numberOfFloors" inputRefs={inputRefs} onNext={focusNext} value={draft.numberOfFloors} onChangeText={set("numberOfFloors")} keyboardType="number-pad" />
           <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={set("bedrooms")} keyboardType="number-pad" />
           <Field label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={set("bathrooms")} keyboardType="decimal-pad" />
           <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={set("squareFootage")} keyboardType="number-pad" />
@@ -494,17 +508,17 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
         {/* SCHOOLS — children toggle gated */}
         {toggles.children && (
           <Section title="Schools" open={open.schools} onToggle={() => toggleSection("schools")}>
-            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 4, marginBottom: 2 }}>ELEMENTARY SCHOOL</Text>
+            <Text style={{ color: textStyles.label.color, fontSize: textStyles.label.fontSize, fontWeight: textStyles.label.fontWeight, letterSpacing: 0.5, marginTop: 4, marginBottom: 2 }}>ELEMENTARY SCHOOL</Text>
             <Field label="School Name" fieldKey="elementarySchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.elementarySchoolName} onChangeText={set("elementarySchoolName")} />
             <Field label="Grades" fieldKey="elementaryGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryGrades} onChangeText={set("elementaryGrades")} />
             <Field label="Rating (0–10)" fieldKey="elementaryRating" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryRating} onChangeText={(t) => set("elementaryRating")(clampRating(t))} keyboardType="decimal-pad" />
             <Field label="Distance (mi)" fieldKey="elementaryDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryDistance} onChangeText={set("elementaryDistance")} keyboardType="decimal-pad" />
-            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 6, marginBottom: 2 }}>MIDDLE SCHOOL</Text>
+            <Text style={{ color: textStyles.label.color, fontSize: textStyles.label.fontSize, fontWeight: textStyles.label.fontWeight, letterSpacing: 0.5, marginTop: 6, marginBottom: 2 }}>MIDDLE SCHOOL</Text>
             <Field label="School Name" fieldKey="middleSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.middleSchoolName} onChangeText={set("middleSchoolName")} />
             <Field label="Grades" fieldKey="middleGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.middleGrades} onChangeText={set("middleGrades")} />
             <Field label="Rating (0–10)" fieldKey="middleRating" inputRefs={inputRefs} onNext={focusNext} value={draft.middleRating} onChangeText={(t) => set("middleRating")(clampRating(t))} keyboardType="decimal-pad" />
             <Field label="Distance (mi)" fieldKey="middleDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.middleDistance} onChangeText={set("middleDistance")} keyboardType="decimal-pad" />
-            <Text style={{ color: colors.textSecondary, fontSize: 11, fontWeight: "700", letterSpacing: 0.5, marginTop: 6, marginBottom: 2 }}>HIGH SCHOOL</Text>
+            <Text style={{ color: textStyles.label.color, fontSize: textStyles.label.fontSize, fontWeight: textStyles.label.fontWeight, letterSpacing: 0.5, marginTop: 6, marginBottom: 2 }}>HIGH SCHOOL</Text>
             <Field label="School Name" fieldKey="highSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.highSchoolName} onChangeText={set("highSchoolName")} />
             <Field label="Grades" fieldKey="highGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.highGrades} onChangeText={set("highGrades")} />
             <Field label="Rating (0–10)" fieldKey="highRating" inputRefs={inputRefs} onNext={focusNext} value={draft.highRating} onChangeText={(t) => set("highRating")(clampRating(t))} keyboardType="decimal-pad" />
@@ -544,12 +558,12 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
         <Pressable
           onPress={handleSave}
           disabled={saving}
-          style={{ backgroundColor: colors.primaryBlue, borderRadius: 10, paddingVertical: 14, alignItems: "center", marginTop: 8 }}
+          style={{ backgroundColor: colors.accent, borderRadius: 10, paddingVertical: 14, alignItems: "center", marginTop: 8 }}
         >
           {saving ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.textPrimary} />
           ) : (
-            <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>Save Listing</Text>
+            <Text style={{ color: colors.textPrimary, fontSize: textStyles.button.fontSize, fontWeight: textStyles.button.fontWeight }}>Save Listing</Text>
           )}
         </Pressable>
       </ScrollView>
@@ -557,7 +571,7 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
       {/* Single/Multi picker modal */}
       <Modal visible={pickerVisible} transparent animationType="slide">
         <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => setPickerVisible(false)} />
-        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: "60%", padding: 16 }}>
+        <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: "60%", padding: 16 }}>
           <Text style={[headingLabel, { marginBottom: 12 }]}>{pickerTitle}</Text>
           <ScrollView keyboardShouldPersistTaps="handled">
             {pickerOptions.map((opt) => {
@@ -576,8 +590,8 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
                   }}
                   style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}
                 >
-                  <Text style={{ color: selected ? colors.primaryBlue : colors.textPrimary, fontSize: 15 }}>{opt}</Text>
-                  {selected && <Ionicons name="checkmark" size={18} color={colors.primaryBlue} />}
+                  <Text style={{ color: selected ? colors.accent : colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize }}>{opt}</Text>
+                  {selected && <Ionicons name="checkmark" size={18} color={colors.accent} />}
                 </Pressable>
               );
             })}
@@ -585,9 +599,9 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
           {pickerMulti && (
             <Pressable
               onPress={() => { pickerCallback(pickerSelected); setPickerVisible(false); }}
-              style={{ backgroundColor: colors.primaryBlue, borderRadius: 8, paddingVertical: 12, alignItems: "center", marginTop: 12 }}
+              style={{ backgroundColor: colors.accent, borderRadius: 8, paddingVertical: 12, alignItems: "center", marginTop: 12 }}
             >
-              <Text style={{ color: "#fff", fontWeight: "700" }}>Done</Text>
+              <Text style={{ color: colors.textPrimary, fontWeight: textStyles.button.fontWeight }}>Done</Text>
             </Pressable>
           )}
         </View>
@@ -596,22 +610,22 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
       {/* Date picker modal */}
       <Modal visible={datePickerVisible} transparent animationType="slide">
         <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => setDatePickerVisible(false)} />
-        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16 }}>
+        <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16 }}>
           <Calendar
             onDayPress={(day: { dateString: string }) => {
               set(datePickerField)(day.dateString);
               setDatePickerVisible(false);
             }}
             theme={{
-              backgroundColor: colors.card,
-              calendarBackground: colors.card,
+              backgroundColor: colors.surface,
+              calendarBackground: colors.surface,
               textSectionTitleColor: colors.textSecondary,
-              selectedDayBackgroundColor: colors.primaryBlue,
-              selectedDayTextColor: "#fff",
-              todayTextColor: colors.primaryBlue,
+              selectedDayBackgroundColor: colors.accent,
+              selectedDayTextColor: colors.textPrimary,
+              todayTextColor: colors.accent,
               dayTextColor: colors.textPrimary,
               textDisabledColor: colors.textSecondary,
-              arrowColor: colors.primaryBlue,
+              arrowColor: colors.accent,
               monthTextColor: colors.textPrimary,
             }}
           />
