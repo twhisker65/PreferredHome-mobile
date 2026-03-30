@@ -1,7 +1,18 @@
+// components/ListingCard.tsx — Build 3.2.20.3
+// Change: font and color token references applied.
+//   colors.primaryBlue → colors.accent (preferredColor, compareColor)
+//   colors.card        → colors.surface (card wrapper background)
+//   colors.cardHover   → colors.surfacePressed (photo placeholder background — state token)
+//   Building name: fontSize 17/fontWeight "900"/textPrimary → textStyles.cardTitle (16/700/textPrimary)
+//   Address, unit summary: fontSize 12/textSecondary → textStyles.bodySmall (12/400/textSecondary)
+//   Rent + fees: fontSize 15/fontWeight "900"/textPrimary → textStyles.cardSecondary (14/500/textSecondary)
+// No layout, padding, margin, borderRadius, or structural changes.
+
 import React from "react";
 import { View, Text, Pressable, Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/colors";
+import { textStyles } from "../styles/typography";
 import type { ListingUI } from "../lib/types";
 import { StatusPill } from "./StatusPill";
 
@@ -33,8 +44,8 @@ export function ListingCard({
 }: Props) {
   if (!listing) return null;
 
-  const preferredColor = listing.preferred ? colors.primaryBlue : colors.textSecondary;
-  const compareColor = compareSelected ? colors.primaryBlue : colors.textSecondary;
+  const preferredColor = listing.preferred ? colors.accent : colors.textSecondary;
+  const compareColor = compareSelected ? colors.accent : colors.textSecondary;
 
   // Icon row is visible only when hideActions is not set AND card is expanded
   const showActions = !hideActions && expanded;
@@ -42,7 +53,7 @@ export function ListingCard({
   return (
     <View
       style={{
-        backgroundColor: colors.card,
+        backgroundColor: colors.surface,
         borderRadius: 18,
         borderWidth: 1,
         borderColor: colors.border,
@@ -64,7 +75,7 @@ export function ListingCard({
               overflow: "hidden",
               borderWidth: 1,
               borderColor: colors.border,
-              backgroundColor: colors.cardHover,
+              backgroundColor: colors.surfacePressed,
             }}
           >
             {listing.photoUrl ? (
@@ -80,21 +91,48 @@ export function ListingCard({
         {/* Right column: Building name, address, unit info, rent pushed to bottom */}
         <View style={{ flex: 1, justifyContent: "space-between" }}>
           <View>
-            <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "900" }} numberOfLines={1}>
+            <Text
+              style={{
+                color:      textStyles.cardTitle.color,
+                fontSize:   textStyles.cardTitle.fontSize,
+                fontWeight: textStyles.cardTitle.fontWeight,
+              }}
+              numberOfLines={1}
+            >
               {listing.buildingName}
             </Text>
 
-            <Text style={{ color: colors.textSecondary, marginTop: 3, fontSize: 12 }} numberOfLines={2}>
+            <Text
+              style={{
+                color:     textStyles.bodySmall.color,
+                fontSize:  textStyles.bodySmall.fontSize,
+                marginTop: 3,
+              }}
+              numberOfLines={2}
+            >
               {listing.addressLine}
             </Text>
 
-            <Text style={{ color: colors.textSecondary, marginTop: 3, fontSize: 12 }} numberOfLines={1}>
+            <Text
+              style={{
+                color:     textStyles.bodySmall.color,
+                fontSize:  textStyles.bodySmall.fontSize,
+                marginTop: 3,
+              }}
+              numberOfLines={1}
+            >
               {listing.unitSummary}
             </Text>
           </View>
 
           {/* Rent + fees — pushed to bottom of right column, level with status pill */}
-          <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "900" }}>
+          <Text
+            style={{
+              color:      textStyles.cardSecondary.color,
+              fontSize:   textStyles.cardSecondary.fontSize,
+              fontWeight: textStyles.cardSecondary.fontWeight,
+            }}
+          >
             {listing.priceSummary}
           </Text>
         </View>
@@ -132,10 +170,10 @@ function IconBtn({
         paddingVertical: 10,
         alignItems: "center",
         justifyContent: "center",
-        opacity: pressed && onPress ? 0.75 : 1,
+        opacity: pressed && onPress ? 0.7 : 1,
       })}
     >
-      <Ionicons name={icon} size={20} color={color} />
+      <Ionicons name={icon} size={22} color={color} />
     </Pressable>
   );
 }
