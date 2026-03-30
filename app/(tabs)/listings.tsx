@@ -1,8 +1,11 @@
-// app/(tabs)/listings.tsx — Build 3.2.19
-// Added: expandedId state — tap to expand/collapse icon row per card, only one at a time.
-// Added: useFocusEffect cleanup resets expandedId to null when tab loses focus.
-// Added: expanded and onCardPress props passed to each ListingCard.
-// Carries: all filter/sort logic, FILTERS ACTIVE banner, applySort, TopBar fix from 3.2.18.x
+// app/(tabs)/listings.tsx — Build 3.2.20.5
+// Change: font and color token references applied.
+//   colors.primaryBlue → colors.accent (rightIconColor, FILTERS ACTIVE banner x3)
+//   colors.red → colors.compareFail (error state text)
+//   error text fontSize: 14 → textStyles.bodyPrimary.fontSize
+//   FILTERS ACTIVE banner fontSize:11/fontWeight:"700"/letterSpacing:0.9 kept as-is —
+//     no matching token exists; existing style, not a new ad hoc value.
+// No logic, layout, filter, sort, or structural changes.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -17,7 +20,7 @@ import {
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../styles/colors";
-import { headingLabel } from "../../styles/typography";
+import { headingLabel, textStyles } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
 import { ListingCard } from "../../components/ListingCard";
 import { ViewPanel } from "../../components/ViewPanel";
@@ -267,7 +270,7 @@ export default function ListingsScreen() {
         title="PreferredHome"
         onPressMenu={() => setMenuOpen(true)}
         rightIconName="filter"
-        rightIconColor={filtersActive ? colors.primaryBlue : colors.textPrimary}
+        rightIconColor={filtersActive ? colors.accent : colors.textPrimary}
         onPressRight={() => setFilterOpen(true)}
       />
 
@@ -275,16 +278,16 @@ export default function ListingsScreen() {
       {filtersActive && (
         <View
           style={{
-            backgroundColor: `${colors.primaryBlue}20`,
+            backgroundColor: `${colors.accent}20`,
             borderBottomWidth: 1,
-            borderBottomColor: `${colors.primaryBlue}66`,
+            borderBottomColor: `${colors.accent}66`,
             paddingVertical: 7,
             alignItems: "center",
           }}
         >
           <Text
             style={{
-              color: colors.primaryBlue,
+              color: colors.accent,
               fontSize: 11,
               fontWeight: "700",
               letterSpacing: 0.9,
@@ -306,7 +309,7 @@ export default function ListingsScreen() {
         </View>
       ) : error ? (
         <View style={{ flex: 1, padding: 16 }}>
-          <Text style={{ color: colors.red, fontSize: 14, marginBottom: 8 }}>
+          <Text style={{ color: colors.compareFail, fontSize: textStyles.bodyPrimary.fontSize, marginBottom: 8 }}>
             Load failed
           </Text>
           <Text style={{ color: colors.textSecondary }}>{error}</Text>
