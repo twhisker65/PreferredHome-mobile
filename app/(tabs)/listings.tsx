@@ -34,7 +34,7 @@ import {
 import { useListings } from "../../lib/useListings";
 import { applyOrder } from "../../lib/orderApply";
 import { loadOrder } from "../../lib/orderStorage";
-import { deleteListing as deleteListingApi } from "../../lib/api";
+import { deleteListing as deleteListingApi, updateListing } from "../../lib/api";
 import { loadCompareIds, saveCompareIds } from "../../lib/compareStorage";
 import type { ListingUI, ListingStatus } from "../../lib/types";
 
@@ -212,11 +212,16 @@ export default function ListingsScreen() {
     [preferred, other, appliedFilters]
   );
 
-  function togglePreferred(id: string) {
+  async function togglePreferred(id: string) {
     const listing = listings.find((l) => l.id === id);
     if (!listing) return;
-    // optimistic update — full refresh will follow
-    refresh();
+    const newPreferred = !listing.preferred;
+    try {
+      await updateListing(id, { preferred: newPreferred ? "TRUE" : "FALSE" });
+      refresh();
+    } catch {
+      Alert.alert("Error", "Could not update preferred status.");
+    }
   }
 
   function toggleCompare(id: string) {

@@ -1,5 +1,5 @@
 # PreferredHome — Product Roadmap
-**Version V10 | March 2026**
+**Version V11 | March 2026**
 
 ---
 
@@ -29,20 +29,20 @@
 | 3.2.15 | Commute Calculation — calculated by API using Profile work address vs each listing address. Stored per listing. |
 | 3.2.16 | Add/Edit Unification — single shared form component. Efficiency cleanup. |
 | 3.2.17 | Neighborhood section — Transportation renamed to Neighborhood. Neighborhood name moved from Property section. Near By moved from Features section. New fields added: safetyScore, noiseScore. All fields manually enterable. All screens and data model updated. |
+| 3.2.18 / .1–.5 | Sort — sort functionality added to Filter panel. Full-page panel layout. 6 sort keys. Overlay Modal dropdowns. All filter and sort logic confirmed correct on device. |
+| 3.2.19 / .1–.3 | Card overhaul — tap-to-expand icon row on Listings cards. Only one card expanded at a time. Collapses on tab leave. Status pill letter spacing tightened. Rent + fees aligned to bottom of right column. Preferred heart toggle wired to API. |
 
 ---
 
 ## Next Builds — 3.2.x Series
 
+**UI freeze rule:** Once 3.2.21 is confirmed stable, the UI is frozen. No UI changes are permitted during V4. If a screen breaks due to a data layer change in V4, only the minimum fix is permitted.
+
 | Build | Scope |
 |---|---|
-| 3.2.18 | Sort — sort functionality added to Filter panel. Sort by Base Rent, Total Monthly, Status, Date Added. |
-| 3.2.19 | Card overhaul — tap-to-expand icon row on all cards. Only one card expanded at a time. Status pill letter spacing tightened. Rent + fees line aligned with status pill. Icons active from both Home and Listings screens. |
-| 3.2.20 | Canonical Data Model — buildingName → propertyName full rename across code, sheet, and UI. One master field list across all screens and the API. totalMonthly / totalUpfront stored fields reviewed for removal. |
-| 3.2.21 | UI Polish — spacing, typography, visual consistency. All panels except hamburger menu converted to full page. |
+| 3.2.20 | Typography & Design Token System — establish named font styles for every text role (screen headers, section headers, card titles, body, muted, labels, pills, buttons). Named layout tokens for the two header bars and two footer bars. All hardcoded font sizes, weights, and colors replaced with tokens. Changing one token updates every instance across the app. |
+| 3.2.21 | UI Polish — Add/Edit pages restored to pre-3.2.16 approved layout using build history as reference. All screens standardized using the token system from 3.2.20. Visual consistency pass across all 5 tabs and all panels. |
 | 3.2.22 | APK build for Android local testing before App Store submission. |
-
-**Free tier:** 5 listing cap. Local SQLite storage. No account required. Works fully offline. All fields manually enterable including scores and schools. Commute auto-filled at no cost. Neighborhood name auto-fill coming in V5.
 
 ---
 
@@ -50,13 +50,46 @@
 
 Migrate from Google Sheets to PostgreSQL cloud (Thomas only at this stage). Simultaneously implement local SQLite with identical schema for the free and Pro app tiers. App functions identically to the user. No auth required — still single tenant for Thomas.
 
+**Prerequisite:** All 3.2.x builds complete, stable, and UI frozen.
+
+### V4 Step 1 — Canonical Data Model
+Before any database work begins, establish the definitive field list that all layers will use.
+
+| Task | Detail |
+|---|---|
+| Field rename | `buildingName` → `propertyName` across mobile code, API, and sheet |
+| Master field list | One authoritative list used by mobile, API, and database schema — no divergence |
+| Calculated field review | `totalMonthly` and `totalUpfront` — evaluate whether to store or compute on read |
+| Sheet column audit | Confirm every sheet column name matches camelCase field names exactly |
+| Data Architecture doc update | Updated to reflect all renames and the final master field list |
+
+### V4 Step 2 — Database Setup
+
 | Item | Detail |
 |---|---|
 | Database | PostgreSQL — Render, Supabase, or Railway |
-| Free / Pro storage | Local SQLite — identical schema to cloud |
+| Free / Pro storage | Local SQLite — identical schema to PostgreSQL |
+| Schema | Derived directly from the V4 Step 1 canonical field list |
 | Migration path | SQLite → PostgreSQL on Pro Max signup |
 | Estimated cost | $0–$25/month at small scale |
-| Prerequisite | All 3.2.x builds complete and stable |
+
+### V4 Step 3 — API Migration
+
+| Task | Detail |
+|---|---|
+| Replace gspread layer | sheets_storage.py replaced with PostgreSQL ORM layer |
+| All endpoints unchanged | GET /listings, POST /listings, PUT /listings/:id, DELETE /listings/:id — same contracts |
+| Data migration | Existing Google Sheet data migrated to PostgreSQL before cutover |
+| Health check | /health endpoint updated to verify PostgreSQL connection |
+
+### V4 Step 4 — Mobile SQLite Integration
+
+| Task | Detail |
+|---|---|
+| SQLite layer | Local storage using same schema as PostgreSQL |
+| Offline mode | App reads/writes SQLite when no network available |
+| Sync | SQLite syncs to PostgreSQL when connection restored |
+| Free tier cap | 5 listing cap enforced at SQLite layer |
 
 ---
 
@@ -84,47 +117,22 @@ All score and school fields are visible to free users for manual entry. Auto-pop
 | Feature | Description |
 |---|---|
 | Unlimited Listings | Remove the 5 listing cap. |
-| URL Import | Paste a listing URL — auto-populates all text fields from the listing page. |
-| Walk / Transit / Bike Score auto-populate | Auto-filled from listing address via Walk Score API. |
-| Safety Score auto-populate | Auto-filled from listing address via AreaVibes / SpotCrime API. |
-| Noise Score auto-populate | Auto-filled from listing address via HowLoud API. |
-| School Data auto-populate | Auto-filled from listing address via GreatSchools API. |
-| Notifications / Reminders | Tour reminders, follow-up prompts, lease deadline alerts. |
-| Import / Export | Backup and restore listing data. Export to CSV or PDF. |
+| Import / Export | Backup and restore listing data. Export to CSV. |
+| Auto-populate Scores | Walk, Transit, Bike scores auto-filled from address. |
+| Auto-populate Schools | School name, rating, distance auto-filled from address. |
+| Criteria Scoring | Score each listing automatically against Criteria settings. |
+| URL Import | Paste a listing URL — app auto-populates fields from the page. |
 
 ---
 
 ## V7 — Pro Max (Subscription)
 
-Cloud PostgreSQL. Account required. Subscription funds ongoing infrastructure costs. SQLite data migrates to cloud on Pro Max signup.
+Cloud PostgreSQL sync. Multi-device support. Requires account.
 
 | Feature | Description |
 |---|---|
-| Login / Sync | User accounts. Cloud data sync across devices. |
-| Photo Support — URL | Multiple photos auto-extracted from listing URL via URL Import. |
-| Photo Support — Device | Attach your own photos from device camera or library during viewings. |
-| Advanced Criteria Scoring | User-defined weighted conditions, required vs optional, ratings per listing, total score. |
-| Broker / User Sharing | Broker and client share listings and notes in real time. |
-| User-Defined Lists | User defines custom dropdown options per field. |
-
-**Infrastructure costs covered by subscription:** Cloud PostgreSQL, Cloudflare R2 object storage (~$0.015/GB/month), Supabase Auth.
-
----
-
-## Storage Architecture Summary
-
-| Tier | Storage | Auth | Backup | Server Cost |
-|---|---|---|---|---|
-| Free | Local SQLite | No | None — 5 listing cap limits risk | Zero |
-| Pro | Local SQLite | No | Import / Export — user manages own backup | Zero |
-| Pro Max | Cloud PostgreSQL | Yes — required | Automatic cloud sync | Low — text + photos |
-
----
-
-## Build Number and Commit Message Format
-
-| Type | Format | Example |
-|---|---|---|
-| Standard build | `Build X.X.YY - description` | `Build 3.2.17 - Neighborhood section — Transportation renamed, safetyScore and noiseScore added` |
-| Hotfix | `Build X.X.YY.N Hotfix - description` | `Build 3.2.13.2 Hotfix - Compare Total Rent now always calculated locally` |
-| Closeout | `Build X.X.YY Closeout - description` | `Build 3.2.17 Closeout - closing docs updated` |
+| Cloud Sync | PostgreSQL backend — listings sync across all devices. |
+| Multi-device | Use on phone and tablet simultaneously. |
+| Notifications | Tour reminders, follow-up prompts, lease deadline alerts. |
+| Photo Support | Attach and display listing photos from device camera or library. |
+| Sharing | Share listings or comparisons with a partner or agent. |
