@@ -54,7 +54,7 @@ export function ListingCard({
         onPress={hideActions ? undefined : onCardPress}
         style={{ flexDirection: "row", padding: 6, gap: 8 }}
       >
-        {/* Left column: Photo + Status Pill + Price */}
+        {/* Left column: Photo + Status Pill */}
         <View style={{ width: 80 }}>
           <View
             style={{
@@ -75,34 +75,27 @@ export function ListingCard({
           <View style={{ marginTop: 6, alignSelf: "stretch" }}>
             <StatusPill status={listing.status} fullWidth />
           </View>
-
-          {/* Rent + fees — center aligned with status pill */}
-          <Text
-            style={{
-              color: colors.textPrimary,
-              marginTop: 5,
-              fontSize: 15,
-              fontWeight: "900",
-              textAlign: "center",
-            }}
-            numberOfLines={2}
-          >
-            {listing.priceSummary}
-          </Text>
         </View>
 
-        {/* Right column: Building name, address, unit info */}
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "900" }} numberOfLines={1}>
-            {listing.buildingName}
-          </Text>
+        {/* Right column: Building name, address, unit info, rent pushed to bottom */}
+        <View style={{ flex: 1, justifyContent: "space-between" }}>
+          <View>
+            <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "900" }} numberOfLines={1}>
+              {listing.buildingName}
+            </Text>
 
-          <Text style={{ color: colors.textSecondary, marginTop: 3, fontSize: 12 }} numberOfLines={2}>
-            {listing.addressLine}
-          </Text>
+            <Text style={{ color: colors.textSecondary, marginTop: 3, fontSize: 12 }} numberOfLines={2}>
+              {listing.addressLine}
+            </Text>
 
-          <Text style={{ color: colors.textSecondary, marginTop: 3, fontSize: 12 }} numberOfLines={1}>
-            {listing.unitSummary}
+            <Text style={{ color: colors.textSecondary, marginTop: 3, fontSize: 12 }} numberOfLines={1}>
+              {listing.unitSummary}
+            </Text>
+          </View>
+
+          {/* Rent + fees — pushed to bottom of right column, level with status pill */}
+          <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: "900" }}>
+            {listing.priceSummary}
           </Text>
         </View>
       </Pressable>

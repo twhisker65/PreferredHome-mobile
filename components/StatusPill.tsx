@@ -43,7 +43,7 @@ export function StatusPill({ status, fullWidth }: { status?: ListingStatus; full
         ...(fullWidth ? { width: "100%", alignItems: "center" } : null),
       }}
     >
-      <Text style={{ color: textFor(safeStatus), fontSize: 12, fontWeight: "800", letterSpacing: 0.8 }}>
+      <Text style={{ color: textFor(safeStatus), fontSize: 12, fontWeight: "800", letterSpacing: -0.4 }}>
         {safeStatus}
       </Text>
     </View>
