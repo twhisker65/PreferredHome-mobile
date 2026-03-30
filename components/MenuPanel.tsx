@@ -1,10 +1,12 @@
-// components/MenuPanel.tsx — Build 3.2.06
-// Dropdown menu panel that appears below the TopBar, left-aligned, half-screen wide.
-// Opens with opacity + translateY fade-down animation (same pattern as FilterPanel).
-// Four rows: Profile, Criteria, Settings, Help (placeholder).
-// Version label at the bottom.
-// Pressing a row fires onSelectPanel and closes this panel.
-// Pressing the overlay closes this panel without opening a sub-panel.
+// components/MenuPanel.tsx — Build 3.2.20.10
+// Change: font and color token references applied.
+//   colors.card → colors.surface (panel background)
+//   colors.cardHover → colors.surfacePressed (row pressed state)
+//   Row label fontSize: 14 → textStyles.bodyPrimary.fontSize
+//   Row label fontWeight: "700" → textStyles.bodyEmphasis.fontWeight
+//   "soon" text fontSize: 10 → textStyles.micro.fontSize
+//   Version label fontSize: 10 → textStyles.micro.fontSize
+// No logic, animation, layout, or structural changes.
 
 import React, { useEffect, useRef } from "react";
 import {
@@ -16,6 +18,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/colors";
+import { textStyles } from "../styles/typography";
 
 export type SubPanelKey = "profile" | "criteria" | "settings";
 
@@ -43,7 +46,7 @@ export function MenuPanel({ topOffset, onSelectPanel, onClose }: Props) {
   const screenW = Dimensions.get("window").width;
   const panelW  = Math.floor(screenW / 2);
 
-  const opacity  = useRef(new Animated.Value(0)).current;
+  const opacity    = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(-14)).current;
 
   useEffect(() => {
@@ -75,7 +78,7 @@ export function MenuPanel({ topOffset, onSelectPanel, onClose }: Props) {
           zIndex: 100,
           opacity,
           transform: [{ translateY }],
-          backgroundColor: colors.card,
+          backgroundColor: colors.surface,
           borderRightWidth: 1,
           borderBottomWidth: 1,
           borderColor: colors.border,
@@ -104,7 +107,7 @@ export function MenuPanel({ topOffset, onSelectPanel, onClose }: Props) {
               borderTopWidth: i === 0 ? 0 : 1,
               borderTopColor: colors.border,
               backgroundColor: pressed && !row.placeholder
-                ? colors.cardHover
+                ? colors.surfacePressed
                 : "transparent",
               opacity: row.placeholder ? 0.4 : 1,
             })}
@@ -116,9 +119,9 @@ export function MenuPanel({ topOffset, onSelectPanel, onClose }: Props) {
             />
             <Text
               style={{
-                color: colors.textPrimary,
-                fontSize: 14,
-                fontWeight: "700",
+                color:      colors.textPrimary,
+                fontSize:   textStyles.bodyPrimary.fontSize,
+                fontWeight: textStyles.bodyEmphasis.fontWeight,
                 flex: 1,
               }}
             >
@@ -127,9 +130,9 @@ export function MenuPanel({ topOffset, onSelectPanel, onClose }: Props) {
             {row.placeholder ? (
               <Text
                 style={{
-                  color: colors.textSecondary,
-                  fontSize: 10,
-                  fontStyle: "italic",
+                  color:      colors.textSecondary,
+                  fontSize:   textStyles.micro.fontSize,
+                  fontStyle:  "italic",
                 }}
               >
                 soon
@@ -147,16 +150,16 @@ export function MenuPanel({ topOffset, onSelectPanel, onClose }: Props) {
         {/* Version label */}
         <Text
           style={{
-            color: colors.textSecondary,
-            fontSize: 10,
-            textAlign: "center",
-            opacity: 0.5,
+            color:      colors.textSecondary,
+            fontSize:   textStyles.micro.fontSize,
+            textAlign:  "center",
+            opacity:    0.5,
             paddingVertical: 10,
             borderTopWidth: 1,
             borderTopColor: colors.border,
           }}
         >
-          PreferredHome v3.2.06
+          PreferredHome v3.2.20
         </Text>
       </Animated.View>
     </>
