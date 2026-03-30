@@ -1,8 +1,10 @@
-// app/edit.tsx — Build 3.2.16.1 Hotfix
-// Fixed: native Expo Router stack header suppressed via Stack.Screen.
-// Added: subtitle bar below TopBar — back arrow (left) + "Edit Listing" (centered).
-// Added: back arrow triggers confirmDiscard from lib/unsavedChanges.
-// No other changes from Build 3.2.16.
+// app/edit.tsx — Build 3.2.20.8
+// Change: font and color token references applied.
+//   ActivityIndicator color: colors.primaryBlue → colors.accent
+//   Back chevron color: colors.primaryBlue → colors.accent
+//   Subtitle bar title fontSize: 16 / fontWeight: "700"
+//     → textStyles.subHeader.fontSize / textStyles.subHeader.fontWeight
+// No logic, layout, or structural changes.
 
 import React, { useEffect, useRef, useState } from "react";
 import { Alert, View, ActivityIndicator, Pressable, Text } from "react-native";
@@ -10,6 +12,7 @@ import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/colors";
+import { textStyles } from "../styles/typography";
 import { TopBar } from "../components/TopBar";
 import { MenuPanel, type SubPanelKey } from "../components/MenuPanel";
 import { ProfilePanel } from "../components/ProfilePanel";
@@ -66,7 +69,7 @@ export default function EditScreen() {
       <>
         <Stack.Screen options={{ headerShown: false }} />
         <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator color={colors.primaryBlue} />
+          <ActivityIndicator color={colors.accent} />
         </View>
       </>
     );
@@ -96,9 +99,15 @@ export default function EditScreen() {
             onPress={() => confirmDiscard(() => router.back())}
             style={{ position: "absolute", left: 16, zIndex: 1, padding: 4 }}
           >
-            <Ionicons name="chevron-back" size={22} color={colors.primaryBlue} />
+            <Ionicons name="chevron-back" size={22} color={colors.accent} />
           </Pressable>
-          <Text style={{ flex: 1, textAlign: "center", color: colors.textPrimary, fontSize: 16, fontWeight: "700" }}>
+          <Text style={{
+            flex: 1,
+            textAlign: "center",
+            color: colors.textPrimary,
+            fontSize: textStyles.subHeader.fontSize,
+            fontWeight: textStyles.subHeader.fontWeight,
+          }}>
             Edit Listing
           </Text>
         </View>
