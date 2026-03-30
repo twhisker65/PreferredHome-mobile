@@ -1,8 +1,19 @@
-// components/ViewPanel.tsx — Build 3.2.17
-// Transportation section renamed to Neighborhood.
-// neighborhood field moved from Property display to Neighborhood section (first).
-// closeBy moved from Features display to Neighborhood section (last).
-// safetyScore and noiseScore added to score badge row in Neighborhood section.
+// components/ViewPanel.tsx — Build 3.2.20.13
+// MINIMAL token pass — full rework deferred to Build 3.2.21.
+// Changes: font and color token references applied.
+//   colors.card → colors.surface (styles.panel background, SchoolRow rating circle)
+//   colors.primaryBlue → colors.accent (close button, address link, preferred heart,
+//     BoolBadge checkmark, SchoolRow rating text, Total row values,
+//     URL/phone/email tappable links)
+//   colors.green → colors.comparePass (ScoreBadge high score color)
+//   colors.red   → colors.compareFail (ScoreBadge low score color)
+//   styles.headerTitle: fontSize 15/fontWeight "700" → textStyles.subHeader
+//   SectionHead: [headingLabel, { fontSize:10, marginBottom:4 }]
+//     → [textStyles.label, { marginBottom:4 }]
+//   Total row fontSize: 13 → textStyles.bodyPrimary.fontSize
+//   styles.label / styles.value: already correct token names — no change
+// No logic, layout, section structure, or data changes.
+// All sub-components remain defined outside main export (DRIFT 10).
 
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -11,12 +22,13 @@ import {
   Linking,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/colors";
-import { headingLabel } from "../styles/typography";
+import { textStyles } from "../styles/typography";
 import { loadProfileToggles, type ProfileToggles } from "../lib/profileStorage";
 
 const PANEL_LEFT = 48;
@@ -70,7 +82,7 @@ function fmtScore(v: unknown): number | null {
 // ── Sub-components — defined OUTSIDE main export (DRIFT 10) ───────
 
 function ScoreBadge({ score, label }: { score: number; label: string }) {
-  const color = score >= 70 ? colors.green ?? "#10B981" : score >= 40 ? "#F59E0B" : colors.red ?? "#EF4444";
+  const color = score >= 70 ? colors.comparePass : score >= 40 ? "#F59E0B" : colors.compareFail;
   return (
     <View style={{ alignItems: "center", marginRight: 10, marginBottom: 4 }}>
       <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: color, alignItems: "center", justifyContent: "center" }}>
@@ -117,7 +129,7 @@ function CostTwoCol({ left, right }: { left: [string, string]; right: [string, s
 function SectionHead({ title }: { title: string }) {
   return (
     <View style={{ borderBottomWidth: 1, borderBottomColor: colors.border, marginTop: 12, marginBottom: 6 }}>
-      <Text style={[headingLabel, { fontSize: 10, marginBottom: 4 }]}>{title.toUpperCase()}</Text>
+      <Text style={[textStyles.label, { marginBottom: 4 }]}>{title.toUpperCase()}</Text>
     </View>
   );
 }
@@ -126,8 +138,8 @@ function SchoolRow({ rating, name, grades, distance }: { rating: number | null; 
   if (!name) return null;
   return (
     <View style={{ flexDirection: "row", marginBottom: 6, alignItems: "flex-start" }}>
-      <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", marginRight: 8 }}>
-        <Text style={{ color: colors.primaryBlue, fontSize: 11, fontWeight: "800" }}>
+      <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", marginRight: 8 }}>
+        <Text style={{ color: colors.accent, fontSize: 11, fontWeight: "800" }}>
           {rating !== null ? String(rating) : "—"}
         </Text>
       </View>
@@ -154,7 +166,7 @@ function BoolBadge({ label, value }: { label: string; value: boolean }) {
         style={{
           fontSize: 15,
           fontWeight: "900",
-          color: value ? colors.primaryBlue : colors.textSecondary,
+          color: value ? colors.accent : colors.textSecondary,
         }}
       >
         {value ? "✓" : "—"}
@@ -217,14 +229,14 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
   const hood      = str(raw.neighborhood);
   const unitLine  = [propType, beds ? `${beds} bd` : null, baths ? `${baths} ba` : null, sqft ? `${sqft} sqft` : null].filter(Boolean).join(" · ") || "—";
 
-  const isPreferred = bool(raw.preferred);
-  const isFurnished = bool(raw.furnished);
-  const isTopFloor  = bool(raw.topFloor);
-  const isCorner    = bool(raw.cornerUnit);
-  const isShortTerm = bool(raw.shortTermAvailable);
-  const isRentersIns = bool(raw.rentersInsuranceRequired);
-  const noBrdApproval = bool(raw.noBoardApproval);
-  const noBrkFee      = bool(raw.noBrokerFee);
+  const isPreferred    = bool(raw.preferred);
+  const isFurnished    = bool(raw.furnished);
+  const isTopFloor     = bool(raw.topFloor);
+  const isCorner       = bool(raw.cornerUnit);
+  const isShortTerm    = bool(raw.shortTermAvailable);
+  const isRentersIns   = bool(raw.rentersInsuranceRequired);
+  const noBrdApproval  = bool(raw.noBoardApproval);
+  const noBrkFee       = bool(raw.noBrokerFee);
 
   // ── COSTS ──────────────────────────────────────────────────────────
   const fmt = (v: unknown) => v !== null && v !== undefined && v !== "" ? `$${Number(v).toLocaleString()}` : "";
@@ -354,7 +366,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={onClose} style={styles.closeBtn}>
-            <Text style={{ color: colors.primaryBlue, fontSize: 22, lineHeight: 24 }}>‹</Text>
+            <Text style={{ color: colors.accent, fontSize: 22, lineHeight: 24 }}>‹</Text>
           </Pressable>
           <Text style={styles.headerTitle} numberOfLines={1}>
             {buildingName}
@@ -370,7 +382,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
               onPress={() => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(mapsAddress)}`)}
               style={{ marginBottom: 3 }}
             >
-              <Text style={[styles.value, { color: colors.primaryBlue }]}>{fullAddress}</Text>
+              <Text style={[styles.value, { color: colors.accent }]}>{fullAddress}</Text>
             </Pressable>
           ) : (
             <Text style={[styles.value, { marginBottom: 3 }]}>{fullAddress}</Text>
@@ -401,7 +413,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
               <Text
                 style={{
                   fontSize: 15,
-                  color: isPreferred ? colors.primaryBlue : colors.textSecondary,
+                  color: isPreferred ? colors.accent : colors.textSecondary,
                   marginRight: 4,
                 }}
               >
@@ -435,18 +447,18 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
           {toggles.car && (
             <CostTwoCol left={["Parking Fee", parkFee]} right={["", ""]} />
           )}
-          <CostTwoCol left={["Other Fee", otherFee]}     right={["", ""]} />
+          <CostTwoCol left={["Other Fee", otherFee]} right={["", ""]} />
 
           {/* Total row */}
           <View style={{ height: 1, backgroundColor: colors.border, marginTop: 4, marginBottom: 6 }} />
           <View style={{ flexDirection: "row" }}>
             <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingRight: 8 }}>
-              <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }}>Total</Text>
-              <Text style={{ color: colors.primaryBlue, fontSize: 13, fontWeight: "900" }}>{calcTotalMonthly}</Text>
+              <Text style={{ color: colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize, fontWeight: "900" }}>Total</Text>
+              <Text style={{ color: colors.accent, fontSize: textStyles.bodyPrimary.fontSize, fontWeight: "900" }}>{calcTotalMonthly}</Text>
             </View>
             <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingLeft: 8 }}>
-              <Text style={{ color: colors.textPrimary, fontSize: 13, fontWeight: "900" }}>Total</Text>
-              <Text style={{ color: colors.primaryBlue, fontSize: 13, fontWeight: "900" }}>{calcTotalUpfront}</Text>
+              <Text style={{ color: colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize, fontWeight: "900" }}>Total</Text>
+              <Text style={{ color: colors.accent, fontSize: textStyles.bodyPrimary.fontSize, fontWeight: "900" }}>{calcTotalUpfront}</Text>
             </View>
           </View>
 
@@ -510,7 +522,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
               style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}
             >
               <Text style={styles.label}>URL: </Text>
-              <Text style={[styles.value, { color: colors.primaryBlue }]} numberOfLines={1}>{url}</Text>
+              <Text style={[styles.value, { color: colors.accent }]} numberOfLines={1}>{url}</Text>
             </Pressable>
           ) : (
             <FieldRow label="URL:" value="—" />
@@ -522,7 +534,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
               style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}
             >
               <Text style={styles.label}>Phone: </Text>
-              <Text style={[styles.value, { color: colors.primaryBlue }]}>{phone}</Text>
+              <Text style={[styles.value, { color: colors.accent }]}>{phone}</Text>
             </Pressable>
           ) : (
             <FieldRow label="Phone:" value={phone} />
@@ -533,7 +545,7 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
               style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}
             >
               <Text style={styles.label}>Email: </Text>
-              <Text style={[styles.value, { color: colors.primaryBlue }]}>{email}</Text>
+              <Text style={[styles.value, { color: colors.accent }]}>{email}</Text>
             </Pressable>
           ) : (
             <FieldRow label="Email:" value={email} />
@@ -563,12 +575,10 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
 
 // ── Styles ────────────────────────────────────────────────────────
 
-import { StyleSheet } from "react-native";
-
 const styles = StyleSheet.create({
   panel: {
     position: "absolute",
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     shadowColor: "#000",
     shadowOffset: { width: -4, height: 0 },
     shadowOpacity: 0.3,
@@ -589,17 +599,17 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    color: colors.textPrimary,
-    fontSize: 15,
-    fontWeight: "700",
+    color:      colors.textPrimary,
+    fontSize:   textStyles.subHeader.fontSize,
+    fontWeight: textStyles.subHeader.fontWeight,
   },
   label: {
-    color: colors.textSecondary,
-    fontSize: 12,
+    color:      colors.textSecondary,
+    fontSize:   12,
     fontWeight: "600",
   },
   value: {
-    color: colors.textPrimary,
+    color:    colors.textPrimary,
     fontSize: 12,
   },
 });

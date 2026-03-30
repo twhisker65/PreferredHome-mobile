@@ -1,44 +1,41 @@
-PreferredHome — Build 3.2.20.11
+PreferredHome — Build 3.2.20.13
 ================================
-Typography & Color Token System — ProfilePanel font and color tokens applied.
+Typography & Color Token System — ViewPanel minimal font and color token pass.
+Full ViewPanel rework deferred to Build 3.2.21.
 Mobile repo only. No API changes. No Render deploy required.
 Generated: March 2026
 
 CHANGED FILES (in folder order)
 ---------------------------------
-components/ProfilePanel.tsx     — font and color token references applied
+components/ViewPanel.tsx     — minimal font and color token references applied
 
 WHAT CHANGED IN THIS BUILD
 ----------------------------
 
-1. components/ProfilePanel.tsx
+1. components/ViewPanel.tsx
    - Replaced headingLabel import with textStyles from ../styles/typography
-   - Panel backgroundColor: colors.card → colors.surface
-   - Panel header "PROFILE" label: headingLabel → textStyles.subHeader
-   - SectionLabel: fontSize 10/800/letterSpacing 0.8 → textStyles.label properties
-   - fieldLabel const: fontSize 10/700/letterSpacing 0.4 → textStyles.label
-   - PanelField label: → textStyles.label
-   - PanelField input background: colors.cardHover → colors.surfacePressed
-   - PanelField input value fontSize: 12 → textStyles.bodySmall.fontSize
-   - PanelSelectRow label: → textStyles.label
-   - PanelSelectRow background: colors.cardHover → colors.surfacePressed
-   - PanelSelectRow value fontSize: 12 → textStyles.bodySmall.fontSize
-   - Search Mode buttons: colors.primaryBlue → colors.accent; colors.cardHover → colors.surfacePressed
-   - Commute Method buttons: same pattern
-   - Lifestyle toggle labels fontSize: 13 → textStyles.bodyPrimary.fontSize
-   - Lifestyle toggle trackColor true: colors.primaryBlue → colors.accent
-   - Departure Time Clear fontSize: 10 → textStyles.micro.fontSize
-   - Picker modal backgroundColor: colors.card → colors.surface
-   - Picker modal header fontSize: 14/700 → textStyles.bodyEmphasis
-   - Picker items fontSize: 14 → textStyles.bodyPrimary.fontSize
-   - Picker items/checkmark: colors.primaryBlue → colors.accent
-   - All logic, state, commute recalculation, animation unchanged
+   - styles.panel backgroundColor: colors.card → colors.surface
+   - styles.headerTitle: fontSize 15/fontWeight "700" → textStyles.subHeader
+   - SectionHead: [headingLabel, {fontSize:10, marginBottom:4}]
+     → [textStyles.label, {marginBottom:4}]
+   - ScoreBadge: colors.green → colors.comparePass; colors.red → colors.compareFail
+   - SchoolRow rating circle backgroundColor: colors.card → colors.surface
+   - SchoolRow rating text color: colors.primaryBlue → colors.accent
+   - Close button (‹) color: colors.primaryBlue → colors.accent
+   - Full address tappable link: colors.primaryBlue → colors.accent
+   - Preferred heart color: colors.primaryBlue → colors.accent
+   - BoolBadge checkmark color: colors.primaryBlue → colors.accent
+   - Total row values color: colors.primaryBlue → colors.accent
+   - Total row fontSize: 13 → textStyles.bodyPrimary.fontSize (14)
+   - URL/phone/email tappable links: colors.primaryBlue → colors.accent
+   - styles.label / styles.value: already correct token names — unchanged
+   - All data logic, layout, sections, toggle gating unchanged
 
 EXPECTED VISIBLE CHANGES
 -------------------------
-- "Profile" panel header: subHeader style (18/600) vs previous headingLabel (15/900)
-- Section labels (PERSONAL, COMMUTE, etc.): slightly larger (10→12), lighter (800→600)
-- Field labels: slightly larger (10→12), lighter (700→600)
+- Building name in header: slightly larger (15/700 → 18/600) per subHeader token
+- Section dividers (Costs, Features, etc.): label style (12/600/grey) vs previous 10/900
+- Total amounts: slightly larger (13→14pt)
 
 NO CHANGES TO:
    - Any other file
@@ -48,7 +45,7 @@ DEPLOY STEPS
 ------------
 1. Copy the changed file from this ZIP into your local repo,
    overwriting the existing file at the same path:
-     components/ProfilePanel.tsx
+     components/ViewPanel.tsx
 2. Run Expo restart:
 
 cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel --clear
@@ -60,19 +57,18 @@ cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo sta
 
 COMMIT MESSAGE
 --------------
-Build 3.2.20.11 - ProfilePanel font and color tokens applied
+Build 3.2.20.13 - ViewPanel font and color tokens applied (minimal pass)
 
 TEST CHECKLIST
 --------------
 [ ] App loads with no red screen
-[ ] Open hamburger → Profile — panel slides in from left
-[ ] "Profile" header visible at top of panel
-[ ] PERSONAL, SEARCH MODE, COMMUTE, LIFESTYLE section labels visible
-[ ] Name and Email fields accept input
-[ ] Rent / Buy search mode buttons work — selected shows blue
-[ ] Work Address field accepts input
-[ ] Commute Method buttons work — selected shows blue
-[ ] Departure Time picker opens and selects correctly
-[ ] Children / Pets / Car toggles work — turn blue when on
-[ ] Panel closes correctly (tap overlay or X)
+[ ] Tap View (eye icon) on a listing card — ViewPanel slides in from right
+[ ] Building name displays in header
+[ ] Back arrow (‹) visible and closes panel
+[ ] All sections display: Costs, Features, Neighborhood, Listing, Timeline
+[ ] Tappable links (address, phone, email, URL) show in blue
+[ ] Total Monthly and Total Upfront amounts show in blue
+[ ] Bool badges (Furnished, Top Floor, etc.) show checkmarks in blue when true
+[ ] Score badges display for listings with walk/transit/bike scores
+[ ] Panel slides out correctly on close
 [ ] No TypeScript errors in Expo terminal

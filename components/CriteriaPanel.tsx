@@ -1,9 +1,16 @@
-// components/CriteriaPanel.tsx — Build 3.2.06
-// Criteria sub-panel. Slides in from the left (translateX animation, 180ms).
-// Fields: Min Square Footage, Max Base Rent, Max Total Monthly, Max Commute Time.
-// Features row: placeholder "Coming soon" only.
-// Auto-saves immediately on every change (fire-and-forget AsyncStorage writes).
-// Closing the panel closes everything — no back navigation to the menu.
+// components/CriteriaPanel.tsx — Build 3.2.20.12
+// Change: font and color token references applied.
+//   colors.card → colors.surface (panel background)
+//   Panel header title: fontSize 15/fontWeight "900"/letterSpacing 0.3
+//     → textStyles.subHeader (18/600/textPrimary)
+//   SectionLabel: [headingLabel, { fontSize:10 }] → textStyles.label properties
+//   fieldLabel const: fontSize 11/fontWeight "700"/letterSpacing 0.4 → textStyles.label
+//   NumericField input background: colors.cardHover → colors.surfacePressed
+//   NumericField input value fontSize: 13 → textStyles.bodySmall.fontSize
+//   "Select Features" text: fontSize 13/fontWeight "600" → textStyles.bodyEmphasis
+//   "Coming soon" text: fontSize 11/italic → textStyles.micro.fontSize + fontStyle italic
+// No logic, state, auto-save, animation, or structural changes.
+// Sub-components remain defined outside export function (DRIFT 10).
 
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -17,7 +24,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/colors";
-import { headingLabel } from "../styles/typography";
+import { textStyles } from "../styles/typography";
 import {
   loadCriteriaData,
   saveCriteriaData,
@@ -96,7 +103,7 @@ export function CriteriaPanel({ topOffset, onClose }: Props) {
           width: panelW,
           zIndex: 100,
           transform: [{ translateX }],
-          backgroundColor: colors.card,
+          backgroundColor: colors.surface,
           borderRightWidth: 1,
           borderRightColor: colors.border,
           shadowColor: "#000",
@@ -118,16 +125,7 @@ export function CriteriaPanel({ topOffset, onClose }: Props) {
             borderBottomColor: colors.border,
           }}
         >
-          <Text
-            style={{
-              color: colors.textPrimary,
-              fontSize: 15,
-              fontWeight: "900",
-              letterSpacing: 0.3,
-            }}
-          >
-            Criteria
-          </Text>
+          <Text style={textStyles.subHeader}>Criteria</Text>
           <Pressable onPress={onClose} hitSlop={12}>
             <Ionicons name="close" size={20} color={colors.textSecondary} />
           </Pressable>
@@ -185,19 +183,13 @@ export function CriteriaPanel({ topOffset, onClose }: Props) {
               justifyContent: "space-between",
             }}
           >
-            <Text
-              style={{
-                color: colors.textPrimary,
-                fontSize: 13,
-                fontWeight: "600",
-              }}
-            >
+            <Text style={textStyles.bodyEmphasis}>
               Select Features
             </Text>
             <Text
               style={{
-                color: colors.textSecondary,
-                fontSize: 11,
+                color:     textStyles.micro.color,
+                fontSize:  textStyles.micro.fontSize,
                 fontStyle: "italic",
               }}
             >
@@ -212,16 +204,14 @@ export function CriteriaPanel({ topOffset, onClose }: Props) {
 
 // ── Sub-components ────────────────────────────────────────────────
 
-const fieldLabel = {
-  color: colors.textSecondary,
-  fontSize: 11,
-  fontWeight: "700" as const,
-  letterSpacing: 0.4,
-};
-
 function SectionLabel({ label }: { label: string }) {
   return (
-    <Text style={[headingLabel, { fontSize: 10, marginBottom: -4 }]}>
+    <Text style={{
+      color:         textStyles.label.color,
+      fontSize:      textStyles.label.fontSize,
+      fontWeight:    textStyles.label.fontWeight,
+      letterSpacing: textStyles.label.letterSpacing,
+    }}>
       {label}
     </Text>
   );
@@ -240,7 +230,7 @@ function NumericField({
 }) {
   return (
     <View style={{ gap: 5 }}>
-      <Text style={fieldLabel}>{label}</Text>
+      <Text style={textStyles.label}>{label}</Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -248,14 +238,14 @@ function NumericField({
         placeholderTextColor={colors.textSecondary}
         keyboardType="number-pad"
         style={{
-          backgroundColor: colors.cardHover,
+          backgroundColor: colors.surfacePressed,
           borderWidth: 1,
           borderColor: colors.border,
           borderRadius: 9,
           paddingHorizontal: 10,
           paddingVertical: 8,
           color: colors.textPrimary,
-          fontSize: 13,
+          fontSize: textStyles.bodySmall.fontSize,
         }}
       />
     </View>
