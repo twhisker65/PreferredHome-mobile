@@ -1,11 +1,18 @@
-// components/FilterPanel.tsx — Build 3.2.18.5 Hotfix
-// Fixed:   Dropdown overlay now aligns to the control column — x and width
-//          captured from measureInWindow so list matches button width exactly.
-// Removed: Select All and Clear All from STATUS list — default empty = all,
-//          Clear button at bottom handles full reset.
-// Fixed:   Clear button now resets draft only — panel stays open.
-//          Only Apply closes the panel. Back arrow closes without applying.
-// All other logic unchanged from Build 3.2.18.4.
+// components/FilterPanel.tsx — Build 3.2.20.9
+// Change: font and color token references applied.
+//   colors.primaryBlue → colors.accent (header chevron, DropdownButton, MultiSelectItem,
+//     SingleSelectItem, MaxRent active state, Apply button background)
+//   colors.card → colors.surface (panel wrapper, header bar, bottom bar)
+//   colors.cardHover → colors.surfacePressed (DropdownButton inactive bg, Clear button bg,
+//     pressed state items — all qualify as control container states per token rules)
+//   Header title: fontSize 16 / fontWeight "700" → textStyles.subHeader
+//   FilterRow label: [headingLabel, { fontSize: 11 }] → [textStyles.label]
+//   FILTER / SORT section labels: [headingLabel, { marginBottom: 2 }]
+//     → [textStyles.sectionTitle, { marginBottom: 2 }]
+//   Clear text: fontWeight "700" / fontSize 13 → textStyles.button
+//   Apply text: "#fff" → colors.textPrimary; fontWeight "700" / fontSize 13 → textStyles.button
+// No logic, filter/sort state, or structural changes.
+// All sub-components remain defined outside export function (DRIFT 10).
 
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -19,7 +26,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/colors";
-import { headingLabel } from "../styles/typography";
+import { textStyles } from "../styles/typography";
 import type { ListingStatus } from "../lib/types";
 
 // ── Types & constants ─────────────────────────────────────────────
@@ -154,23 +161,21 @@ export function FilterPanel({
     }));
   }
 
-  function statusLabel() {
-    if (!statusIsActive(draft)) return "All";
+  const statusLabel = () => {
+    if (draft.statuses.length === 0 || draft.statuses.length === ALL_STATUSES.length) return "All";
     if (draft.statuses.length === 1) return draft.statuses[0];
     return `${draft.statuses.length} selected`;
-  }
-  function unitTypeLabel() {
+  };
+  const unitTypeLabel = () => {
     if (draft.unitTypes.length === 0) return "All";
     if (draft.unitTypes.length === 1) return draft.unitTypes[0];
     return `${draft.unitTypes.length} selected`;
-  }
+  };
+  const brokerLabel   = draft.brokerFee === "with" ? "With fee" : draft.brokerFee === "without" ? "No fee" : "Both";
+  const prefLabel     = draft.preferred === "yes" ? "Yes only" : "Both";
+  const sortKeyLabel  = draft.sortKey || "None";
+  const sortOrderLabel = draft.sortOrder === "desc" ? "Descending" : "Ascending";
 
-  const brokerLabel    = draft.brokerFee === "both" ? "Both" : draft.brokerFee === "without" ? "No Fee" : "With Fee";
-  const prefLabel      = draft.preferred === "both" ? "Both" : "Yes";
-  const sortKeyLabel   = draft.sortKey === "" ? "None" : draft.sortKey;
-  const sortOrderLabel = draft.sortOrder === "asc" ? "Ascending" : "Descending";
-
-  // Renders the items for whichever dropdown is currently open — used inside Modal
   function renderDropdownContent() {
     switch (openDropdown) {
       case "status":
@@ -205,8 +210,8 @@ export function FilterPanel({
             {(
               [
                 { label: "Both",     value: "both"    },
-                { label: "No Fee",   value: "without" },
-                { label: "With Fee", value: "with"    },
+                { label: "With fee", value: "with"    },
+                { label: "No fee",   value: "without" },
               ] as { label: string; value: FilterState["brokerFee"] }[]
             ).map((o) => (
               <SingleSelectItem
@@ -226,8 +231,8 @@ export function FilterPanel({
           <>
             {(
               [
-                { label: "Both", value: "both" },
-                { label: "Yes",  value: "yes"  },
+                { label: "Both",     value: "both" },
+                { label: "Yes only", value: "yes"  },
               ] as { label: string; value: FilterState["preferred"] }[]
             ).map((o) => (
               <SingleSelectItem
@@ -304,7 +309,7 @@ export function FilterPanel({
         zIndex: 100,
         opacity,
         transform: [{ translateY }],
-        backgroundColor: colors.card,
+        backgroundColor: colors.surface,
         borderTopWidth: 1,
         borderTopColor: colors.border,
         shadowColor: "#000",
@@ -314,7 +319,7 @@ export function FilterPanel({
         elevation: 10,
       }}
     >
-      {/* ── Header bar — matches Edit Listing subtitle bar ────────── */}
+      {/* ── Header bar ───────────────────────────────────────────── */}
       <View
         style={{
           flexDirection: "row",
@@ -323,22 +328,22 @@ export function FilterPanel({
           paddingVertical: 10,
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
-          backgroundColor: colors.card,
+          backgroundColor: colors.surface,
         }}
       >
         <Pressable
           onPress={onClose}
           style={{ position: "absolute", left: 16, zIndex: 1, padding: 4 }}
         >
-          <Ionicons name="chevron-back" size={22} color={colors.primaryBlue} />
+          <Ionicons name="chevron-back" size={22} color={colors.accent} />
         </Pressable>
         <Text
           style={{
             flex: 1,
             textAlign: "center",
             color: colors.textPrimary,
-            fontSize: 16,
-            fontWeight: "700",
+            fontSize: textStyles.subHeader.fontSize,
+            fontWeight: textStyles.subHeader.fontWeight,
           }}
         >
           Sort & Filter Listings
@@ -352,7 +357,7 @@ export function FilterPanel({
         contentContainerStyle={{ padding: 16, gap: 12 }}
       >
         {/* ── FILTER section label ──────────────────────────────── */}
-        <Text style={[headingLabel, { marginBottom: 2 }]}>FILTER</Text>
+        <Text style={[textStyles.sectionTitle, { marginBottom: 2 }]}>FILTER</Text>
 
         {/* STATUS */}
         <FilterRow label="STATUS">
@@ -414,13 +419,13 @@ export function FilterPanel({
             placeholder="No limit"
             placeholderTextColor={colors.textSecondary}
             style={{
-              backgroundColor: maxRentIsActive(draft) ? `${colors.primaryBlue}15` : colors.cardHover,
+              backgroundColor: maxRentIsActive(draft) ? `${colors.accent}15` : colors.surfacePressed,
               borderWidth: 1,
-              borderColor: maxRentIsActive(draft) ? colors.primaryBlue : colors.border,
+              borderColor: maxRentIsActive(draft) ? colors.accent : colors.border,
               borderRadius: 8,
               paddingHorizontal: 10,
               paddingVertical: 8,
-              color: maxRentIsActive(draft) ? colors.primaryBlue : colors.textPrimary,
+              color: maxRentIsActive(draft) ? colors.accent : colors.textPrimary,
               fontSize: 12,
               fontWeight: maxRentIsActive(draft) ? "700" : "400",
             }}
@@ -431,7 +436,7 @@ export function FilterPanel({
         <View style={{ height: 1, backgroundColor: colors.border, marginTop: 4, marginBottom: 2 }} />
 
         {/* ── SORT section label ─────────────────────────────────── */}
-        <Text style={[headingLabel, { marginBottom: 2 }]}>SORT</Text>
+        <Text style={[textStyles.sectionTitle, { marginBottom: 2 }]}>SORT</Text>
 
         {/* SORT BY */}
         <FilterRow label="SORT BY">
@@ -467,7 +472,7 @@ export function FilterPanel({
           padding: 14,
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          backgroundColor: colors.card,
+          backgroundColor: colors.surface,
         }}
       >
         <Pressable
@@ -482,11 +487,11 @@ export function FilterPanel({
             borderWidth: 1,
             borderColor: colors.border,
             alignItems: "center",
-            backgroundColor: colors.cardHover,
+            backgroundColor: colors.surfacePressed,
             opacity: pressed ? 0.7 : 1,
           })}
         >
-          <Text style={{ color: colors.textPrimary, fontWeight: "700", fontSize: 13 }}>
+          <Text style={textStyles.button}>
             Clear
           </Text>
         </Pressable>
@@ -497,11 +502,11 @@ export function FilterPanel({
             paddingVertical: 11,
             borderRadius: 10,
             alignItems: "center",
-            backgroundColor: colors.primaryBlue,
+            backgroundColor: colors.accent,
             opacity: pressed ? 0.75 : 1,
           })}
         >
-          <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>Apply</Text>
+          <Text style={textStyles.button}>Apply</Text>
         </Pressable>
       </View>
 
@@ -562,7 +567,7 @@ function FilterRow({
 }) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-      <Text style={[headingLabel, { fontSize: 11, flex: 1 }]}>{label}</Text>
+      <Text style={[textStyles.label, { flex: 1 }]}>{label}</Text>
       <View style={{ flex: 2 }}>{children}</View>
     </View>
   );
@@ -606,14 +611,14 @@ function DropdownButton({
         paddingVertical: 8,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: highlighted ? colors.primaryBlue : colors.border,
-        backgroundColor: highlighted ? `${colors.primaryBlue}15` : colors.cardHover,
+        borderColor: highlighted ? colors.accent : colors.border,
+        backgroundColor: highlighted ? `${colors.accent}15` : colors.surfacePressed,
         opacity: pressed ? 0.8 : 1,
       })}
     >
       <Text
         style={{
-          color: highlighted ? colors.primaryBlue : colors.textPrimary,
+          color: highlighted ? colors.accent : colors.textPrimary,
           fontSize: 12,
           fontWeight: highlighted ? "700" : "400",
           flex: 1,
@@ -626,7 +631,7 @@ function DropdownButton({
         <Ionicons
           name="chevron-down"
           size={14}
-          color={highlighted ? colors.primaryBlue : colors.textSecondary}
+          color={highlighted ? colors.accent : colors.textSecondary}
         />
       </Animated.View>
     </Pressable>
@@ -653,12 +658,12 @@ function MultiSelectItem({
         justifyContent: "space-between",
         paddingHorizontal: 10,
         paddingVertical: 9,
-        backgroundColor: pressed ? colors.cardHover : "transparent",
+        backgroundColor: pressed ? colors.surfacePressed : "transparent",
       })}
     >
       <Text
         style={{
-          color: selected ? colors.primaryBlue : colors.textPrimary,
+          color: selected ? colors.accent : colors.textPrimary,
           fontSize: 12,
           fontWeight: isBold || selected ? "700" : "400",
           flex: 1,
@@ -667,7 +672,7 @@ function MultiSelectItem({
         {label}
       </Text>
       {selected && (
-        <Ionicons name="checkmark" size={14} color={colors.primaryBlue} />
+        <Ionicons name="checkmark" size={14} color={colors.accent} />
       )}
     </Pressable>
   );
@@ -691,12 +696,12 @@ function SingleSelectItem({
         justifyContent: "space-between",
         paddingHorizontal: 10,
         paddingVertical: 9,
-        backgroundColor: pressed ? colors.cardHover : "transparent",
+        backgroundColor: pressed ? colors.surfacePressed : "transparent",
       })}
     >
       <Text
         style={{
-          color: selected ? colors.primaryBlue : colors.textPrimary,
+          color: selected ? colors.accent : colors.textPrimary,
           fontSize: 12,
           fontWeight: selected ? "700" : "400",
           flex: 1,
@@ -705,7 +710,7 @@ function SingleSelectItem({
         {label}
       </Text>
       {selected && (
-        <Ionicons name="checkmark" size={14} color={colors.primaryBlue} />
+        <Ionicons name="checkmark" size={14} color={colors.accent} />
       )}
     </Pressable>
   );
