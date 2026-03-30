@@ -1,10 +1,8 @@
-// app/(tabs)/listings.tsx — Build 3.2.18.3 Hotfix
-// Fixed: raw.unitType → raw.propertyType in applyFilters (field renamed in 3.2.11A).
-// Fixed: Broker fee filter conditions un-reversed — "with" now correctly keeps
-//        listings where noBrokerFee is FALSE; "without" keeps where TRUE.
-// Removed: zipCodes filter block (zip code filter removed from FilterPanel).
-// Removed: listings prop from FilterPanel call (no longer needed).
-// Carries: applySort(), sections useMemo, TopBar fix, banner from prior hotfixes.
+// app/(tabs)/listings.tsx — Build 3.2.19
+// Added: expandedId state — tap to expand/collapse icon row per card, only one at a time.
+// Added: useFocusEffect cleanup resets expandedId to null when tab loses focus.
+// Added: expanded and onCardPress props passed to each ListingCard.
+// Carries: all filter/sort logic, FILTERS ACTIVE banner, applySort, TopBar fix from 3.2.18.x
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -66,61 +64,70 @@ function applyFilters(items: ListingUI[], f: FilterState): ListingUI[] {
 
 function applySort(
   items: ListingUI[],
-  sortKey: string,
-  sortOrder: string
+  sortKey: FilterState["sortKey"],
+  sortOrder: FilterState["sortOrder"]
 ): ListingUI[] {
-  if (!sortKey) return items;
+  if (!sortKey || sortKey === "none") return items;
+
   const dir = sortOrder === "desc" ? -1 : 1;
+
   return [...items].sort((a, b) => {
-    let aVal: any;
-    let bVal: any;
+    const rawA = a.raw ?? {};
+    const rawB = b.raw ?? {};
+
+    let valA: number | string | null = null;
+    let valB: number | string | null = null;
+
     switch (sortKey) {
-      case "Status":
-        aVal = a.status ?? "";
-        bVal = b.status ?? "";
+      case "status":
+        valA = String(a.status ?? "");
+        valB = String(b.status ?? "");
         break;
-      case "Square Footage":
-        aVal = a.raw?.squareFootage != null ? Number(a.raw.squareFootage) : null;
-        bVal = b.raw?.squareFootage != null ? Number(b.raw.squareFootage) : null;
+      case "squareFootage":
+        valA = numOrNull(rawA.squareFootage);
+        valB = numOrNull(rawB.squareFootage);
         break;
-      case "Commute Time":
-        aVal = a.raw?.commuteTime != null ? Number(a.raw.commuteTime) : null;
-        bVal = b.raw?.commuteTime != null ? Number(b.raw.commuteTime) : null;
+      case "commuteTime":
+        valA = numOrNull(rawA.commuteTime);
+        valB = numOrNull(rawB.commuteTime);
         break;
-      case "Base Rent":
-        aVal = a.baseRent ?? null;
-        bVal = b.baseRent ?? null;
+      case "baseRent":
+        valA = numOrNull(a.baseRent);
+        valB = numOrNull(b.baseRent);
         break;
-      case "Total Monthly Cost":
-        aVal = a.raw?.totalMonthly != null ? Number(a.raw.totalMonthly) : null;
-        bVal = b.raw?.totalMonthly != null ? Number(b.raw.totalMonthly) : null;
+      case "totalMonthly": {
+        const feesA = typeof a.fees === "number" ? a.fees : 0;
+        const feesB = typeof b.fees === "number" ? b.fees : 0;
+        valA = numOrNull((a.baseRent ?? 0) + feesA);
+        valB = numOrNull((b.baseRent ?? 0) + feesB);
         break;
-      case "Date Added":
-        aVal = a.id ?? "";
-        bVal = b.id ?? "";
+      }
+      case "dateAdded":
+        valA = rawA.dateAdded ? String(rawA.dateAdded) : null;
+        valB = rawB.dateAdded ? String(rawB.dateAdded) : null;
         break;
       default:
         return 0;
     }
-    // Nulls and NaN always last
-    const aNull =
-      aVal === null ||
-      aVal === undefined ||
-      (typeof aVal === "number" && isNaN(aVal));
-    const bNull =
-      bVal === null ||
-      bVal === undefined ||
-      (typeof bVal === "number" && isNaN(bVal));
-    if (aNull && bNull) return 0;
-    if (aNull) return 1;
-    if (bNull) return -1;
-    if (typeof aVal === "number") return dir * (aVal - bVal);
-    return dir * String(aVal).localeCompare(String(bVal));
+
+    // Nulls always last
+    if (valA === null && valB === null) return 0;
+    if (valA === null) return 1;
+    if (valB === null) return -1;
+
+    if (typeof valA === "string" && typeof valB === "string") {
+      return dir * valA.localeCompare(valB);
+    }
+    return dir * ((valA as number) - (valB as number));
   });
 }
 
+function numOrNull(v: unknown): number | null {
+  const n = Number(v);
+  return isNaN(n) || v === "" || v === null || v === undefined ? null : n;
+}
+
 function boolVal(v: unknown): boolean {
-  if (typeof v === "boolean") return v;
   const s = String(v ?? "").trim().toUpperCase();
   return s === "TRUE" || s === "1" || s === "YES";
 }
@@ -149,6 +156,9 @@ export default function ListingsScreen() {
   const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
   const [viewPanelListing, setViewPanelListing] = useState<ListingUI | null>(null);
 
+  // Expanded card — only one card expanded at a time; null = all collapsed
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   // Applied filters — committed when user taps Apply in the panel
   const [appliedFilters, setAppliedFilters] =
     useState<FilterState>(DEFAULT_FILTERS);
@@ -158,11 +168,15 @@ export default function ListingsScreen() {
 
   const filtersActive = isFiltersActive(appliedFilters);
 
-  // Auto-refresh and reload compareIds whenever this screen comes into focus
+  // Auto-refresh and reload compareIds whenever this screen comes into focus.
+  // Cleanup function resets expandedId when the tab loses focus.
   useFocusEffect(
     useCallback(() => {
       refresh();
       loadCompareIds().then((ids) => setCompareIds(new Set(ids)));
+      return () => {
+        setExpandedId(null);
+      };
     }, [])
   );
 
@@ -304,6 +318,10 @@ export default function ListingsScreen() {
               <ListingCard
                 listing={item}
                 compareSelected={compareIds.has(item.id)}
+                expanded={expandedId === item.id}
+                onCardPress={() =>
+                  setExpandedId((prev) => (prev === item.id ? null : item.id))
+                }
                 onTogglePreferred={() => togglePreferred(item.id)}
                 onToggleCompare={() => toggleCompare(item.id)}
                 onView={() => setViewPanelListing(item)}

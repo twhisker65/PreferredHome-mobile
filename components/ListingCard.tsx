@@ -9,6 +9,8 @@ type Props = {
   listing?: ListingUI;
   compareSelected?: boolean;
   hideActions?: boolean;
+  expanded?: boolean;
+  onCardPress?: () => void;
 
   onTogglePreferred?: () => void;
   onToggleCompare?: () => void;
@@ -21,6 +23,8 @@ export function ListingCard({
   listing,
   compareSelected,
   hideActions,
+  expanded,
+  onCardPress,
   onTogglePreferred,
   onToggleCompare,
   onView,
@@ -32,6 +36,9 @@ export function ListingCard({
   const preferredColor = listing.preferred ? colors.primaryBlue : colors.textSecondary;
   const compareColor = compareSelected ? colors.primaryBlue : colors.textSecondary;
 
+  // Icon row is visible only when hideActions is not set AND card is expanded
+  const showActions = !hideActions && expanded;
+
   return (
     <View
       style={{
@@ -42,8 +49,12 @@ export function ListingCard({
         overflow: "hidden",
       }}
     >
-      <View style={{ flexDirection: "row", padding: 6, gap: 8 }}>
-        {/* Photo + Status (status is under photo per instructions) */}
+      {/* Tappable card body — pressing expands/collapses icon row */}
+      <Pressable
+        onPress={hideActions ? undefined : onCardPress}
+        style={{ flexDirection: "row", padding: 6, gap: 8 }}
+      >
+        {/* Left column: Photo + Status Pill + Price */}
         <View style={{ width: 80 }}>
           <View
             style={{
@@ -64,9 +75,23 @@ export function ListingCard({
           <View style={{ marginTop: 6, alignSelf: "stretch" }}>
             <StatusPill status={listing.status} fullWidth />
           </View>
+
+          {/* Rent + fees — center aligned with status pill */}
+          <Text
+            style={{
+              color: colors.textPrimary,
+              marginTop: 5,
+              fontSize: 15,
+              fontWeight: "900",
+              textAlign: "center",
+            }}
+            numberOfLines={2}
+          >
+            {listing.priceSummary}
+          </Text>
         </View>
 
-        {/* Text */}
+        {/* Right column: Building name, address, unit info */}
         <View style={{ flex: 1 }}>
           <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: "900" }} numberOfLines={1}>
             {listing.buildingName}
@@ -79,15 +104,11 @@ export function ListingCard({
           <Text style={{ color: colors.textSecondary, marginTop: 3, fontSize: 12 }} numberOfLines={1}>
             {listing.unitSummary}
           </Text>
-
-          <Text style={{ color: colors.textPrimary, marginTop: 6, fontSize: 15, fontWeight: "900" }}>
-            {listing.priceSummary}
-          </Text>
         </View>
-      </View>
+      </Pressable>
 
-      {/* Action Row (icons only, no labels) */}
-      {!hideActions ? (
+      {/* Action Row (icons only, no labels) — visible only when expanded */}
+      {showActions ? (
         <View style={{ flexDirection: "row", borderTopWidth: 1, borderTopColor: colors.border }}>
           <IconBtn icon={listing.preferred ? "heart" : "heart-outline"} onPress={onTogglePreferred} color={preferredColor} />
           <IconBtn icon={"git-compare-outline"} onPress={onToggleCompare} color={compareColor} />

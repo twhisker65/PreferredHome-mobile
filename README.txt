@@ -1,78 +1,68 @@
-PreferredHome — Build 3.2.18.5 Hotfix
-======================================
-Dropdown width aligned to control column, Select All/Clear All removed,
-Clear button keeps panel open.
+PreferredHome — Build 3.2.19
+============================
+Card overhaul — tap-to-expand icon row, status pill letter spacing, rent aligned to pill.
 Mobile repo only. No API changes. No Render deploy required.
 Generated: March 2026
 
 CHANGED FILES (in folder order)
 ---------------------------------
-components/FilterPanel.tsx    — dropdown width fix, STATUS cleanup, Clear behaviour fix
+components/StatusPill.tsx     — status pill text letter spacing tightened
+components/ListingCard.tsx    — tap-to-expand icon row; rent+fees moved under status pill
+app/(tabs)/listings.tsx       — expandedId state; collapse on tab blur; expanded/onCardPress wired
 
-WHAT CHANGED IN THIS HOTFIX
------------------------------
+WHAT CHANGED IN THIS BUILD
+----------------------------
 
-1. Dropdown list width aligned to control column
-   measureInWindow now captures x and width in addition to y and height.
-   The overlay list is positioned at left: x, width: w — matching the
-   right-hand control column exactly, not full panel width.
+1. components/StatusPill.tsx
+   - Added letterSpacing: 0.8 to pill Text style.
+   - Tightens character spacing so "Shortlisted" fits within the current pill width.
+   - No other changes. All colors, sizes, and weights unchanged.
 
-2. Select All / Clear All removed from STATUS list
-   Default empty selection already means "all statuses shown".
-   The Clear button at the bottom handles full reset. These two items
-   were redundant and added visual noise.
+2. components/ListingCard.tsx
+   - Added expanded (boolean) and onCardPress (function) props.
+   - hideActions prop retained — Home screen behavior unchanged.
+   - Card content row wrapped in Pressable. Tapping calls onCardPress (no-op if hideActions).
+   - Icon row renders only when !hideActions AND expanded === true.
+   - priceSummary (rent + fees) moved from right text column to left column, directly
+     below the StatusPill, with textAlign: "center" to align with the pill.
+   - No font sizes, weights, or other layout changed.
 
-3. Clear button keeps panel open
-   Clear now resets the draft state in place — panel stays open so the
-   user can see the reset state and make new selections before applying.
-   Only Apply closes the panel. Back arrow closes without applying.
+3. app/(tabs)/listings.tsx
+   - Added expandedId state (string | null), default null (all cards collapsed).
+   - useFocusEffect cleanup now resets expandedId to null when tab loses focus.
+   - Each ListingCard receives expanded={expandedId === item.id} and
+     onCardPress that toggles: tapping an expanded card collapses it;
+     tapping a collapsed card expands it and implicitly collapses all others.
+
+NO CHANGES TO:
+   - app/(tabs)/index.tsx (Home cards keep hideActions={true} — icons permanently hidden)
+   - PreferredHome-api (no backend changes)
 
 DEPLOY STEPS
 ------------
-Mobile repo only. No API changes. No Render deploy required.
+Mobile repo only. No API or Render changes needed.
 
-1. Copy the file from this ZIP into your local PreferredHome-mobile folder,
-   overwriting the existing file:
-     components/FilterPanel.tsx
-
-2. Restart Expo:
-
-cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel --clear
-
-3. Test on your physical phone using the checklist below.
-4. Commit via GitHub Desktop using the commit message below.
-5. Push to GitHub.
-
-EXPO RESTART COMMAND
----------------------
-cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel --clear
+1. Copy the 3 changed files from this ZIP into your local repo:
+     components/StatusPill.tsx
+     components/ListingCard.tsx
+     app/(tabs)/listings.tsx
+2. Open terminal and run:
+     cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel --clear
 
 COMMIT MESSAGE
 --------------
-Build 3.2.18.5 Hotfix - dropdown aligned to control column, Select All removed, Clear stays open
+Build 3.2.19 - Tap-to-expand icon row on listing cards, status pill letter spacing, rent aligned to pill
 
 TEST CHECKLIST
 --------------
-[ ] 1. Open Sort & Filter Listings panel.
-
-[ ] 2. Tap STATUS dropdown.
-       List width matches the dropdown button — not full panel width.
-       No "Select All" or "Clear All" items — just the 10 statuses.
-       Select a few. Tap outside to close.
-
-[ ] 3. Tap UNIT TYPE. List width matches the button. Select one. Tap outside.
-
-[ ] 4. Tap Clear.
-       Panel stays open. All dropdowns reset to default (All / Both / None).
-       No selections remain.
-
-[ ] 5. Make new selections. Tap Apply.
-       Panel closes. Filters applied to listings.
-
-[ ] 6. Tap filter icon. Panel reopens showing the applied selections.
-
-[ ] 7. Tap back arrow. Panel closes. Listings unchanged.
-
-NO API DEPLOY REQUIRED
------------------------
-This build is mobile-only. No Render changes. No /health check needed.
+[ ] Listings screen — all cards open collapsed (no icon row visible)
+[ ] Tap a card — icon row drops down below the card
+[ ] Tap a different card — first card collapses, new card expands
+[ ] Tap the same expanded card again — it collapses
+[ ] All five icons (Heart, Compare, View, Edit, Trash) work correctly when expanded
+[ ] Navigate to another tab and return to Listings — all cards are collapsed
+[ ] Home screen — cards unchanged, icons remain hidden, no tap behavior
+[ ] Status pill text is visibly tighter on all statuses
+[ ] "Shortlisted" fits cleanly within the pill with no overflow
+[ ] Rent + fees text appears below the status pill, centered, on every card
+[ ] No red screen, all tabs render, listing data loads
