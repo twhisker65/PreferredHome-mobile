@@ -1,9 +1,19 @@
-// styles/typography.ts — Build 3.2.20 Closeout
-// Legacy exports (headingLabel, typography) removed.
-// All components now import from textStyles only.
+// styles/typography.ts — Build 3.2.20 Closeout Hotfix
+// sectionTitle comment updated — strict list removed per Thomas's direction.
+// sectionTitle is for any section or group heading at the developer's discretion.
+// No token values changed.
 
 import { TextStyle } from "react-native";
 import { colors } from "./colors";
+
+// ── Named text tokens ──────────────────────────────────────────────────────────
+// Rules:
+//   1. Never set fontSize, fontWeight, or color ad hoc in components. Use tokens only.
+//   2. White (textPrimary) = information and headings.
+//      Grey (textSecondary) = labels, muted content, no-data dash (-).
+//      Blue (accent) = links, active, selected, yes-check semantics only.
+//   3. sectionTitle is for section and group headings — use at your discretion.
+//   4. Do not create near-duplicate tokens to solve a local layout issue.
 
 export const textStyles = {
 
@@ -32,10 +42,7 @@ export const textStyles = {
     color:      colors.textPrimary,
   } as TextStyle,
 
-  // ── Zone 3 — Section Title (group anchors — strict list only) ───
-  // Permitted: PROPERTY, COSTS, FEATURES, NEIGHBORHOOD, SCHOOLS,
-  //            LISTING, TIMELINE, NOTES, FILTER, SORT,
-  //            APPOINTMENTS, PREFERRED, CANDIDATES
+  // ── Zone 3 — Section Title (section and group headings) ─────────
   sectionTitle: {
     fontSize:      15,
     lineHeight:    20,

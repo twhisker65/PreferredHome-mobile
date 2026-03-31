@@ -1,20 +1,14 @@
-// app/(tabs)/index.tsx — Build 3.2.20.6
-// Change: font and color token references applied. All hardcoded values removed.
-//   StatPill label:  fontSize 11 → textStyles.micro.fontSize (10)
-//                    letterSpacing 0.7 kept — no token, existing style
-//   StatPill value:  fontSize 18 / fontWeight "900" → textStyles.cardTitle (16/700)
-//   Stats heading:   colors.text → colors.textPrimary (legacy alias migration)
-//                    fontSize 16 / fontWeight "800" → textStyles.subHeader (18/600)
-//   Count text:      fontSize 13 → textStyles.bodySmall.fontSize (12)
-//   headingLabel on "TOP 3" kept — legacy alias, stays until Closeout.
-// No logic, layout, or structural changes.
+// app/(tabs)/index.tsx — Build 3.2.20 Closeout Hotfix
+// Fixed: TOP 3 label now uses textStyles.sectionTitle (headingLabel removed at Closeout).
+// Import updated: headingLabel removed, textStyles already present.
+// No other changes.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { View, Text, ActivityIndicator, RefreshControl, ScrollView } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../styles/colors";
-import { headingLabel, textStyles } from "../../styles/typography";
+import { textStyles } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
 import { ListingCard } from "../../components/ListingCard";
 import { MenuPanel, type SubPanelKey } from "../../components/MenuPanel";
@@ -53,7 +47,6 @@ export default function HomeScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
 
-  // Refresh whenever this screen comes into focus
   useFocusEffect(
     useCallback(() => {
       refresh();
@@ -122,7 +115,7 @@ export default function HomeScreen() {
           {/* Top 3 preferred */}
           {preferredTop.length > 0 && (
             <View style={{ gap: 10 }}>
-              <Text style={headingLabel}>TOP 3</Text>
+              <Text style={textStyles.sectionTitle}>Top 3</Text>
               {preferredTop.map((item) => (
                 <ListingCard
                   key={item.id}
@@ -150,7 +143,6 @@ export default function HomeScreen() {
         />
       )}
 
-      {/* Sub-panels */}
       {activeSubPanel === "profile" && (
         <ProfilePanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
       )}

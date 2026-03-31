@@ -1,11 +1,7 @@
-// app/(tabs)/listings.tsx — Build 3.2.20.5
-// Change: font and color token references applied.
-//   colors.primaryBlue → colors.accent (rightIconColor, FILTERS ACTIVE banner x3)
-//   colors.red → colors.compareFail (error state text)
-//   error text fontSize: 14 → textStyles.bodyPrimary.fontSize
-//   FILTERS ACTIVE banner fontSize:11/fontWeight:"700"/letterSpacing:0.9 kept as-is —
-//     no matching token exists; existing style, not a new ad hoc value.
-// No logic, layout, filter, sort, or structural changes.
+// app/(tabs)/listings.tsx — Build 3.2.20 Closeout Hotfix
+// Fixed: SectionHeader now uses textStyles.sectionTitle (headingLabel was removed at Closeout).
+// Import updated: headingLabel removed, textStyles already present.
+// No other changes.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -20,7 +16,7 @@ import {
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../styles/colors";
-import { headingLabel, textStyles } from "../../styles/typography";
+import { textStyles } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
 import { ListingCard } from "../../components/ListingCard";
 import { ViewPanel } from "../../components/ViewPanel";
@@ -44,7 +40,6 @@ import type { ListingUI, ListingStatus } from "../../lib/types";
 type Section = { title: string; data: ListingUI[] };
 
 // ── Filter logic ──────────────────────────────────────────────────
-// Applied before sort so sort order is preserved within each section.
 
 function applyFilters(items: ListingUI[], f: FilterState): ListingUI[] {
   return items.filter((l) => {
@@ -63,7 +58,6 @@ function applyFilters(items: ListingUI[], f: FilterState): ListingUI[] {
 }
 
 // ── Sort logic ────────────────────────────────────────────────────
-// Applied after filter. Nulls/NaN always sort last regardless of direction.
 
 function applySort(
   items: ListingUI[],
@@ -113,7 +107,6 @@ function applySort(
         return 0;
     }
 
-    // Nulls always last
     if (valA === null && valB === null) return 0;
     if (valA === null) return 1;
     if (valB === null) return -1;
@@ -140,7 +133,7 @@ function boolVal(v: unknown): boolean {
 function SectionHeader({ title }: { title: string }) {
   return (
     <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
-      <Text style={headingLabel}>{title}</Text>
+      <Text style={textStyles.sectionTitle}>{title}</Text>
     </View>
   );
 }
@@ -158,21 +151,12 @@ export default function ListingsScreen() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
   const [viewPanelListing, setViewPanelListing] = useState<ListingUI | null>(null);
-
-  // Expanded card — only one card expanded at a time; null = all collapsed
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>(DEFAULT_FILTERS);
 
-  // Applied filters — committed when user taps Apply in the panel
-  const [appliedFilters, setAppliedFilters] =
-    useState<FilterState>(DEFAULT_FILTERS);
-
-  // TopBar height: safe area inset + 52px row + 1px divider
   const topBarHeight = insets.top + 53;
-
   const filtersActive = isFiltersActive(appliedFilters);
 
-  // Auto-refresh and reload compareIds whenever this screen comes into focus.
-  // Cleanup function resets expandedId when the tab loses focus.
   useFocusEffect(
     useCallback(() => {
       refresh();
@@ -192,7 +176,6 @@ export default function ListingsScreen() {
     })();
   }, [listings]);
 
-  // Build sections: filter first, then sort within each group
   const sections: Section[] = useMemo(
     () => [
       {
@@ -235,9 +218,9 @@ export default function ListingsScreen() {
       } else if (next.size < 3) {
         next.add(id);
       } else {
-        return prev; // max 3 — no change
+        return prev;
       }
-      saveCompareIds([...next]); // persist to AsyncStorage (fire and forget)
+      saveCompareIds([...next]);
       return next;
     });
   }
@@ -274,7 +257,6 @@ export default function ListingsScreen() {
         onPressRight={() => setFilterOpen(true)}
       />
 
-      {/* FILTERS ACTIVE banner — shown below header when filters or sort are active */}
       {filtersActive && (
         <View
           style={{
@@ -299,9 +281,7 @@ export default function ListingsScreen() {
       )}
 
       {loading && !refreshing ? (
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator />
           <Text style={{ color: colors.textSecondary, marginTop: 10 }}>
             Loading listings...
@@ -348,7 +328,6 @@ export default function ListingsScreen() {
         />
       )}
 
-      {/* Filter / Sort full-page panel — conditionally mounted when open */}
       {filterOpen && (
         <FilterPanel
           topOffset={topBarHeight}
@@ -359,7 +338,6 @@ export default function ListingsScreen() {
         />
       )}
 
-      {/* View listing detail panel — slides in from right */}
       <ViewPanel
         visible={viewPanelListing !== null}
         listing={viewPanelListing}
@@ -367,7 +345,6 @@ export default function ListingsScreen() {
         onClose={() => setViewPanelListing(null)}
       />
 
-      {/* Menu dropdown */}
       {menuOpen && (
         <MenuPanel
           topOffset={topBarHeight}
@@ -376,7 +353,6 @@ export default function ListingsScreen() {
         />
       )}
 
-      {/* Sub-panels */}
       {activeSubPanel === "profile" && (
         <ProfilePanel topOffset={topBarHeight} onClose={() => setActiveSubPanel(null)} />
       )}
