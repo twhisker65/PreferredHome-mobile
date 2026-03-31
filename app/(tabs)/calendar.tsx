@@ -1,10 +1,15 @@
-// app/(tabs)/calendar.tsx — Build 3.2.07
-// Changes from 3.2.06:
-// - Added currentMonth state (year + month), defaults to today's month.
-// - Wired onMonthChange on Calendar: updates currentMonth when user taps prev/next arrows.
-// - Appointment list filtered to show only appointments in the currently displayed month.
-// - markedDates logic completely unchanged from Build 3.2.06.
-// All other logic, layout, and menu system unchanged.
+// app/(tabs)/calendar.tsx — Build 3.2.20.15
+// Change: font and color token references applied.
+//   colors.primaryBlue → colors.accent (markedDates selectedColor, Calendar todayTextColor)
+//   headingLabel → textStyles.sectionTitle for "APPOINTMENTS" label
+//   Error text: colors.red → colors.compareFail; fontSize 13 → textStyles.bodySmall.fontSize
+//   Empty state: fontSize 13 → textStyles.bodySmall.fontSize
+//   Appointment card backgroundColor: colors.card → colors.surface
+//   Appointment card building+date line: fontWeight "900"/fontSize 14
+//     → textStyles.bodyEmphasis (14/600/textPrimary)
+//   Appointment card address: fontSize 12 → textStyles.bodySmall.fontSize
+//   Appointment card contact: fontSize 12 → textStyles.bodySmall.fontSize
+// No logic, appointment parsing, markedDates generation, or structural changes.
 
 import React, { useCallback, useMemo, useState } from "react";
 import { View, Text, ActivityIndicator, ScrollView, RefreshControl } from "react-native";
@@ -12,7 +17,7 @@ import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
 import { colors } from "../../styles/colors";
-import { headingLabel } from "../../styles/typography";
+import { textStyles } from "../../styles/typography";
 import { TopBar } from "../../components/TopBar";
 import { MenuPanel, type SubPanelKey } from "../../components/MenuPanel";
 import { ProfilePanel } from "../../components/ProfilePanel";
@@ -83,7 +88,7 @@ export default function CalendarScreen() {
     }, [])
   );
 
-  // Build full appointments list from all listings — unchanged from 3.2.06
+  // Build full appointments list from all listings
   const appts: Appt[] = useMemo(() => {
     const out: Appt[] = [];
     for (const l of listings) {
@@ -107,11 +112,11 @@ export default function CalendarScreen() {
     return out;
   }, [listings]);
 
-  // markedDates — completely unchanged from Build 3.2.06
+  // markedDates — selectedColor updated to accent token
   const markedDates = useMemo(() => {
     const m: Record<string, any> = {};
     for (const a of appts) {
-      m[a.date] = { selected: true, selectedColor: colors.primaryBlue };
+      m[a.date] = { selected: true, selectedColor: colors.accent };
     }
     return m;
   }, [appts]);
@@ -145,7 +150,7 @@ export default function CalendarScreen() {
               monthTextColor: colors.textPrimary,
               dayTextColor: colors.textPrimary,
               textDisabledColor: colors.textSecondary,
-              todayTextColor: colors.primaryBlue,
+              todayTextColor: colors.accent,
               arrowColor: colors.textPrimary,
               textDayFontWeight: "700",
               textMonthFontWeight: "800",
@@ -155,7 +160,7 @@ export default function CalendarScreen() {
         </View>
 
         <View style={{ paddingHorizontal: 16, paddingTop: 22, paddingBottom: 12 }}>
-          <Text style={headingLabel}>Appointments</Text>
+          <Text style={textStyles.sectionTitle}>Appointments</Text>
         </View>
 
         {loading ? (
@@ -164,11 +169,11 @@ export default function CalendarScreen() {
           </View>
         ) : error ? (
           <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ color: colors.red, fontSize: 13 }}>{error}</Text>
+            <Text style={{ color: colors.compareFail, fontSize: textStyles.bodySmall.fontSize }}>{error}</Text>
           </View>
         ) : visibleAppts.length === 0 ? (
           <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
+            <Text style={{ color: colors.textSecondary, fontSize: textStyles.bodySmall.fontSize }}>
               No appointments for this month.
             </Text>
           </View>
@@ -180,18 +185,22 @@ export default function CalendarScreen() {
                 style={{
                   borderWidth: 1,
                   borderColor: colors.border,
-                  backgroundColor: colors.card,
+                  backgroundColor: colors.surface,
                   borderRadius: 14,
                   padding: 14,
                   gap: 3,
                 }}
               >
-                <Text style={{ color: colors.textPrimary, fontWeight: "900", fontSize: 14 }}>
+                <Text style={textStyles.bodyEmphasis}>
                   {safeText(a.building)} — {formatDisplayDate(a.date)}{a.time ? ` — ${a.time}` : ""}
                 </Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{safeText(a.address)}</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: textStyles.bodySmall.fontSize }}>
+                  {safeText(a.address)}
+                </Text>
                 {a.contact ? (
-                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{a.contact}</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: textStyles.bodySmall.fontSize }}>
+                    {a.contact}
+                  </Text>
                 ) : null}
               </View>
             ))}
