@@ -1,5 +1,5 @@
 # PreferredHome — All-Time Drift Log
-**Updated: Build 3.2.19 | March 2026**
+**Updated: Build 3.2.20 Closeout | March 2026**
 
 ---
 
@@ -39,6 +39,8 @@ At the start of every session, Claude reads this document. Before touching any f
 | 3.2.19.2 | ENGAGE Carry-Forward | After Thomas said ENGAGE for 3.2.19.2, Claude wrote code for the subsequent 3.2.19.3 fix without waiting for a new ENGAGE. Treated a prior ENGAGE as carrying forward to the next change. | Each fix, hotfix, or change requires its own ENGAGE. A prior ENGAGE in the same session never carries forward. |
 | 3.2.19.1 | Wrong letterSpacing Direction | Set letterSpacing: 0.8 (wider) when the goal was tighter. Stated the goal correctly in the brief but applied the wrong sign. Required a hotfix. | letterSpacing in React Native adds space between characters. A negative value tightens. Verify the direction before applying any typography value. |
 | 3.2.19.2 | Overcomplicated API Payload | Replaced the stub togglePreferred with a call spreading the entire listing.raw into the payload. The API rejected it with a 400 error. The correct fix was a single-field payload — the same pattern used everywhere else. | Before writing a replacement for a broken function, read how the working pattern is implemented elsewhere in the codebase. Do not introduce new logic. Restore the minimal correct behavior. |
+| 3.2.20 Closeout | Code-Start Without ENGAGE | Thomas said "CLOSEOUT 3.2.20" — not ENGAGE. Claude proceeded and produced the Closeout ZIP without the required gate phrase. | ENGAGE is the only valid go-ahead phrase. No other word or instruction counts. If Thomas does not say ENGAGE, ask for it. |
+| 3.2.20 Closeout | Stale Knowledge Audit Failure | Before removing legacy exports, Claude audited for remaining references using project knowledge — which had not synced from the session's deliveries. listings.tsx and index.tsx still contained headingLabel imports but the project knowledge showed old file versions. Claude declared the removal safe without flagging the stale data risk. Required a Closeout Hotfix. | When project knowledge has not been synced after a session's deliveries, explicitly state this before any audit that depends on current file contents. Do not declare an audit complete when the source data is known to be stale. |
 
 ---
 
@@ -65,6 +67,8 @@ At the start of every session, Claude reads this document. Before touching any f
 | DRIFT 20 | Before carrying forward any file containing filter logic, field mappings, or API references, audit that logic against the Data Architecture. Do not assume existing code is correct just because it was in the prior stable build. |
 | DRIFT 21 | ENGAGE is required before any code is written — every build, every hotfix, every change, no matter how small. A prior ENGAGE in the same session never carries forward to a new change. |
 | DRIFT 22 | Before writing a replacement for a broken function, read how the working pattern is implemented elsewhere in the codebase. Do not introduce new logic. Restore the minimal correct behavior. |
+| DRIFT 23 | ENGAGE is the only valid go-ahead phrase. No other word or instruction — including "Closeout", "ship it", or any other action directive — substitutes for it. If Thomas does not say ENGAGE, ask for it. |
+| DRIFT 24 | When project knowledge has not synced after a session's deliveries, state this explicitly before any audit that depends on current file contents. Never declare an audit complete when the source data is known to be stale. |
 
 ---
 
@@ -89,10 +93,10 @@ At the start of every session, Claude reads this document. Before touching any f
 
 ## Current State
 
-**Stable build:** 3.2.19.3 — Tap-to-expand icon row on Listings cards. Status pill letter spacing tightened. Rent + fees aligned to bottom of right column. Preferred heart toggle working correctly.
+**Stable build:** 3.2.20 Closeout Hotfix — Typography and Color Token System complete. All legacy aliases and legacy exports removed. sectionTitle strict list removed — token is now for any section or group heading at developer's discretion.
 
 **Google Sheet:** Clean. No issues.
 
 **Open issues:** None.
 
-**Next build:** 3.2.20 — Canonical Data Model — buildingName → propertyName full rename across code, sheet, and UI.
+**Next build:** 3.2.21 — UI Polish. Add and Edit pages restored to pre-3.2.16 approved layout. Overlay dropdown pattern from 3.2.18 is the reference implementation. Edit Listing page missing bottom nav to be addressed. UI freeze enforced after 3.2.21 confirmation.
