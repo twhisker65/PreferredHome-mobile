@@ -1,19 +1,9 @@
-// styles/typography.ts — Build 3.2.20
-// Typography & Color Token System — system lock.
-// New named tokens define every text role in the app.
-// Legacy exports (headingLabel, h1, h2, body, muted) remain until Build 3.2.20 Closeout.
+// styles/typography.ts — Build 3.2.20 Closeout
+// Legacy exports (headingLabel, typography) removed.
+// All components now import from textStyles only.
 
 import { TextStyle } from "react-native";
 import { colors } from "./colors";
-
-// ── Named text tokens ──────────────────────────────────────────────────────────
-// Rules:
-//   1. Never set fontSize, fontWeight, or color ad hoc in components. Use tokens only.
-//   2. White (textPrimary) = information and headings.
-//      Grey (textSecondary) = labels, muted content, no-data dash (-).
-//      Blue (accent) = links, active, selected, yes-check semantics only.
-//   3. sectionTitle is for true group anchors only — see strict list in Dev Control Protocols.
-//   4. Do not create near-duplicate tokens to solve a local layout issue.
 
 export const textStyles = {
 
@@ -118,8 +108,6 @@ export const textStyles = {
   } as TextStyle,
 
   // ── Zone 5 — Bottom Nav (Expo-managed — color not set here) ─────
-  // tabBarActiveTintColor / tabBarInactiveTintColor in _layout.tsx
-  // handle color. This token documents the size only for reference.
   navLabel: {
     fontSize:   10,
     lineHeight: 14,
@@ -134,25 +122,4 @@ export const textStyles = {
     color:      colors.textSecondary,
   } as TextStyle,
 
-} as const;
-
-
-// ── Legacy exports — kept until Build 3.2.20 Closeout ─────────────────────────
-// Components still importing headingLabel, h1, h2, body, muted will not break.
-// Each sub-build (3.2.20.1 – 3.2.20.15) migrates these references to textStyles tokens.
-// Remove this block in Build 3.2.20 Closeout only.
-
-export const headingLabel: TextStyle = {
-  fontSize:      15,
-  fontWeight:    "900",
-  color:         colors.textPrimary,
-  letterSpacing: 0.5,
-  textTransform: "uppercase",
-};
-
-export const typography = {
-  h1:    { fontSize: 18, fontWeight: "700", color: colors.textPrimary } as TextStyle,
-  h2:    { fontSize: 16, fontWeight: "700", color: colors.textPrimary } as TextStyle,
-  body:  { fontSize: 14, fontWeight: "500", color: colors.textPrimary } as TextStyle,
-  muted: { fontSize: 12, fontWeight: "500", color: colors.textSecondary } as TextStyle,
 } as const;

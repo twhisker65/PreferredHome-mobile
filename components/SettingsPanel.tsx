@@ -1,9 +1,15 @@
-// components/SettingsPanel.tsx — Build 3.2.06
-// Settings sub-panel. Slides in from the left (translateX animation, 180ms).
-// DATA section: Export All Data + Import Backup (placeholder buttons — Alert on press).
-// APPEARANCE section: Theme + Notifications — labeled "Future build".
-// Version label at the bottom.
-// Closing the panel closes everything.
+// components/SettingsPanel.tsx — Build 3.2.20 Closeout
+// Migrated remaining legacy token references.
+//   colors.card → colors.surface (panel background)
+//   colors.cardHover → colors.surfacePressed (ActionButton pressed bg)
+//   [headingLabel, { fontSize:10 }] → textStyles.label (DATA, APPEARANCE)
+//   Header title: fontSize 15/fontWeight "900"/letterSpacing 0.3 → textStyles.subHeader
+//   ActionButton label: fontSize 13/fontWeight "700" → textStyles.button
+//   FutureRow label: fontSize 13/fontWeight "700" → textStyles.button
+//   FutureRow "Future build": fontSize 11/italic → textStyles.micro.fontSize + italic
+//   Version label: fontSize 10 → textStyles.micro.fontSize
+// No logic, animation, or structural changes.
+// Sub-components remain defined outside export function (DRIFT 10).
 
 import React, { useEffect, useRef } from "react";
 import {
@@ -17,7 +23,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/colors";
-import { headingLabel } from "../styles/typography";
+import { textStyles } from "../styles/typography";
 
 type Props = {
   topOffset: number;
@@ -61,7 +67,7 @@ export function SettingsPanel({ topOffset, onClose }: Props) {
           width: panelW,
           zIndex: 100,
           transform: [{ translateX }],
-          backgroundColor: colors.card,
+          backgroundColor: colors.surface,
           borderRightWidth: 1,
           borderRightColor: colors.border,
           shadowColor: "#000",
@@ -83,16 +89,7 @@ export function SettingsPanel({ topOffset, onClose }: Props) {
             borderBottomColor: colors.border,
           }}
         >
-          <Text
-            style={{
-              color: colors.textPrimary,
-              fontSize: 15,
-              fontWeight: "900",
-              letterSpacing: 0.3,
-            }}
-          >
-            Settings
-          </Text>
+          <Text style={textStyles.subHeader}>Settings</Text>
           <Pressable onPress={onClose} hitSlop={12}>
             <Ionicons name="close" size={20} color={colors.textSecondary} />
           </Pressable>
@@ -103,7 +100,7 @@ export function SettingsPanel({ topOffset, onClose }: Props) {
           contentContainerStyle={{ padding: 14, gap: 16, paddingBottom: 40 }}
         >
           {/* ── DATA ── */}
-          <Text style={[headingLabel, { fontSize: 10 }]}>DATA</Text>
+          <Text style={textStyles.label}>DATA</Text>
 
           <ActionButton
             label="Export All Data"
@@ -121,9 +118,7 @@ export function SettingsPanel({ topOffset, onClose }: Props) {
           />
 
           {/* ── APPEARANCE ── */}
-          <Text style={[headingLabel, { fontSize: 10, marginTop: 4 }]}>
-            APPEARANCE
-          </Text>
+          <Text style={[textStyles.label, { marginTop: 4 }]}>APPEARANCE</Text>
 
           <FutureRow label="Theme" />
           <FutureRow label="Notifications" />
@@ -132,16 +127,16 @@ export function SettingsPanel({ topOffset, onClose }: Props) {
         {/* Version label */}
         <Text
           style={{
-            color: colors.textSecondary,
-            fontSize: 10,
-            textAlign: "center",
-            opacity: 0.5,
+            color:      colors.textSecondary,
+            fontSize:   textStyles.micro.fontSize,
+            textAlign:  "center",
+            opacity:    0.5,
             paddingVertical: 10,
             borderTopWidth: 1,
             borderTopColor: colors.border,
           }}
         >
-          PreferredHome v3.2.06
+          PreferredHome v3.2.20
         </Text>
       </Animated.View>
     </>
@@ -171,21 +166,12 @@ function ActionButton({
         borderRadius: 10,
         borderWidth: 1,
         borderColor: colors.border,
-        backgroundColor: pressed ? colors.cardHover : colors.background,
+        backgroundColor: pressed ? colors.surfacePressed : colors.background,
         opacity: pressed ? 0.75 : 1,
       })}
     >
       <Ionicons name={icon} size={17} color={colors.textPrimary} />
-      <Text
-        style={{
-          color: colors.textPrimary,
-          fontSize: 13,
-          fontWeight: "700",
-          flex: 1,
-        }}
-      >
-        {label}
-      </Text>
+      <Text style={[textStyles.button, { flex: 1 }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -206,22 +192,8 @@ function FutureRow({ label }: { label: string }) {
         opacity: 0.45,
       }}
     >
-      <Text
-        style={{
-          color: colors.textPrimary,
-          fontSize: 13,
-          fontWeight: "700",
-        }}
-      >
-        {label}
-      </Text>
-      <Text
-        style={{
-          color: colors.textSecondary,
-          fontSize: 11,
-          fontStyle: "italic",
-        }}
-      >
+      <Text style={textStyles.button}>{label}</Text>
+      <Text style={{ color: colors.textSecondary, fontSize: textStyles.micro.fontSize, fontStyle: "italic" }}>
         Future build
       </Text>
     </View>
