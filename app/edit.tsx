@@ -1,10 +1,12 @@
-// app/edit.tsx — Build 3.2.20.8
-// Change: font and color token references applied.
-//   ActivityIndicator color: colors.primaryBlue → colors.accent
-//   Back chevron color: colors.primaryBlue → colors.accent
-//   Subtitle bar title fontSize: 16 / fontWeight: "700"
-//     → textStyles.subHeader.fontSize / textStyles.subHeader.fontWeight
-// No logic, layout, or structural changes.
+// app/edit.tsx — Build 3.2.21
+// Changes from 3.2.20.8:
+//   Custom bottom nav component added (EditBottomNav) — rendered at bottom of screen.
+//   EditBottomNav is defined outside the main export function (DRIFT 10).
+//   EditBottomNav is local to this file only — not extracted to a shared component in this build.
+//   Mirrors the tab bar: 5 icons, token colors, router.push() on tap, no active-tab state.
+//   No route restructuring. edit.tsx remains at app/edit.tsx.
+//   Sub-footer (Save Listing) is handled by ListingForm — no change to save logic.
+// No logic, payload, or navigation changes beyond adding the bottom nav.
 
 import React, { useEffect, useRef, useState } from "react";
 import { Alert, View, ActivityIndicator, Pressable, Text } from "react-native";
@@ -22,6 +24,52 @@ import { getListings, updateListing, calculateCommute } from "../lib/api";
 import { loadProfileToggles, loadProfileData, type ProfileToggles, type ProfileData } from "../lib/profileStorage";
 import { confirmDiscard } from "../lib/unsavedChanges";
 import ListingForm, { rawToDraft, type Draft } from "../components/ListingForm";
+
+// ── Custom bottom nav — local to edit.tsx only (DRIFT 10) ─────────
+
+const NAV_TABS = [
+  { name: "Home",     icon: "home-outline"        as const, route: "/(tabs)/" },
+  { name: "Listings", icon: "albums-outline"       as const, route: "/(tabs)/listings" },
+  { name: "Add",      icon: "add-circle-outline"   as const, route: "/(tabs)/add" },
+  { name: "Compare",  icon: "git-compare-outline"  as const, route: "/(tabs)/compare" },
+  { name: "Calendar", icon: "calendar-outline"     as const, route: "/(tabs)/calendar" },
+];
+
+function EditBottomNav({ bottomInset }: { bottomInset: number }) {
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        backgroundColor: colors.background,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        paddingBottom: bottomInset,
+      }}
+    >
+      {NAV_TABS.map((tab) => (
+        <Pressable
+          key={tab.name}
+          onPress={() => router.push(tab.route as any)}
+          style={{ flex: 1, alignItems: "center", paddingTop: 8, paddingBottom: 4 }}
+        >
+          <Ionicons name={tab.icon} size={22} color={colors.textSecondary} />
+          <Text
+            style={{
+              color: colors.textSecondary,
+              fontSize: textStyles.navLabel.fontSize,
+              lineHeight: textStyles.navLabel.lineHeight,
+              marginTop: 2,
+            }}
+          >
+            {tab.name}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+// ── Main screen ────────────────────────────────────────────────────
 
 export default function EditScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -82,10 +130,10 @@ export default function EditScreen() {
 
       <View style={{ flex: 1, backgroundColor: colors.background }}>
 
-        {/* PreferredHome TopBar with hamburger — same as all screens */}
+        {/* PreferredHome TopBar with hamburger */}
         <TopBar title="PreferredHome" onPressMenu={() => setMenuOpen(true)} />
 
-        {/* Page subtitle bar — back arrow left, title centered */}
+        {/* Sub-header — back arrow left, title centered */}
         <View style={{
           flexDirection: "row",
           alignItems: "center",
@@ -112,13 +160,17 @@ export default function EditScreen() {
           </Text>
         </View>
 
+        {/* Form — flex: 1 — contains scrollable body and sub-footer Save button */}
         <ListingForm
           initialDraft={initialDraft}
           toggles={toggles}
           saving={saving}
           onSave={handleSave}
-          insets={insets}
+          insets={{ bottom: 0 }}
         />
+
+        {/* Custom bottom nav — replaces Expo tab bar for this screen */}
+        <EditBottomNav bottomInset={insets.bottom} />
 
         {/* Menu dropdown */}
         {menuOpen && (

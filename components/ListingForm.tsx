@@ -1,20 +1,13 @@
-// components/ListingForm.tsx — Build 3.2.20.7
-// Change: font and color token references applied. All hardcoded values removed.
-//   Section headers: [headingLabel, { fontSize: 11 }] → textStyles.sectionTitle (15/900/white)
-//   Field labels, Toggle labels, SelectRow labels, MultiRow labels, DateRow labels:
-//     fontSize 13 / fontWeight "600" → textStyles.label (12/600/textSecondary)
-//   Field input text: fontSize 14 → textStyles.bodyPrimary.fontSize
-//   SelectRow/MultiRow/DateRow values: fontSize 13 → textStyles.bodyPrimary.fontSize
-//   DateRow "Set" link: colors.primaryBlue + fontSize 14 → colors.accent + textStyles.linkText
-//   Toggle trackColor true: colors.primaryBlue → colors.accent
-//   School sub-labels: fontSize 11 / fontWeight "700" → textStyles.label (letterSpacing 0.5 kept)
-//   Picker items: colors.primaryBlue → colors.accent; fontSize 15 → textStyles.bodyPrimary.fontSize
-//   Picker "Done" button: colors.primaryBlue → colors.accent; "#fff" → colors.textPrimary
-//   Save button: colors.primaryBlue → colors.accent; "#fff" → colors.textPrimary
-//   Calendar theme: colors.card → colors.surface; colors.primaryBlue → colors.accent
-//   Date picker modal container: colors.card → colors.surface
-//   headingLabel kept for picker modal title (legacy alias — Closeout removes it)
-// No logic, layout, option array, or structural changes.
+// components/ListingForm.tsx — Build 3.2.21
+// Changes from 3.2.20.7:
+//   Save button moved from inside ScrollView to fixed sub-footer below ScrollView.
+//   shortTermAvailable and rentersInsuranceRequired moved from PROPERTY section to LISTING section.
+//   Label "Building Name *" → "Property Name *" (display label only — field key buildingName unchanged).
+//   Label "Renters Insurance Required" → "No Renters Insurance Required" (display label only).
+//   Validation alert updated to reference "Property Name".
+//   headingLabel import removed (was a removed legacy alias) — picker modal title uses textStyles.bodyEmphasis.
+//   ScrollView paddingBottom reduced (sub-footer is now separate fixed zone).
+// No logic, option array, payload, field key, or structural changes.
 // All sub-components defined OUTSIDE export function (DRIFT 10).
 // Option arrays copied exactly from source (DRIFT 13).
 
@@ -35,10 +28,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Calendar } from "react-native-calendars";
 import { colors } from "../styles/colors";
-import { headingLabel, textStyles } from "../styles/typography";
+import { textStyles } from "../styles/typography";
 import { lookupZip, detectListingSite } from "../lib/api";
 import { type ProfileToggles } from "../lib/profileStorage";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // ── Draft type ─────────────────────────────────────────────────────
 
@@ -425,7 +417,7 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
   }
 
   async function handleSave() {
-    if (!draft.buildingName.trim()) { Alert.alert("Required", "Building Name is required."); return; }
+    if (!draft.buildingName.trim()) { Alert.alert("Required", "Property Name is required."); return; }
     await onSave(buildPayload(draft), draft);
   }
 
@@ -434,9 +426,10 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}>
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 16 }}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
 
         {/* PROPERTY */}
@@ -444,7 +437,7 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
           <SelectRow label="Status" value={draft.status} onPress={() => openSingle("Status", STATUS, draft.status, set("status"))} />
           <SelectRow label="Property Type" value={draft.propertyType} onPress={() => openSingle("Property Type", PROPERTY_TYPES, draft.propertyType, set("propertyType"))} />
           <Toggle label="Preferred" value={draft.preferred} onValueChange={set("preferred")} />
-          <Field label="Building Name *" fieldKey="buildingName" inputRefs={inputRefs} onNext={focusNext} value={draft.buildingName} onChangeText={set("buildingName")} />
+          <Field label="Property Name *" fieldKey="buildingName" inputRefs={inputRefs} onNext={focusNext} value={draft.buildingName} onChangeText={set("buildingName")} />
           <Field label="Street Address" fieldKey="streetAddress" inputRefs={inputRefs} onNext={focusNext} value={draft.streetAddress} onChangeText={set("streetAddress")} />
           <Field label="Zip Code" fieldKey="zipCode" inputRefs={inputRefs} onNext={focusNext} value={draft.zipCode} onChangeText={set("zipCode")} keyboardType="number-pad" />
           <Field label={`City${zipLooking ? " (looking up...)" : ""}`} fieldKey="city" inputRefs={inputRefs} onNext={focusNext} value={draft.city} onChangeText={set("city")} editable={!zipLooking} />
@@ -458,8 +451,6 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
           {isAptCondoCoop && <Toggle label="Top Floor" value={draft.topFloor} onValueChange={set("topFloor")} />}
           {isAptCondoCoop && <Toggle label="Corner Unit" value={draft.cornerUnit} onValueChange={set("cornerUnit")} />}
           <Toggle label="Furnished" value={draft.furnished} onValueChange={set("furnished")} />
-          <Toggle label="Short Term Available" value={draft.shortTermAvailable} onValueChange={set("shortTermAvailable")} />
-          <Toggle label="Renters Insurance Required" value={draft.rentersInsuranceRequired} onValueChange={set("rentersInsuranceRequired")} />
         </Section>
 
         {/* COSTS */}
@@ -526,7 +517,7 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
           </Section>
         )}
 
-        {/* LISTING */}
+        {/* LISTING — includes shortTermAvailable and rentersInsuranceRequired (moved from PROPERTY) */}
         <Section title="Listing" open={open.listing} onToggle={() => toggleSection("listing")}>
           <SelectRow label="Listing Site" value={draft.listingSite} onPress={() => openSingle("Listing Site", LISTING_SITES, draft.listingSite, set("listingSite"))} />
           <Field label="Listing URL" fieldKey="listingUrl" inputRefs={inputRefs} onNext={focusNext} value={draft.listingUrl} onChangeText={set("listingUrl")} keyboardType="url" />
@@ -537,6 +528,8 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
           <Field label="Lease Length" fieldKey="leaseLength" inputRefs={inputRefs} onNext={focusNext} value={draft.leaseLength} onChangeText={set("leaseLength")} />
           <Toggle label="No Board Approval" value={draft.noBoardApproval} onValueChange={set("noBoardApproval")} />
           <Toggle label="No Broker Fee" value={draft.noBrokerFee} onValueChange={set("noBrokerFee")} />
+          <Toggle label="Short Term Available" value={draft.shortTermAvailable} onValueChange={set("shortTermAvailable")} />
+          <Toggle label="No Renters Insurance Required" value={draft.rentersInsuranceRequired} onValueChange={set("rentersInsuranceRequired")} />
         </Section>
 
         {/* TIMELINE */}
@@ -554,25 +547,42 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
           <Field label="Cons" fieldKey="cons" inputRefs={inputRefs} onNext={focusNext} value={draft.cons} onChangeText={set("cons")} />
         </Section>
 
-        {/* Save button */}
+      </ScrollView>
+
+      {/* ── Sub-footer — Save Listing button (fixed, below ScrollView) ── */}
+      <View
+        style={{
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          backgroundColor: colors.surface,
+        }}
+      >
         <Pressable
           onPress={handleSave}
           disabled={saving}
-          style={{ backgroundColor: colors.accent, borderRadius: 10, paddingVertical: 14, alignItems: "center", marginTop: 8 }}
+          style={({ pressed }) => ({
+            paddingVertical: 11,
+            borderRadius: 10,
+            alignItems: "center",
+            backgroundColor: colors.accent,
+            opacity: pressed ? 0.75 : 1,
+          })}
         >
           {saving ? (
             <ActivityIndicator color={colors.textPrimary} />
           ) : (
-            <Text style={{ color: colors.textPrimary, fontSize: textStyles.button.fontSize, fontWeight: textStyles.button.fontWeight }}>Save Listing</Text>
+            <Text style={textStyles.button}>Save Listing</Text>
           )}
         </Pressable>
-      </ScrollView>
+      </View>
 
       {/* Single/Multi picker modal */}
       <Modal visible={pickerVisible} transparent animationType="slide">
         <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => setPickerVisible(false)} />
         <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: "60%", padding: 16 }}>
-          <Text style={[headingLabel, { marginBottom: 12 }]}>{pickerTitle}</Text>
+          <Text style={[textStyles.bodyEmphasis, { marginBottom: 12 }]}>{pickerTitle}</Text>
           <ScrollView keyboardShouldPersistTaps="handled">
             {pickerOptions.map((opt) => {
               const selected = pickerSelected.includes(opt);

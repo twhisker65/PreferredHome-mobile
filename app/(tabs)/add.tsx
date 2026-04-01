@@ -1,4 +1,6 @@
-// app/(tabs)/add.tsx — Build 3.2.16
+// app/(tabs)/add.tsx — Build 3.2.21
+// No structural changes to this file. Sub-footer (Save Listing button) is now rendered
+// inside ListingForm — no wrapper changes needed here.
 // Refactored to use shared ListingForm component.
 // All form logic, option arrays, and sub-components live in components/ListingForm.tsx.
 // This screen handles: profile/toggle loading, postListing API call,

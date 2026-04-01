@@ -1,19 +1,17 @@
-// components/ViewPanel.tsx — Build 3.2.20.13
-// MINIMAL token pass — full rework deferred to Build 3.2.21.
-// Changes: font and color token references applied.
-//   colors.card → colors.surface (styles.panel background, SchoolRow rating circle)
-//   colors.primaryBlue → colors.accent (close button, address link, preferred heart,
-//     BoolBadge checkmark, SchoolRow rating text, Total row values,
-//     URL/phone/email tappable links)
-//   colors.green → colors.comparePass (ScoreBadge high score color)
-//   colors.red   → colors.compareFail (ScoreBadge low score color)
-//   styles.headerTitle: fontSize 15/fontWeight "700" → textStyles.subHeader
-//   SectionHead: [headingLabel, { fontSize:10, marginBottom:4 }]
-//     → [textStyles.label, { marginBottom:4 }]
-//   Total row fontSize: 13 → textStyles.bodyPrimary.fontSize
-//   styles.label / styles.value: already correct token names — no change
-// No logic, layout, section structure, or data changes.
-// All sub-components remain defined outside main export (DRIFT 10).
+// components/ViewPanel.tsx — Build 3.2.21
+// Changes from 3.2.20.13:
+//   Full-width layout: PANEL_LEFT removed — panel now covers full screen width.
+//   Backdrop pressable removed — back arrow is the close mechanism for full-width panel.
+//   Sub-header: building name centered, back arrow left (chevron-back), blue heart right if Preferred.
+//   ScoreBadge: circle (borderRadius: 19) → rounded square (borderRadius: 8).
+//     Background: neutral surfacePressed. Number: textPrimary. Label: textSecondary.
+//   CommaField: inline display — label and value on same row with flexWrap.
+//   Preferred BoolBadge removed from property badge row (now shown in sub-header).
+//   Short Term, No Renters Ins, No Board, No Broker moved from property badge row to Listing section.
+//   "Renters Ins." → "No Renters Ins" label. Display value inverted: ✓ when insurance NOT required.
+//   Costs section content unchanged — fits naturally in full-width layout.
+// No field logic, stored value, payload shape, or field key changes.
+// All sub-components defined OUTSIDE main export (DRIFT 10).
 
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -30,8 +28,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../styles/colors";
 import { textStyles } from "../styles/typography";
 import { loadProfileToggles, type ProfileToggles } from "../lib/profileStorage";
-
-const PANEL_LEFT = 48;
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -81,12 +77,21 @@ function fmtScore(v: unknown): number | null {
 
 // ── Sub-components — defined OUTSIDE main export (DRIFT 10) ───────
 
+// Rounded-square score badge — neutral colors per 3.2.21 directive.
 function ScoreBadge({ score, label }: { score: number; label: string }) {
-  const color = score >= 70 ? colors.comparePass : score >= 40 ? "#F59E0B" : colors.compareFail;
   return (
     <View style={{ alignItems: "center", marginRight: 10, marginBottom: 4 }}>
-      <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: color, alignItems: "center", justifyContent: "center" }}>
-        <Text style={{ color: "#fff", fontSize: 12, fontWeight: "800" }}>{score}</Text>
+      <View style={{
+        width: 38,
+        height: 38,
+        borderRadius: 8,
+        backgroundColor: colors.surfacePressed,
+        borderWidth: 1,
+        borderColor: colors.border,
+        alignItems: "center",
+        justifyContent: "center",
+      }}>
+        <Text style={{ color: colors.textPrimary, fontSize: 12, fontWeight: "800" }}>{score}</Text>
       </View>
       <Text style={{ color: colors.textSecondary, fontSize: 9, fontWeight: "600", marginTop: 2 }}>{label}</Text>
     </View>
@@ -102,11 +107,12 @@ function FieldRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+// Inline comma field — label and values on same row, wrapping if needed.
 function CommaField({ label, value }: { label: string; value: string }) {
   return (
-    <View style={{ marginBottom: 3 }}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={[styles.value, { marginTop: 1 }]}>{value || "—"}</Text>
+    <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}>
+      <Text style={styles.label}>{label} </Text>
+      <Text style={[styles.value, { flex: 1 }]}>{value || "—"}</Text>
     </View>
   );
 }
@@ -160,15 +166,9 @@ function SchoolRow({ rating, name, grades, distance }: { rating: number | null; 
 
 function BoolBadge({ label, value }: { label: string; value: boolean }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", marginRight: 12 }}>
+    <View style={{ flexDirection: "row", alignItems: "center", marginRight: 12, marginBottom: 4 }}>
       <Text style={styles.label}>{label} </Text>
-      <Text
-        style={{
-          fontSize: 15,
-          fontWeight: "900",
-          color: value ? colors.accent : colors.textSecondary,
-        }}
-      >
+      <Text style={{ fontSize: 15, fontWeight: "900", color: value ? colors.accent : colors.textSecondary }}>
         {value ? "✓" : "—"}
       </Text>
     </View>
@@ -179,9 +179,8 @@ function BoolBadge({ label, value }: { label: string; value: boolean }) {
 
 export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
   const screenW = Dimensions.get("window").width;
-  const panelW = screenW - PANEL_LEFT;
 
-  const translateX = useRef(new Animated.Value(panelW)).current;
+  const translateX = useRef(new Animated.Value(screenW)).current;
 
   const [toggles, setToggles] = useState<ProfileToggles>({ children: false, pets: false, car: false });
   useEffect(() => {
@@ -192,16 +191,16 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
 
   useEffect(() => {
     Animated.timing(translateX, {
-      toValue: visible ? 0 : panelW,
+      toValue: visible ? 0 : screenW,
       duration: 180,
       useNativeDriver: true,
     }).start();
-  }, [visible, panelW]);
+  }, [visible, screenW]);
 
   if (!listing) return null;
   const raw = listing.raw ?? {};
 
-  // ── Property type visibility ──────────────────────────────────────
+  // ── Property type visibility ───────────────────────────────────────
   const propType = str(raw.propertyType);
   const isAptCondoCoop = ["Apartment", "Condo", "Co-op"].includes(propType);
 
@@ -335,241 +334,216 @@ export function ViewPanel({ visible, listing, topOffset, onClose }: Props) {
   const cons = str(raw.cons);
 
   return (
-    <>
-      {/* Backdrop */}
-      <Pressable
-        onPress={onClose}
-        style={{
-          position: "absolute",
-          top: 0,
+    <Animated.View
+      style={[
+        styles.panel,
+        {
+          top: topOffset,
           bottom: 0,
           left: 0,
           right: 0,
-          zIndex: 40,
-        }}
-      />
+          zIndex: 50,
+          transform: [{ translateX }],
+        },
+      ]}
+    >
+      {/* ── Sub-header: back arrow | building name centered | heart if preferred ── */}
+      <View style={styles.header}>
+        <Pressable onPress={onClose} style={{ position: "absolute", left: 14, zIndex: 1, padding: 4 }}>
+          <Ionicons name="chevron-back" size={22} color={colors.accent} />
+        </Pressable>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {buildingName}
+        </Text>
+        {isPreferred ? (
+          <View style={{ position: "absolute", right: 14 }}>
+            <Ionicons name="heart" size={20} color={colors.accent} />
+          </View>
+        ) : (
+          <View style={{ width: 30 }} />
+        )}
+      </View>
 
-      {/* Panel */}
-      <Animated.View
-        style={[
-          styles.panel,
-          {
-            top: topOffset,
-            bottom: 0,
-            left: PANEL_LEFT,
-            right: 0,
-            zIndex: 50,
-            transform: [{ translateX }],
-          },
-        ]}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable onPress={onClose} style={styles.closeBtn}>
-            <Text style={{ color: colors.accent, fontSize: 22, lineHeight: 24 }}>‹</Text>
+      {/* ── Scrollable content ── */}
+      <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 40 }}>
+
+        {/* ── PROPERTY ──────────────────────────────────── */}
+        {mapsAddress ? (
+          <Pressable
+            onPress={() => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(mapsAddress)}`)}
+            style={{ marginBottom: 3 }}
+          >
+            <Text style={[styles.value, { color: colors.accent }]}>{fullAddress}</Text>
           </Pressable>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {buildingName}
-          </Text>
+        ) : (
+          <Text style={[styles.value, { marginBottom: 3 }]}>{fullAddress}</Text>
+        )}
+
+        <Text style={[styles.value, { color: colors.textSecondary, marginBottom: 4 }]}>
+          {unitLine}
+        </Text>
+
+        {isAptCondoCoop && !!floorNum && (
+          <FieldRow label="Floor #:" value={floorNum} />
+        )}
+        {!!numFloors && (
+          <FieldRow label="# of Floors:" value={numFloors} />
+        )}
+
+        {/* Property boolean badges — Preferred removed (shown in header) */}
+        <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", marginBottom: 4, marginTop: 4 }}>
+          <BoolBadge label="Furnished" value={isFurnished} />
+          {isAptCondoCoop && <BoolBadge label="Top Floor" value={isTopFloor} />}
+          {isAptCondoCoop && <BoolBadge label="Corner" value={isCorner} />}
         </View>
 
-        {/* Content */}
-        <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: 40 }}>
+        {/* ── COSTS ────────────────────────────────────── */}
+        <SectionHead title="Costs" />
+        <View style={{ flexDirection: "row", marginBottom: 2 }}>
+          <Text style={[styles.label, { flex: 1, textAlign: "center", fontWeight: "800" }]}>Monthly</Text>
+          <Text style={[styles.label, { flex: 1, textAlign: "center", fontWeight: "800" }]}>One-Time</Text>
+        </View>
+        <CostTwoCol left={["Base Rent", baseRentAmt]}    right={["Security Dep.", secDep]} />
+        <CostTwoCol left={["Amenity Fee", amenityFeeAmt]} right={["Application Fee", appFee]} />
+        <CostTwoCol left={["Admin Fee", adminFeeAmt]}    right={["Broker Fee", brkFee]} />
+        <CostTwoCol left={["Utility Fee", utilityFeeAmt]} right={["Move-in Fee", mvInFee]} />
+        <CostTwoCol left={["Storage Rent", storageRent]} right={["", ""]} />
+        {toggles.pets && (
+          <CostTwoCol left={["Pet Fee", petFeeAmt]} right={["", ""]} />
+        )}
+        {toggles.car && (
+          <CostTwoCol left={["Parking Fee", parkFee]} right={["", ""]} />
+        )}
+        <CostTwoCol left={["Other Fee", otherFee]} right={["", ""]} />
 
-          {/* ── PROPERTY ─────────────────────────────────── */}
-          {mapsAddress ? (
-            <Pressable
-              onPress={() => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(mapsAddress)}`)}
-              style={{ marginBottom: 3 }}
-            >
-              <Text style={[styles.value, { color: colors.accent }]}>{fullAddress}</Text>
-            </Pressable>
-          ) : (
-            <Text style={[styles.value, { marginBottom: 3 }]}>{fullAddress}</Text>
-          )}
-
-          <Text style={[styles.value, { color: colors.textSecondary, marginBottom: 4 }]}>
-            {unitLine}
-          </Text>
-
-          {isAptCondoCoop && !!floorNum && (
-            <FieldRow label="Floor #:" value={floorNum} />
-          )}
-          {!!numFloors && (
-            <FieldRow label="# of Floors:" value={numFloors} />
-          )}
-
-          {/* Boolean badges */}
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              alignItems: "center",
-              marginBottom: 4,
-              marginTop: 4,
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center", marginRight: 10 }}>
-              <Text
-                style={{
-                  fontSize: 15,
-                  color: isPreferred ? colors.accent : colors.textSecondary,
-                  marginRight: 4,
-                }}
-              >
-                {isPreferred ? "♥" : "♡"}
-              </Text>
-              <Text style={styles.label}>Preferred</Text>
-            </View>
-            <BoolBadge label="Furnished" value={isFurnished} />
-            {isAptCondoCoop && <BoolBadge label="Top Floor" value={isTopFloor} />}
-            {isAptCondoCoop && <BoolBadge label="Corner" value={isCorner} />}
-            <BoolBadge label="Short Term" value={isShortTerm} />
-            <BoolBadge label="Renters Ins." value={isRentersIns} />
-            <BoolBadge label="No Board" value={noBrdApproval} />
-            <BoolBadge label="No Broker" value={noBrkFee} />
+        {/* Total row */}
+        <View style={{ height: 1, backgroundColor: colors.border, marginTop: 4, marginBottom: 6 }} />
+        <View style={{ flexDirection: "row" }}>
+          <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingRight: 8 }}>
+            <Text style={{ color: colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize, fontWeight: "900" }}>Total</Text>
+            <Text style={{ color: colors.accent, fontSize: textStyles.bodyPrimary.fontSize, fontWeight: "900" }}>{calcTotalMonthly}</Text>
           </View>
-
-          {/* ── COSTS ────────────────────────────────────── */}
-          <SectionHead title="Costs" />
-          <View style={{ flexDirection: "row", marginBottom: 2 }}>
-            <Text style={[styles.label, { flex: 1, textAlign: "center", fontWeight: "800" }]}>Monthly</Text>
-            <Text style={[styles.label, { flex: 1, textAlign: "center", fontWeight: "800" }]}>One-Time</Text>
+          <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingLeft: 8 }}>
+            <Text style={{ color: colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize, fontWeight: "900" }}>Total</Text>
+            <Text style={{ color: colors.accent, fontSize: textStyles.bodyPrimary.fontSize, fontWeight: "900" }}>{calcTotalUpfront}</Text>
           </View>
-          <CostTwoCol left={["Base Rent", baseRentAmt]}    right={["Security Dep.", secDep]} />
-          <CostTwoCol left={["Amenity Fee", amenityFeeAmt]} right={["Application Fee", appFee]} />
-          <CostTwoCol left={["Admin Fee", adminFeeAmt]}    right={["Broker Fee", brkFee]} />
-          <CostTwoCol left={["Utility Fee", utilityFeeAmt]} right={["Move-in Fee", mvInFee]} />
-          <CostTwoCol left={["Storage Rent", storageRent]} right={["", ""]} />
-          {toggles.pets && (
-            <CostTwoCol left={["Pet Fee", petFeeAmt]} right={["", ""]} />
-          )}
+        </View>
+
+        {/* ── FEATURES ─────────────────────────────────────── */}
+        <SectionHead title="Features" />
+        <CommaField label="Utilities Included:" value={utilities} />
+        <CommaField label="Unit Features:" value={unitFeat} />
+        <CommaField label="Rooms:" value={roomTypes} />
+        <CommaField label="Private Outdoor Space:" value={privateOutdoor} />
+        <CommaField label="Storage:" value={storageTypes} />
+        <CommaField label="Building Amenities:" value={bldgAmen} />
+        {toggles.pets && (
+          <CommaField label="Pet Amenities:" value={petAmen} />
+        )}
+        <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 2, marginBottom: 4 }}>
+          <Text style={styles.label}>Cooling: </Text>
+          <Text style={[styles.value, { marginRight: 10 }]}>{coolingType}</Text>
+          <Text style={styles.label}>Heating: </Text>
+          <Text style={[styles.value, { marginRight: 10 }]}>{heatingType}</Text>
+          <Text style={styles.label}>Laundry: </Text>
+          <Text style={[styles.value, { marginRight: 10 }]}>{laundry}</Text>
           {toggles.car && (
-            <CostTwoCol left={["Parking Fee", parkFee]} right={["", ""]} />
-          )}
-          <CostTwoCol left={["Other Fee", otherFee]} right={["", ""]} />
-
-          {/* Total row */}
-          <View style={{ height: 1, backgroundColor: colors.border, marginTop: 4, marginBottom: 6 }} />
-          <View style={{ flexDirection: "row" }}>
-            <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingRight: 8 }}>
-              <Text style={{ color: colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize, fontWeight: "900" }}>Total</Text>
-              <Text style={{ color: colors.accent, fontSize: textStyles.bodyPrimary.fontSize, fontWeight: "900" }}>{calcTotalMonthly}</Text>
-            </View>
-            <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingLeft: 8 }}>
-              <Text style={{ color: colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize, fontWeight: "900" }}>Total</Text>
-              <Text style={{ color: colors.accent, fontSize: textStyles.bodyPrimary.fontSize, fontWeight: "900" }}>{calcTotalUpfront}</Text>
-            </View>
-          </View>
-
-          {/* ── FEATURES ─────────────────────────────────────── */}
-          <SectionHead title="Features" />
-          <CommaField label="Utilities Included:" value={utilities} />
-          <CommaField label="Unit Features:" value={unitFeat} />
-          <CommaField label="Rooms:" value={roomTypes} />
-          <CommaField label="Private Outdoor Space:" value={privateOutdoor} />
-          <CommaField label="Storage:" value={storageTypes} />
-          <CommaField label="Building Amenities:" value={bldgAmen} />
-          {toggles.pets && (
-            <CommaField label="Pet Amenities:" value={petAmen} />
-          )}
-          <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 2, marginBottom: 4 }}>
-            <Text style={styles.label}>Cooling: </Text>
-            <Text style={[styles.value, { marginRight: 10 }]}>{coolingType}</Text>
-            <Text style={styles.label}>Heating: </Text>
-            <Text style={[styles.value, { marginRight: 10 }]}>{heatingType}</Text>
-            <Text style={styles.label}>Laundry: </Text>
-            <Text style={[styles.value, { marginRight: 10 }]}>{laundry}</Text>
-            {toggles.car && (
-              <>
-                <Text style={styles.label}>Parking: </Text>
-                <Text style={styles.value}>{parking}</Text>
-              </>
-            )}
-          </View>
-
-          {/* ── NEIGHBORHOOD ──────────────────────────────────── */}
-          <SectionHead title="Neighborhood" />
-          {!!hood && <FieldRow label="Neighborhood:" value={hood} />}
-          {!!commute && <FieldRow label="Commute:" value={`${commute} min`} />}
-          {hasScores && (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 8 }}>
-              {walkScore !== null && <ScoreBadge score={walkScore} label="Walk" />}
-              {transitScore !== null && <ScoreBadge score={transitScore} label="Transit" />}
-              {bikeScore !== null && <ScoreBadge score={bikeScore} label="Bike" />}
-              {safetyScore !== null && <ScoreBadge score={safetyScore} label="Safety" />}
-              {noiseScore !== null && <ScoreBadge score={noiseScore} label="Noise" />}
-            </View>
-          )}
-          <CommaField label="Close By:" value={closeBy} />
-
-          {/* ── SCHOOLS ───────────────────────────────────────── */}
-          {hasSchools && toggles.children && (
             <>
-              <SectionHead title="Schools" />
-              <SchoolRow rating={elemRating} name={elemName} grades={elemGrades} distance={elemDist} />
-              <SchoolRow rating={midRating}  name={midName}  grades={midGrades}  distance={midDist} />
-              <SchoolRow rating={highRating} name={highName} grades={highGrades} distance={highDist} />
+              <Text style={styles.label}>Parking: </Text>
+              <Text style={styles.value}>{parking}</Text>
             </>
           )}
+        </View>
 
-          {/* ── LISTING ───────────────────────────────────────── */}
-          <SectionHead title="Listing" />
-          <FieldRow label="Source:" value={site} />
-          {url ? (
-            <Pressable
-              onPress={() => Linking.openURL(url)}
-              style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}
-            >
-              <Text style={styles.label}>URL: </Text>
-              <Text style={[styles.value, { color: colors.accent }]} numberOfLines={1}>{url}</Text>
-            </Pressable>
-          ) : (
-            <FieldRow label="URL:" value="—" />
-          )}
-          <FieldRow label="Contact:" value={contact} />
-          {phone !== "—" ? (
-            <Pressable
-              onPress={() => Linking.openURL(`tel:${phone}`)}
-              style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}
-            >
-              <Text style={styles.label}>Phone: </Text>
-              <Text style={[styles.value, { color: colors.accent }]}>{phone}</Text>
-            </Pressable>
-          ) : (
-            <FieldRow label="Phone:" value={phone} />
-          )}
-          {email !== "—" ? (
-            <Pressable
-              onPress={() => Linking.openURL(`mailto:${email}`)}
-              style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}
-            >
-              <Text style={styles.label}>Email: </Text>
-              <Text style={[styles.value, { color: colors.accent }]}>{email}</Text>
-            </Pressable>
-          ) : (
-            <FieldRow label="Email:" value={email} />
-          )}
-          <FieldRow label="Lease:" value={lease} />
+        {/* ── NEIGHBORHOOD ──────────────────────────────────── */}
+        <SectionHead title="Neighborhood" />
+        {!!hood && <FieldRow label="Neighborhood:" value={hood} />}
+        {!!commute && <FieldRow label="Commute:" value={`${commute} min`} />}
+        {hasScores && (
+          <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 8 }}>
+            {walkScore !== null && <ScoreBadge score={walkScore} label="Walk" />}
+            {transitScore !== null && <ScoreBadge score={transitScore} label="Transit" />}
+            {bikeScore !== null && <ScoreBadge score={bikeScore} label="Bike" />}
+            {safetyScore !== null && <ScoreBadge score={safetyScore} label="Safety" />}
+            {noiseScore !== null && <ScoreBadge score={noiseScore} label="Noise" />}
+          </View>
+        )}
+        <CommaField label="Close By:" value={closeBy} />
 
-          {/* ── TIMELINE ──────────────────────────────────────── */}
-          <SectionHead title="Timeline" />
-          <FieldRow label="Available:" value={dateAvail || "—"} />
-          <FieldRow label="Contacted:" value={contacted || "—"} />
-          <FieldRow label="Viewing:" value={viewing} />
-          <FieldRow label="Applied:" value={applied || "—"} />
+        {/* ── SCHOOLS ───────────────────────────────────────── */}
+        {hasSchools && toggles.children && (
+          <>
+            <SectionHead title="Schools" />
+            <SchoolRow rating={elemRating} name={elemName} grades={elemGrades} distance={elemDist} />
+            <SchoolRow rating={midRating}  name={midName}  grades={midGrades}  distance={midDist} />
+            <SchoolRow rating={highRating} name={highName} grades={highGrades} distance={highDist} />
+          </>
+        )}
 
-          {/* ── NOTES ─────────────────────────────────────────── */}
-          {(!!pros || !!cons) && (
-            <>
-              <SectionHead title="Notes" />
-              {!!pros && <CommaField label="Pros:" value={pros} />}
-              {!!cons && <CommaField label="Cons:" value={cons} />}
-            </>
-          )}
-        </ScrollView>
-      </Animated.View>
-    </>
+        {/* ── LISTING ───────────────────────────────────────── */}
+        <SectionHead title="Listing" />
+        <FieldRow label="Source:" value={site} />
+        {url ? (
+          <Pressable
+            onPress={() => Linking.openURL(url)}
+            style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}
+          >
+            <Text style={styles.label}>URL: </Text>
+            <Text style={[styles.value, { color: colors.accent }]} numberOfLines={1}>{url}</Text>
+          </Pressable>
+        ) : (
+          <FieldRow label="URL:" value="—" />
+        )}
+        <FieldRow label="Contact:" value={contact} />
+        {phone !== "—" ? (
+          <Pressable
+            onPress={() => Linking.openURL(`tel:${phone}`)}
+            style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}
+          >
+            <Text style={styles.label}>Phone: </Text>
+            <Text style={[styles.value, { color: colors.accent }]}>{phone}</Text>
+          </Pressable>
+        ) : (
+          <FieldRow label="Phone:" value={phone} />
+        )}
+        {email !== "—" ? (
+          <Pressable
+            onPress={() => Linking.openURL(`mailto:${email}`)}
+            style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 3 }}
+          >
+            <Text style={styles.label}>Email: </Text>
+            <Text style={[styles.value, { color: colors.accent }]}>{email}</Text>
+          </Pressable>
+        ) : (
+          <FieldRow label="Email:" value={email} />
+        )}
+        <FieldRow label="Lease:" value={lease} />
+
+        {/* Listing boolean badges — Short Term, No Renters Ins, No Board, No Broker */}
+        <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 6 }}>
+          <BoolBadge label="Short Term" value={isShortTerm} />
+          <BoolBadge label="No Renters Ins" value={!isRentersIns} />
+          <BoolBadge label="No Board" value={noBrdApproval} />
+          <BoolBadge label="No Broker" value={noBrkFee} />
+        </View>
+
+        {/* ── TIMELINE ──────────────────────────────────────── */}
+        <SectionHead title="Timeline" />
+        <FieldRow label="Available:" value={dateAvail || "—"} />
+        <FieldRow label="Contacted:" value={contacted || "—"} />
+        <FieldRow label="Viewing:" value={viewing} />
+        <FieldRow label="Applied:" value={applied || "—"} />
+
+        {/* ── NOTES ─────────────────────────────────────────── */}
+        {(!!pros || !!cons) && (
+          <>
+            <SectionHead title="Notes" />
+            {!!pros && <CommaField label="Pros:" value={pros} />}
+            {!!cons && <CommaField label="Cons:" value={cons} />}
+          </>
+        )}
+      </ScrollView>
+    </Animated.View>
   );
 }
 
@@ -580,9 +554,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     backgroundColor: colors.surface,
     shadowColor: "#000",
-    shadowOffset: { width: -4, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOffset: { width: -2, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
     elevation: 10,
   },
   header: {
@@ -593,12 +567,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  closeBtn: {
-    paddingRight: 10,
-    paddingVertical: 4,
-  },
   headerTitle: {
     flex: 1,
+    textAlign: "center",
     color:      colors.textPrimary,
     fontSize:   textStyles.subHeader.fontSize,
     fontWeight: textStyles.subHeader.fontWeight,

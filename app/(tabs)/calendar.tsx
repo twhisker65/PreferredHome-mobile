@@ -1,18 +1,23 @@
-// app/(tabs)/calendar.tsx — Build 3.2.20.15
-// Change: font and color token references applied.
-//   colors.primaryBlue → colors.accent (markedDates selectedColor, Calendar todayTextColor)
-//   headingLabel → textStyles.sectionTitle for "APPOINTMENTS" label
-//   Error text: colors.red → colors.compareFail; fontSize 13 → textStyles.bodySmall.fontSize
-//   Empty state: fontSize 13 → textStyles.bodySmall.fontSize
-//   Appointment card backgroundColor: colors.card → colors.surface
-//   Appointment card building+date line: fontWeight "900"/fontSize 14
-//     → textStyles.bodyEmphasis (14/600/textPrimary)
-//   Appointment card address: fontSize 12 → textStyles.bodySmall.fontSize
-//   Appointment card contact: fontSize 12 → textStyles.bodySmall.fontSize
-// No logic, appointment parsing, markedDates generation, or structural changes.
+// app/(tabs)/calendar.tsx — Build 3.2.21
+// Changes from 3.2.20.15:
+//   Fixed layout: outer ScrollView removed. Calendar is fixed at top; appointments
+//   scroll independently below in their own ScrollView. This keeps the calendar
+//   always visible while appointments with multiple entries scroll freely.
+//   Appt type updated: mapsAddress field added (street + city/state/zip, no unit number).
+//   Appointment address is now tappable — opens default map app using mapsAddress.
+//   pull-to-refresh moved to appointments ScrollView (RefreshControl retained).
+//   All appointment parsing, markedDates, and sorting logic unchanged.
 
 import React, { useCallback, useMemo, useState } from "react";
-import { View, Text, ActivityIndicator, ScrollView, RefreshControl } from "react-native";
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  ScrollView,
+  RefreshControl,
+  Pressable,
+  Linking,
+} from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
@@ -31,6 +36,7 @@ type Appt = {
   time?: string;
   building: string;
   address: string;
+  mapsAddress?: string;
   contact?: string;
 };
 
@@ -73,22 +79,19 @@ export default function CalendarScreen() {
   const [activeSubPanel, setActiveSubPanel] = useState<SubPanelKey | null>(null);
   const { listings, loading, refreshing, error, refresh } = useListings();
 
-  // Track which month is currently displayed on the calendar.
-  // Defaults to today's month.
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState<{ year: number; month: number }>({
     year: today.getFullYear(),
     month: today.getMonth() + 1,
   });
 
-  // Refresh whenever this screen comes into focus
   useFocusEffect(
     useCallback(() => {
       refresh();
     }, [])
   );
 
-  // Build full appointments list from all listings
+  // Build appointments list — includes mapsAddress (no unit number) for map tap
   const appts: Appt[] = useMemo(() => {
     const out: Appt[] = [];
     for (const l of listings) {
@@ -96,12 +99,21 @@ export default function CalendarScreen() {
       const viewingAppt = str(raw.viewingAppointment);
       const parsed = parseDateTime(viewingAppt);
       if (!parsed) continue;
+
+      // Build maps address without unit number (street + city/state/zip only)
+      const streetAddr = str(raw.streetAddress);
+      const cityStateZip = [str(raw.city), str(raw.state), str(raw.zipCode)]
+        .filter(Boolean)
+        .join(", ");
+      const mapsAddress = [streetAddr, cityStateZip].filter(Boolean).join(", ") || undefined;
+
       out.push({
         id: l.id,
         date: parsed.date,
         time: parsed.time,
         building: l.buildingName,
         address: l.addressLine,
+        mapsAddress,
         contact: str(raw.contactName) || undefined,
       });
     }
@@ -112,7 +124,6 @@ export default function CalendarScreen() {
     return out;
   }, [listings]);
 
-  // markedDates — selectedColor updated to accent token
   const markedDates = useMemo(() => {
     const m: Record<string, any> = {};
     for (const a of appts) {
@@ -121,7 +132,6 @@ export default function CalendarScreen() {
     return m;
   }, [appts]);
 
-  // Filter appointment list to only the month currently shown on the calendar
   const visibleAppts = useMemo(() => {
     const prefix = `${String(currentMonth.year)}-${String(currentMonth.month).padStart(2, "0")}`;
     return appts.filter((a) => a.date.startsWith(prefix));
@@ -131,80 +141,91 @@ export default function CalendarScreen() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <TopBar title="PreferredHome" onPressMenu={() => setMenuOpen(true)} />
 
+      {/* Calendar — fixed at top, not scrollable */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
+        <Calendar
+          hideExtraDays
+          markedDates={markedDates}
+          onMonthChange={(month) => {
+            setCurrentMonth({ year: month.year, month: month.month });
+          }}
+          style={{ borderRadius: 18, overflow: "hidden" }}
+          theme={{
+            calendarBackground: colors.background,
+            monthTextColor: colors.textPrimary,
+            dayTextColor: colors.textPrimary,
+            textDisabledColor: colors.textSecondary,
+            todayTextColor: colors.accent,
+            arrowColor: colors.textPrimary,
+            textDayFontWeight: "700",
+            textMonthFontWeight: "800",
+            textDayHeaderFontWeight: "800",
+          }}
+        />
+      </View>
+
+      {/* Appointments header — fixed between calendar and list */}
+      <View style={{
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 10,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+      }}>
+        <Text style={textStyles.sectionTitle}>Appointments</Text>
+      </View>
+
+      {/* Appointments list — independently scrollable */}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 28 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 28, gap: 10 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
       >
-        <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
-          <Calendar
-            hideExtraDays
-            markedDates={markedDates}
-            onMonthChange={(month) => {
-              setCurrentMonth({ year: month.year, month: month.month });
-            }}
-            style={{ borderRadius: 18, overflow: "hidden" }}
-            theme={{
-              calendarBackground: colors.background,
-              monthTextColor: colors.textPrimary,
-              dayTextColor: colors.textPrimary,
-              textDisabledColor: colors.textSecondary,
-              todayTextColor: colors.accent,
-              arrowColor: colors.textPrimary,
-              textDayFontWeight: "700",
-              textMonthFontWeight: "800",
-              textDayHeaderFontWeight: "800",
-            }}
-          />
-        </View>
-
-        <View style={{ paddingHorizontal: 16, paddingTop: 22, paddingBottom: 12 }}>
-          <Text style={textStyles.sectionTitle}>Appointments</Text>
-        </View>
-
         {loading ? (
-          <View style={{ paddingHorizontal: 16 }}>
-            <ActivityIndicator />
-          </View>
+          <ActivityIndicator />
         ) : error ? (
-          <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ color: colors.compareFail, fontSize: textStyles.bodySmall.fontSize }}>{error}</Text>
-          </View>
+          <Text style={{ color: colors.compareFail, fontSize: textStyles.bodySmall.fontSize }}>{error}</Text>
         ) : visibleAppts.length === 0 ? (
-          <View style={{ paddingHorizontal: 16 }}>
-            <Text style={{ color: colors.textSecondary, fontSize: textStyles.bodySmall.fontSize }}>
-              No appointments for this month.
-            </Text>
-          </View>
+          <Text style={{ color: colors.textSecondary, fontSize: textStyles.bodySmall.fontSize }}>
+            No appointments for this month.
+          </Text>
         ) : (
-          <View style={{ paddingHorizontal: 16, gap: 10 }}>
-            {visibleAppts.map((a) => (
-              <View
-                key={a.id}
-                style={{
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  backgroundColor: colors.surface,
-                  borderRadius: 14,
-                  padding: 14,
-                  gap: 3,
-                }}
-              >
-                <Text style={textStyles.bodyEmphasis}>
-                  {safeText(a.building)} — {formatDisplayDate(a.date)}{a.time ? ` — ${a.time}` : ""}
-                </Text>
+          visibleAppts.map((a) => (
+            <View
+              key={a.id}
+              style={{
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                borderRadius: 14,
+                padding: 14,
+                gap: 3,
+              }}
+            >
+              <Text style={textStyles.bodyEmphasis}>
+                {safeText(a.building)} — {formatDisplayDate(a.date)}{a.time ? ` — ${a.time}` : ""}
+              </Text>
+              {a.mapsAddress ? (
+                <Pressable
+                  onPress={() => Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(a.mapsAddress!)}`)}
+                >
+                  <Text style={{ color: colors.accent, fontSize: textStyles.bodySmall.fontSize }}>
+                    {safeText(a.address)}
+                  </Text>
+                </Pressable>
+              ) : (
                 <Text style={{ color: colors.textSecondary, fontSize: textStyles.bodySmall.fontSize }}>
                   {safeText(a.address)}
                 </Text>
-                {a.contact ? (
-                  <Text style={{ color: colors.textSecondary, fontSize: textStyles.bodySmall.fontSize }}>
-                    {a.contact}
-                  </Text>
-                ) : null}
-              </View>
-            ))}
-          </View>
+              )}
+              {a.contact ? (
+                <Text style={{ color: colors.textSecondary, fontSize: textStyles.bodySmall.fontSize }}>
+                  {a.contact}
+                </Text>
+              ) : null}
+            </View>
+          ))
         )}
       </ScrollView>
 

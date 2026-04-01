@@ -1,4 +1,5 @@
-// app/(tabs)/compare.tsx — Build 3.2.20.14
+// app/(tabs)/compare.tsx — Build 3.2.21
+// Change from 3.2.20.14: TopBar title "Compare" → "PreferredHome" (one line — header standardization).
 // Change: font and color token references applied.
 //   CC constants: green/yellow/red → colors.comparePass/compareWarn/compareFail hex values
 //   colors.primaryBlue → colors.accent (mode toggle icons, Clear button, missing criteria banner)
@@ -389,7 +390,7 @@ export default function CompareTab() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <TopBar title="Compare" onPressMenu={() => setMenuOpen(true)} />
+      <TopBar title="PreferredHome" onPressMenu={() => setMenuOpen(true)} />
 
       {/* Mode toggle row — icons centered, Clear button on the right */}
       <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", paddingVertical: 8, gap: 16 }}>
