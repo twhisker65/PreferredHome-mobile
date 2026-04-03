@@ -415,7 +415,7 @@ Before delivery, Claude checks internally that:
 - MAIN branch only
 - Commits via GitHub Desktop
 - Expo base command:
-  `cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel`
+  `cd C:\\Users\\twhis\\OneDrive\\Documents\\GitHub\\PreferredHome-mobile && npx expo start --tunnel`
 
 Add `--clear` only when needed.
 

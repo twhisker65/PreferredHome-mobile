@@ -1,7 +1,7 @@
-# PreferredHome — Project Architecture Master
-**Version V6 | March 2026**
+# PreferredHome — Project Architecture
+**Version V7 | April 2026**
 
-Defines how the app functions, UI behaviours, screens, and technical stack. Scope: app functionality only. No data fields or workflow rules — see Data Architecture.
+Defines how the app currently functions, how the screens are structured, and how the design/token system is applied. Scope: current app architecture and behavior only. Canonical data-model changes belong to V4 planning.
 
 ---
 
@@ -10,164 +10,281 @@ Defines how the app functions, UI behaviours, screens, and technical stack. Scop
 | Property | Value |
 |---|---|
 | App Name | PreferredHome |
+| Tagline | Capture. Compare. Decide. |
 | Purpose | Mobile-first rental listing evaluation tool |
-| Mobile Repo | https://github.com/twhisker65/PreferredHome-mobile |
-| API Repo | https://github.com/twhisker65/PreferredHome-api |
-| API Live | https://preferredhome-api.onrender.com |
+| Mobile Repo | `twhisker65/PreferredHome-mobile` |
+| API Repo | `twhisker65/PreferredHome-api` |
+| API Live | `https://preferredhome-api.onrender.com` |
 | Branch | MAIN only — via GitHub Desktop |
 
 ---
 
-## 2. Technology Stack
+## 2. Operating Model
+
+| Role | Responsibility |
+|---|---|
+| Thomas | Project director — defines product direction, design intent, priorities, approval |
+| ChatGPT | Project manager — writes directives, reviews engineer questions, writes assessments and hotfix instructions, owns protocol and architecture doc updates |
+| Claude | Project engineer — implements approved scope only after Begin Build Brief, blocker check, and ENGAGE |
+
+---
+
+## 3. Technology Stack
 
 | Layer | Technology |
 |---|---|
 | Frontend | React Native with Expo Router |
 | Cross-platform | Single codebase for iOS and Android |
-| Backend (current) | Google Sheets via Render API (Python FastAPI) |
-| Backend (future) | FastAPI + PostgreSQL (Phase 4.0) |
+| Backend (current) | Python FastAPI on Render |
+| Datastore (current) | Google Sheets via gspread |
+| Backend / storage (future) | PostgreSQL + SQLite in V4 |
 | Version Control | GitHub Desktop — MAIN branch only |
-| Expo Command | `npx expo start --tunnel --clear` |
+| Expo Command | `npx expo start --tunnel --clear` when needed |
 | Local Mobile Path | `C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile` |
 
 ---
 
-## 3. Design System
+## 4. Design System — Color Tokens
 
-| Token | Value |
-|---|---|
-| Theme | Dark navy — luxury, controlled |
-| Background | Dark navy |
-| Cards | Slightly lighter navy |
-| Accent | Blue — primaryBlue in styles/colors.ts (#2563EB) |
-| Typography | Defined in styles/typography.ts |
+These are the current approved live color tokens derived from the token system build. Build-history instructions are intentionally excluded here.
+
+| Token | Hex | Current Role |
+|---|---|---|
+| background | `#112240` | Primary app background |
+| surface | `#1B2A4A` | Cards, panel shells, section header shells |
+| surfacePressed | `#162A45` | Pressed/active state only — never default background |
+| border | `#223A70` | Dividers, card borders, shell borders |
+| accent | `#2563EB` | Primary blue accent |
+| textPrimary | `#F8FAFC` | Primary white text |
+| textSecondary | `#94A3B8` | Secondary / muted text |
+| comparePass | `#22C55E` | Compare positive state only |
+| compareWarn | `#F59E0B` | Compare warning state only |
+| compareFail | `#DC2626` | Compare fail state only |
+
+### Color Usage Rules
+
+- `surfacePressed` is a state token only.
+- `accent` is the primary blue.
+- Compare colors are reserved for compare logic and compare scoring contexts.
+- Status pill colors are managed by the status map and are not redefined here.
 
 ---
 
-## 4. App Screens (5 Tabs)
+## 5. Design System — Typography Tokens
+
+| Token | Size / Weight | Current Role |
+|---|---|---|
+| mainTitleBlue | 20 / 800 | “Preferred” word in TopBar title |
+| mainTitleWhite | 20 / 800 | “Home” word in TopBar title and similar white title usage |
+| subHeader | 18 / 600 | Secondary header bars on panels/pages |
+| sectionTitle | 15 / 900 | Group anchors / section headings |
+| cardTitle | 16 / 700 | Listing title / card heading text |
+| cardSecondary | 14 / 500 | Rent/fees secondary card line |
+| bodyPrimary | 14 / 400 | Standard entered values / data values |
+| bodyEmphasis | 14 / 600 | Highlighted metric or emphasized value |
+| label | 12 / 600 | Field labels |
+| bodySmall | 12 / 400 | Secondary/supporting information |
+| linkText | 14 / 600 | Tappable links / active text |
+| button | 13 / 700 | Clear / Apply / Save / Close button text |
+| micro | 10 / 400 | Small support text |
+| pill | 12 / 800 | Status pill only |
+| scorePill | 13 / 700 | Compare scoring pill only |
+
+### Typography Usage Rules
+
+- Bottom-nav label typography remains Expo-managed.
+- `sectionTitle` is used for section and group headings.
+- `label` is visually secondary to `bodyPrimary`.
+- `bodyEmphasis` is reserved for emphasis, not default values.
+
+---
+
+## 6. Layout Hierarchy Rules
+
+Current app structure follows this general order:
+
+1. TopBar
+2. Secondary header / sub-header where required
+3. Scrollable content body
+4. Fixed action footer where required
+5. Bottom navigation where applicable
+
+### Current Screen/Panel Rules
+
+- Full-page/panel treatments now apply to ViewPanel, Profile, Criteria, and Settings.
+- Filter / Sort remains the key structural reference for row discipline and footer treatment.
+- Add and Edit currently use collapsible card-style section headers.
+- Add does not require a sub-header by default.
+- Edit uses a sub-header with title and back arrow.
+- ViewPanel uses a centered sub-header with back arrow and conditional preferred heart.
+
+---
+
+## 7. App Screens (5 Tabs)
 
 | Tab | Screen | Purpose |
 |---|---|---|
-| 1 | Home | Dashboard — avg/min/max rent stats, Top 3 Preferred listings. |
-| 2 | Listings | Full listing cards grouped by Preferred / Candidates. Filter panel. ViewPanel slide-out. |
-| 3 | Add | Form to create a new listing — all fields, collapsible sections, all open by default. |
-| 4 | Compare | Side-by-side comparison of up to 3 listings. Card and table view. Criteria scoring panel. |
-| 5 | Calendar | Month view with viewing appointment dots. Appointment list filtered by current month. |
+| 1 | Home | Dashboard / summary screen |
+| 2 | Listings | Full listing cards grouped by Preferred / Candidates |
+| 3 | Add | Form to create a new listing |
+| 4 | Compare | Side-by-side comparison of up to 3 listings |
+| 5 | Calendar | Month view with viewing appointment list below |
 
 ---
 
-## 5. Global UI Components
+## 8. Current Global UI Components
 
-| Component | Description |
+| Component | Current Role |
 |---|---|
-| TopBar | Present on every screen. Fixed position. App title/logo + hamburger menu + optional right icon. |
-| Bottom Nav | Present on every screen. Fixed position. 5 tabs with active tab highlighted. |
-| SidePanel | Slides from left (hamburger menu) or right (ViewPanel). Supports side='left' or side='right'. |
-| MenuPanel | Hamburger menu contents: Profile, Criteria, Settings sub-panels. |
-| ListingCard | Card with status pill, building name, address, rent, action row. |
-| StatusPill | Colored pill displaying listing status. 10 statuses with distinct colors. |
-| FilterPanel | Drop-down from header. 6 filters: Status, Unit Type, Broker Fee, Preferred, Max Rent, Zip Code. |
-| ViewPanel | Slide-out from right (Build 3.2.05). Read-only detail across all 8 sections. Tap-to-contact links active (Build 3.2.10). |
-| CompareStorage | lib/compareStorage.ts — manages selected listings for Compare screen via AsyncStorage. |
+| TopBar | PreferredHome brand title + hamburger + optional right icon |
+| Bottom Nav | 5-tab navigation; Expo-managed label styling |
+| MenuPanel | Entry point to Profile, Criteria, Settings |
+| FilterPanel | Structural standard for row discipline and footer controls |
+| ListingCard | Summary card for listing in Listings |
+| StatusPill | Listing status display |
+| ViewPanel | Full-width detail panel / page treatment |
+| CompareStorage | AsyncStorage-backed compare selection state |
 
 ---
 
-## 6. Add / Edit Screen — Section Structure
+## 9. Add / Edit Architecture (Current Accepted State)
 
-Eight collapsible sections. All open by default. All fields always visible. No Unit sub-section — unit fields appear at end of PROPERTY only.
+### Section Structure
 
-| Section | Fields (summary — see Data Architecture for full list) |
+Eight collapsible sections:
+- PROPERTY
+- COSTS
+- FEATURES
+- TRANSPORTATION
+- SCHOOLS
+- LISTING
+- TIMELINE
+- NOTES
+
+### Current Rules
+
+- all sections open by default
+- Add/Edit use card-style collapsible section headers
+- section headers use card shell treatment with border
+- Add/Edit footer save action is fixed below the scroll body
+- Add/Edit scroll fix is achieved by keeping the sub-footer outside the KeyboardAvoidingView
+- Add page currently has no sub-header by default
+- Edit page retains sub-header + back arrow
+- current accepted UI grouping places Short Term Available and No Renters Insurance Required in LISTING
+
+---
+
+## 10. Profile / Criteria / Settings Panels (Current Accepted State)
+
+| Panel | Current Behavior |
 |---|---|
-| PROPERTY | status, propertyType, unitType, preferred, buildingName, streetAddress, zipCode, city, state, neighborhood, unitNumber, floorNumber, bedrooms, bathrooms, squareFootage, floors, garage, garageSpaces, yard, basement, basementFinished, topFloor, cornerUnit, furnished |
-| COSTS | baseRent, petFee, amenityFee, adminFee, utilityFee, parkingFee, otherFee, securityDeposit, brokerFee, firstMonth, lastMonth, applicationFee |
-| FEATURES | utilitiesIncluded, unitFeatures, outdoorSpace, buildingAmenities, petAmenities, closeBy, rooms, acType, laundry, parkingType |
-| TRANSPORTATION | commuteTime, walkScore, transitScore, bikeScore |
-| SCHOOLS | elementarySchoolName/Grades/Rating/Distance, middleSchoolName/Grades/Rating/Distance, highSchoolName/Grades/Rating/Distance |
-| LISTING | listingSite, listingUrl, photoUrl, contactName, contactPhone, contactEmail, leaseLength, noBoardApproval, noBrokerFee |
-| TIMELINE | dateAvailable, contactedDate, viewingDate, viewingTime, appliedDate |
-| NOTES | pros, cons |
+| Profile | Full-width panel, centered sub-header, back arrow, Clear + Save footer |
+| Criteria | Full-width panel, centered sub-header, back arrow, Clear + Save footer |
+| Settings | Full-width panel, centered sub-header, back arrow, action footer present; content behavior remains limited |
+
+### Current Hierarchy Rules
+
+- section/group headings use `sectionTitle`
+- labels use `label`
+- entered/displayed values use `bodyPrimary`
+- footer actions use `button`
 
 ---
 
-## 7. Listing Card Anatomy
+## 11. ViewPanel (Current Accepted State)
 
-| Element | Content / Behaviour |
+| Item | Current Behavior |
 |---|---|
-| Status Pill | status field — short single word, colored by status — below building name |
-| Building Name | buildingName — large bold text |
-| Address | streetAddress, city, state, zip, unitNumber |
-| Unit Info | unitType · bedrooms bd · bathrooms ba · squareFootage sqft |
-| Rent | baseRent/mo — shows '+$X fees' if any fee > 0 |
-| Action Row | Heart (preferred), Compare, View (→ViewPanel), Edit, Trash (delete with confirmation) |
+| Width | Full-width treatment |
+| Header | Centered title, back arrow, blue heart if Preferred |
+| Multi-select fields | Inline `LABEL: value, value, value` format |
+| Scores | Rounded-square neutral treatment |
+| Costs | Kept visually stable from prior approved state |
+| Deep links | Phone, email, maps, browser active where applicable |
 
 ---
 
-## 8. UI Interaction Patterns
+## 12. Compare Screen (Current Accepted State)
 
-| Pattern | Behaviour |
+| Item | Current Behavior |
 |---|---|
-| Slide Out Left | Side panel slides from left edge (hamburger menu) |
-| Slide Out Right | View Panel slides from right edge — 102px left offset |
-| Slide Up Modal | Modal slides from bottom for pickers |
-| Toggles | On/Off switches for boolean fields |
-| Collapsible Sections | Tap header to expand/collapse — all open by default on Add |
-| Pull to Refresh | Refresh listing data from API |
-| Focus Refresh | Listings, Home, Calendar auto-refresh on tab focus |
-| Delete Confirmation | Alert prompt before deleting a listing |
-| Save Feedback | Spinner + Saving... text during API call, alert on success/failure |
-| Tap to Dial | Phone numbers open dialer — active (Build 3.2.10) |
-| Tap to Email | Email addresses open mail app — active (Build 3.2.10) |
-| Tap to Maps | Address opens Maps — active (Build 3.2.10) |
-| Tap to Browser | Listing URL opens browser — active (Build 3.2.10) |
-| Profile Toggles | Children, Pets, Car toggles stored in AsyncStorage. Drive field visibility on Add, Edit, ViewPanel, Compare — active (Build 3.2.09) |
+| Main title | PreferredHome |
+| Modes | Card view and table view |
+| Compare state | Centralized compare selection logic |
+| Residual UI restore items | Deferred to V5 UI track (frozen row / `Criteria` upper-left heading and related table polish) |
 
 ---
 
-## 9. Folder Structure
+## 13. Calendar Screen (Current Accepted State)
+
+| Item | Current Behavior |
+|---|---|
+| Layout | Calendar at top, appointments list below |
+| Appointments | Independent scrolling area below calendar |
+| Address tap | Opens maps using street/city/state/zip only |
+| Residual polish | Any remaining layout polish deferred to V5 UI track |
+
+---
+
+## 14. Listings Screen (Current Accepted State)
+
+| Item | Current Behavior |
+|---|---|
+| Grouping | Preferred / Candidates |
+| Card actions | Heart, Compare, View, Edit, Delete |
+| Filter / sort | Controlled through FilterPanel / sort logic |
+| Residual future feature UI | List/Map sub-header controls belong to V5 Map View feature build |
+
+---
+
+## 15. Home Screen (Current Accepted State)
+
+Home remains part of the accepted 3.2.x baseline. Any further existing-screen polish belongs to the V5 UI track unless specifically reopened.
+
+---
+
+## 16. Folder Structure (Current High-Level Map)
 
 | Path | Contents |
 |---|---|
-| app/(tabs)/ | index.tsx, listings.tsx, add.tsx, compare.tsx, calendar.tsx |
-| app/ | profile.tsx, settings.tsx, edit.tsx |
-| components/ | TopBar, ListingCard, StatusPill, SidePanel, MenuPanel, FilterPanel, ViewPanel |
-| lib/ | types.ts, api.ts, config.ts, useListings.ts, listingsNormalize.ts, profileStorage.ts, compareStorage.ts, orderStorage.ts |
-| styles/ | colors.ts, typography.ts, spacing.ts |
-| assets/ | Icons and images |
+| `app/(tabs)/` | Core tab screens |
+| `app/` | Non-tab routes such as edit and any panel-style routes |
+| `components/` | Shared UI components |
+| `lib/` | API helpers, storage helpers, normalization, compare/profile state |
+| `styles/` | Color, typography, spacing tokens |
+| `assets/` | Icons and images |
 
 ---
 
-## 10. API Functions (lib/api.ts)
+## 17. API Functions (Current)
 
 | Function | Method + Path | Purpose |
 |---|---|---|
-| getHealth() | GET /health | Check API status — verify after every Render deploy. |
-| getListings() | GET /listings | Fetch all listings from Google Sheet. |
-| postListing() | POST /listings | Add new listing — API auto-generates id. |
-| updateListing() | PUT /listings/:id | Update existing listing. |
-| deleteListing() | DELETE /listings/:id | Delete listing by id. |
+| getHealth() | GET `/health` | Check API status |
+| getListings() | GET `/listings` | Fetch listings |
+| postListing() | POST `/listings` | Add listing |
+| updateListing() | PUT `/listings/:id` | Update listing |
+| deleteListing() | DELETE `/listings/:id` | Delete listing |
 
 ---
 
-## 11. Testing Protocol
+## 18. Current Testing Protocol
 
-| Test Type | Procedure |
+| Test | Purpose |
 |---|---|
-| Device | Physical phone via QR scan in Expo Go with tunnel mode. |
-| Smoke Test | No red screen, all tabs render, listing data loads. |
-| Regression | Add → Save → listing appears in Listings screen. |
-| Delete Test | Trash icon → confirmation prompt → listing removed. |
-| API Verify | Check /health endpoint after every Render deploy. |
-| Toggle Test | Set each profile toggle → confirm correct fields show/hide on Add, Edit, ViewPanel, Compare. |
-| Compare Test | Select 2–3 listings → open Compare → verify card and table views. |
+| Device smoke test | No red screen, all tabs render |
+| Add / Save test | Listing can be added successfully |
+| Edit / Save test | Listing can be edited successfully |
+| Panel open/close test | ViewPanel, Profile, Criteria, Settings behavior |
+| Compare test | Card/table modes still work |
+| Calendar test | Calendar + appointments remain usable |
+| API verify | `/health` after backend deploys only |
 
 ---
 
-## 12. Deployment Roadmap
+## 19. Architecture Governance Notes
 
-| Phase | Description |
-|---|---|
-| 1 (current) | Google Sheets datastore via Render API. |
-| 2 | FastAPI backend (REST API) — full rebuild. |
-| 3 | PostgreSQL database migration. |
-| 4 | Authentication and multi-user support. |
-| 5 | Production build via EAS — App Store and Google Play submission (Build 3.2.19 APK, then full submission). |
+- Project Architecture is PM-owned and updated only when explicitly requested.
+- This document reflects accepted current behavior, not speculative next steps.
+- Build history, commit history, and migration notes are intentionally excluded.
+- V4 will add a separate Master Engineering Directive rather than replacing this document.

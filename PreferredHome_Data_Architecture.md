@@ -1,7 +1,19 @@
 # PreferredHome — Data Architecture
-**Version V6 | March 2026**
+**Version V7 | April 2026**
 
-Single source of truth for all fields, sections, types, visibility rules, and Google Sheet structure.
+Single source of truth for all approved fields, sections, types, visibility rules, and current storage naming. This document reflects the current accepted app state before V4 canonical-model work. V4 will intentionally replace parts of this document when the canonical data model is approved.
+
+---
+
+## Operating Note
+
+This document describes the **current accepted implementation state** after the 3.2.x line.  
+It does **not** yet apply the full V4 rename of `buildingName` → `propertyName`.
+
+For current implementation:
+- underlying field key remains `buildingName`
+- approved display label may read **Property Name**
+- full canonical rename belongs to V4
 
 ---
 
@@ -20,7 +32,7 @@ Single source of truth for all fields, sections, types, visibility rules, and Go
 
 Property Type is field position 2 (after Status) on every listing. It controls field visibility per listing, unlike Lifestyle Toggles which apply globally across all listings.
 
-| Field | Apartment / Condo / Co-op | House / Townhouse |
+| Field | Apartment / Condo / Co-op | Townhouse / House |
 |---|---|---|
 | Apartment / Unit # | Show | Hide |
 | Floor Number | Show | Hide |
@@ -42,191 +54,203 @@ Lifestyle Toggles are set once in the Profile panel and apply to every listing s
 
 ## Section 1 — PROPERTY
 
-All fields in one PROPERTY collapsible section on Add and Edit screens. No sub-sections. Unit fields appear at the end of the PROPERTY section only — no separate Unit sub-section ever.
+All fields in one PROPERTY collapsible section on Add and Edit screens. Unit fields appear at the end of the PROPERTY section only — no Unit sub-section ever.
 
-| UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
+| UI Label | Field Name (code) | Current Storage Name | Type | Parameters / Notes |
 |---|---|---|---|---|
-| Status | status | Status | Drop | New, Contacted, Scheduled, Viewed, Shortlisted, Applied, Approved, Signed, Rejected, Archived. |
-| Property Type | propertyType | Property Type | Drop | Apartment, Condo, Co-op, Townhouse, House. Default: Apartment. Position 2 — drives field visibility per listing. Build 3.2.12. |
-| Preferred | preferred | Preferred | Bool | TRUE / FALSE. Drives Preferred grouping in Listings. Default: FALSE. |
-| Building Name | buildingName | Building Name | Text | Primary display name on listing card. Required to save. |
-| Street Address | streetAddress | Street Address | Text | Street only — no city/state/zip here. |
-| Zip Code | zipCode | Zip Code | Text | TEXT type — not numeric. Triggers city/state auto-fill (Build 3.2.14). |
-| City | city | City | Text | Add: read-only, auto-filled from ZIP. Edit: editable. |
-| State | state | State | Text | Add: read-only, auto-filled from ZIP. Edit: editable. |
-| Neighborhood | neighborhood | Neighborhood | Text | |
-| Apartment / Unit # | unitNumber | Unit # | Text | Apartment / Condo / Co-op only — hidden for House / Townhouse. Build 3.2.12. |
-| Floor Number | floorNumber | Floor Number | Int | Apartment / Condo / Co-op only — hidden for House / Townhouse. Build 3.2.12. |
-| Number of Floors | numberOfFloors | Number of Floors | Num | Decimal-pad. Shown for all property types. Build 3.2.11. |
-| Bedrooms | bedrooms | Bedrooms | Num | Integer. |
-| Bathrooms | bathrooms | Bathrooms | Num | Decimal allowed (e.g. 1.5). |
-| Square Footage | squareFootage | Square Footage | Num | If empty — dash on listing card. |
-| Top Floor | topFloor | Top Floor | Bool | TRUE / FALSE. Apartment / Condo / Co-op only — hidden for House / Townhouse. Build 3.2.12. |
-| Corner Unit | cornerUnit | Corner Unit | Bool | TRUE / FALSE. Apartment / Condo / Co-op only — hidden for House / Townhouse. Build 3.2.12. |
-| Furnished | furnished | Furnished | Bool | TRUE / FALSE. |
-| Short Term Available | shortTermAvailable | Short Term Available | Bool | TRUE / FALSE. Build 3.2.11. |
-| Renters Insurance Required | rentersInsuranceRequired | Renters Insurance Required | Bool | TRUE / FALSE. Build 3.2.11. |
+| Status | status | status | Drop | New, Contacted, Scheduled, Viewed, Shortlisted, Applied, Approved, Signed, Rejected, Archived |
+| Property Type | propertyType | propertyType | Drop | Apartment, Condo, Co-op, Townhouse, House. Position 2 — drives field visibility per listing |
+| Preferred | preferred | preferred | Bool | TRUE / FALSE |
+| Property Name *(display label)* | buildingName | buildingName | Text | Underlying field key remains `buildingName` until V4 canonical rename |
+| Street Address | streetAddress | streetAddress | Text | Street only — no city/state/zip here |
+| Zip Code | zipCode | zipCode | Text | TEXT type — not numeric |
+| City | city | city | Text | Add: read-only auto-fill from ZIP. Edit: editable |
+| State | state | state | Text | Add: read-only auto-fill from ZIP. Edit: editable |
+| Neighborhood | neighborhood | neighborhood | Text | |
+| Apartment / Unit # | unitNumber | unitNumber | Text | Apartment / Condo / Co-op only |
+| Floor Number | floorNumber | floorNumber | Int | Apartment / Condo / Co-op only |
+| Number of Floors | numberOfFloors | numberOfFloors | Num | Shown for all property types |
+| Bedrooms | bedrooms | bedrooms | Num | Integer |
+| Bathrooms | bathrooms | bathrooms | Num | Decimal allowed |
+| Square Footage | squareFootage | squareFootage | Num | |
+| Top Floor | topFloor | topFloor | Bool | Apartment / Condo / Co-op only |
+| Corner Unit | cornerUnit | cornerUnit | Bool | Apartment / Condo / Co-op only |
+| Furnished | furnished | furnished | Bool | |
 
 ---
 
 ## Section 2 — COSTS
 
-Split into two visual sub-groups: MONTHLY and UPFRONT. Sub-group labels are display-only dividers, not sections.
+Split into two visual sub-groups: MONTHLY and UPFRONT. These are display-only sub-groups, not sections.
 
 ### MONTHLY
 
-| UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
+| UI Label | Field Name (code) | Current Storage Name | Type | Parameters / Notes |
 |---|---|---|---|---|
-| Monthly Rent | baseRent | Monthly Rent | Curr | Core stat — shown on listing card. |
-| Pet Fee | petFee | Pet Fee | Curr | Pets lifestyle toggle gated. Build 3.2.11. |
-| Storage Rent | storageRent | Storage Rent | Curr | Always visible. Build 3.2.11. |
-| Amenity Fee | amenityFee | Amenity Fee | Curr | |
-| Admin Fee | adminFee | Admin Fee | Curr | |
-| Utility Fee | utilityFee | Utility Fee | Curr | |
-| Parking Fee | parkingFee | Parking Fee | Curr | Car lifestyle toggle gated. |
-| Other Fee | otherFee | Other Fee | Curr | |
-| Total Monthly | totalMonthly | Total Monthly | Calc | baseRent + petFee + storageRent + amenityFee + adminFee + utilityFee + parkingFee + otherFee. API calculated. ISSUE 2 — fix in Build 3.2.13. |
+| Monthly Rent | baseRent | baseRent | Curr | Core stat — shown on listing card |
+| Pet Fee | petFee | petFee | Curr | Pets lifestyle toggle gated |
+| Storage Rent | storageRent | storageRent | Curr | Always visible |
+| Amenity Fee | amenityFee | amenityFee | Curr | |
+| Admin Fee | adminFee | adminFee | Curr | |
+| Utility Fee | utilityFee | utilityFee | Curr | |
+| Parking Fee | parkingFee | parkingFee | Curr | Car lifestyle toggle gated |
+| Other Fee | otherFee | otherFee | Curr | |
+| Total Monthly | totalMonthly | totalMonthly | Calc | Derived from raw fee fields |
 
 ### UPFRONT
 
-| UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
+| UI Label | Field Name (code) | Current Storage Name | Type | Parameters / Notes |
 |---|---|---|---|---|
-| Security Deposit | securityDeposit | Security Deposit | Curr | Covers first / last month concept. |
-| Application Fee | applicationFee | Application Fee | Curr | |
-| Broker Fee | brokerFee | Broker Fee | Curr | Build 3.2.11. |
-| Move-in Fee | moveInFee | Move-in Fee | Curr | Build 3.2.11. |
-| Total One-Time Upfront | totalUpfront | Total Upfront | Calc | securityDeposit + applicationFee + brokerFee + moveInFee. API calculated. Build 3.2.13. |
+| Security Deposit | securityDeposit | securityDeposit | Curr | |
+| Application Fee | applicationFee | applicationFee | Curr | |
+| Broker Fee | brokerFee | brokerFee | Curr | |
+| Move-in Fee | moveInFee | moveInFee | Curr | |
+| Total One-Time Upfront | totalUpfront | totalUpfront | Calc | Derived from raw upfront fields |
 
 ---
 
 ## Section 3 — FEATURES
 
-Multi-select fields store comma-delimited arrays in Google Sheets.
+Multi-select fields are currently stored as comma-delimited values in the Google Sheets phase. This is a current-state rule only and will be replaced by the V4 canonical model.
 
-| UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
+| UI Label | Field Name (code) | Current Storage Name | Type | Parameters / Notes |
 |---|---|---|---|---|
-| Utilities Included | utilitiesIncluded | Utilities Included | Multi | Gas, Electric, Internet, Water, Sewage, Trash, Parking. |
-| Unit Features | unitFeatures | Unit Features | Multi | Hardwood Floors, Air Conditioning, Dishwasher, Microwave, Balcony/Terrace. |
-| Private Outdoor Space | privateOutdoorSpaceTypes | Private Outdoor Space | Multi | Patio, Deck, Balcony, Porch, Yard. Build 3.2.11. |
-| Building Amenities | buildingAmenities | Building Amenities | Multi | Extra Storage, Rooftop Space, Common Lounge, Barbecue Area, Firepits, Gym, Pool. |
-| Pet Amenities | petAmenities | Pet Amenities | Multi | Pet Washing, Dog Park. Pets lifestyle toggle gated. |
-| Close By | closeBy | Close By | Multi | Subway, Bus Stop, Grocery Store, Park, Restaurants, Pharmacy, Coffee Shop, Gym, School. |
-| Room Types | roomTypes | Room Types | Multi | Living Room, Dining Room, Office, Bonus Room. Build 3.2.11. |
-| Storage Types | storageTypes | Storage Types | Multi | Build 3.2.11. |
-| Cooling Type | coolingType | Cooling Type | Drop | None, Central, Window, Split, Other. Renamed from acType — Build 3.2.11A. |
-| Heating Type | heatingType | Heating Type | Drop | Forced Air, Baseboard, Radiant, Steam, Electric, Natural Gas, Oil, Propane, None. Build 3.2.11. |
-| Laundry | laundry | Laundry | Drop | None, In-Unit, On Floor, In Building. |
-| Parking Type | parkingType | Parking Type | Drop | None, Covered, Uncovered, Street, Garage. Car lifestyle toggle gated. |
+| Utilities Included | utilitiesIncluded | utilitiesIncluded | Multi | |
+| Unit Features | unitFeatures | unitFeatures | Multi | |
+| Private Outdoor Space | privateOutdoorSpaceTypes | privateOutdoorSpaceTypes | Multi | |
+| Building Amenities | buildingAmenities | buildingAmenities | Multi | |
+| Pet Amenities | petAmenities | petAmenities | Multi | Pets lifestyle toggle gated |
+| Close By | closeBy | closeBy | Multi | |
+| Room Types | roomTypes | roomTypes | Multi | |
+| Storage Types | storageTypes | storageTypes | Multi | |
+| Cooling Type | coolingType | coolingType | Drop | |
+| Heating Type | heatingType | heatingType | Drop | |
+| Laundry | laundry | laundry | Drop | |
+| Parking Type | parkingType | parkingType | Drop | Car lifestyle toggle gated |
 
 ---
 
 ## Section 4 — TRANSPORTATION
 
-| UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
+| UI Label | Field Name (code) | Current Storage Name | Type | Parameters / Notes |
 |---|---|---|---|---|
-| Commute Time (mins) | commuteTime | Commute Time | Num | Integer minutes. Auto-calculated via Google Maps — Build 3.2.15. |
-| Walk Score | walkScore | Walk Score | Num | 0–100. Auto-populated via Walk Score API — Build 3.2.15. |
-| Transit Score | transitScore | Transit Score | Num | 0–100. Auto-populated via Walk Score API — Build 3.2.15. |
-| Bike Score | bikeScore | Bike Score | Num | 0–100. Auto-populated via Walk Score API — Build 3.2.15. |
+| Commute Time (mins) | commuteTime | commuteTime | Num | Integer minutes. External calculated value |
+| Walk Score | walkScore | walkScore | Num | 0–100 |
+| Transit Score | transitScore | transitScore | Num | 0–100 |
+| Bike Score | bikeScore | bikeScore | Num | 0–100 |
 
 ---
 
 ## Section 5 — SCHOOLS
 
-Children lifestyle toggle gated — entire section hidden when Children is OFF. Three sub-groups: Elementary, Middle, High School.
+Children lifestyle toggle gated — entire section hidden when Children is OFF.
 
-| UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
-|---|---|---|---|---|
-| Name (Elem) | elementarySchoolName | Elementary School Name | Text | |
-| Grades (Elem) | elementaryGrades | Elementary School Grades | Text | e.g. K–5. |
-| Rating (Elem) | elementaryRating | Elementary School Rating | Num | 0–10. |
-| Distance (Elem) | elementaryDistance | Elementary School Distance | Num | Miles. Decimal allowed. |
-| Name (Middle) | middleSchoolName | Middle School Name | Text | |
-| Grades (Middle) | middleGrades | Middle School Grades | Text | e.g. 6–8. |
-| Rating (Middle) | middleRating | Middle School Rating | Num | 0–10. |
-| Distance (Middle) | middleDistance | Middle School Distance | Num | Miles. Decimal allowed. |
-| Name (High) | highSchoolName | High School Name | Text | |
-| Grades (High) | highGrades | High School Grades | Text | e.g. 9–12. |
-| Rating (High) | highRating | High School Rating | Num | 0–10. |
-| Distance (High) | highDistance | High School Distance | Num | Miles. Decimal allowed. |
+| UI Label | Field Name (code) | Current Storage Name | Type |
+|---|---|---|---|
+| Name (Elem) | elementarySchoolName | elementarySchoolName | Text |
+| Grades (Elem) | elementaryGrades | elementaryGrades | Text |
+| Rating (Elem) | elementaryRating | elementaryRating | Num |
+| Distance (Elem) | elementaryDistance | elementaryDistance | Num |
+| Name (Middle) | middleSchoolName | middleSchoolName | Text |
+| Grades (Middle) | middleGrades | middleGrades | Text |
+| Rating (Middle) | middleRating | middleRating | Num |
+| Distance (Middle) | middleDistance | middleDistance | Num |
+| Name (High) | highSchoolName | highSchoolName | Text |
+| Grades (High) | highGrades | highGrades | Text |
+| Rating (High) | highRating | highRating | Num |
+| Distance (High) | highDistance | highDistance | Num |
 
 ---
 
 ## Section 6 — LISTING
 
-| UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
+This section reflects the current accepted UI grouping after the 3.2.21 line.
+
+| UI Label | Field Name (code) | Current Storage Name | Type | Parameters / Notes |
 |---|---|---|---|---|
-| Listing Site | listingSite | Listing Site | Drop | Zillow, StreetEasy, Apartments.com, Realtor.com, Trulia, Compass, Other. Auto-detect from URL — Build 3.2.14. |
-| Listing URL | listingUrl | Listing URL | Text | https://... Tap opens browser (Build 3.2.10). |
-| Photo URL | photoUrl | Photo URL | Text | https://... |
-| Contact Name | contactName | Contact Name | Text | |
-| Contact Phone | contactPhone | Contact Phone | Text | Tap opens dialer (Build 3.2.10). |
-| Contact Email | contactEmail | Contact Email | Text | Tap opens mail (Build 3.2.10). |
-| Lease Length | leaseLength | Lease Length | Text | e.g. 12 months. |
-| No Board Approval | noBoardApproval | Board Approval | Bool | TRUE / FALSE. |
-| No Broker Fee | noBrokerFee | Broker Fee | Bool | TRUE / FALSE. |
+| Listing Site | listingSite | listingSite | Drop | Zillow, StreetEasy, Apartments.com, Realtor.com, Trulia, Compass, Other |
+| Listing URL | listingUrl | listingUrl | Text | Tap opens browser |
+| Photo URL | photoUrl | photoUrl | Text | |
+| Contact Name | contactName | contactName | Text | |
+| Contact Phone | contactPhone | contactPhone | Text | Tap opens dialer |
+| Contact Email | contactEmail | contactEmail | Text | Tap opens mail |
+| Lease Length | leaseLength | leaseLength | Text | |
+| Short Term Available | shortTermAvailable | shortTermAvailable | Bool | Current accepted UI grouping is LISTING |
+| No Renters Insurance Required *(display inversion)* | rentersInsuranceRequired | rentersInsuranceRequired | Bool | Underlying stored field remains rentersInsuranceRequired. Display inversion is UI-only |
+| No Board Approval | noBoardApproval | noBoardApproval | Bool | |
+| No Broker Fee | noBrokerFee | noBrokerFee | Bool | |
 
 ---
 
 ## Section 7 — TIMELINE
 
-| UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
-|---|---|---|---|---|
-| Date Available | dateAvailable | Date Available | Date | YYYY-MM-DD. Clear button shown when set. |
-| Contacted Date | contactedDate | Contacted Date | Date | YYYY-MM-DD. Clear button shown when set. |
-| Viewing Date | viewingDate | Viewing Appointment Date | Date | YYYY-MM-DD component of viewingAppointment. |
-| Viewing Time | viewingTime | Viewing Appointment Time | Time | AM/PM picker. Combined with viewingDate on save. |
-| Applied Date | appliedDate | Applied Date | Date | YYYY-MM-DD. Clear button shown when set. |
+| UI Label | Field Name (code) | Current Storage Name | Type |
+|---|---|---|---|
+| Date Available | dateAvailable | dateAvailable | Date |
+| Contacted Date | contactedDate | contactedDate | Date |
+| Viewing Date | viewingDate | viewingDate | Date |
+| Viewing Time | viewingTime | viewingTime | Time |
+| Applied Date | appliedDate | appliedDate | Date |
 
 ---
 
 ## Section 8 — NOTES
 
-| UI Label | Field Name (code) | Sheet Column | Type | Parameters / Notes |
-|---|---|---|---|---|
-| Pros | pros | Pros | Text | Multi-line text area. |
-| Cons | cons | Cons | Text | Multi-line text area. |
+| UI Label | Field Name (code) | Current Storage Name | Type |
+|---|---|---|---|
+| Pros | pros | pros | Text |
+| Cons | cons | cons | Text |
 
 ---
 
 ## Section 9 — SYSTEM FIELDS (not shown in UI)
 
-| Field Name (code) | Sheet Column | Type | Parameters / Notes |
+| Field Name (code) | Current Storage Name | Type | Parameters / Notes |
 |---|---|---|---|
-| id | ID | Text | Auto-generated by API on POST. UUID-style short ID. |
-| totalMonthly | Total Monthly | Calc | baseRent + petFee + storageRent + amenityFee + adminFee + utilityFee + parkingFee + otherFee. |
-| totalUpfront | Total Upfront | Calc | securityDeposit + applicationFee + brokerFee + moveInFee. |
+| id | id | Text | Auto-generated by API on POST |
+| totalMonthly | totalMonthly | Calc | Current implementation may store it, but it is treated as derived |
+| totalUpfront | totalUpfront | Calc | Current implementation may store it, but it is treated as derived |
 
 ---
 
-## Section 10 — Field Type Key
+## Section 10 — Current Type Rules
 
-| Type | Description |
+| Type | Current Rule |
 |---|---|
-| Text | Plain string. Sent as-is. |
-| Num | Integer or decimal. Sent as JS number (not string). Null if empty. |
-| Int | Integer only. Sent as JS number. Null if empty. |
-| Curr | Same as Num. Currency display. Null if empty. |
-| Bool | Sent as `'TRUE'` or `'FALSE'` all-caps string. Never as JS true/false. |
-| Drop | Single select from a hard-coded list. Sent as the selected string value. |
-| Multi | Multi-select, stored as comma-delimited string in Google Sheet. |
-| Date | YYYY-MM-DD string. Null if empty. |
-| Time | AM/PM picker value. Combined with Date field on save. |
-| Calc | Calculated by API, never sent from mobile. |
+| Text | Plain string |
+| Num | Integer or decimal number, null if empty |
+| Int | Integer only, null if empty |
+| Curr | Numeric currency value, null if empty |
+| Bool | `'TRUE'` / `'FALSE'` all-caps strings |
+| Drop | Selected string value |
+| Multi | Current Google Sheets phase stores comma-delimited values |
+| Date | `YYYY-MM-DD` string or null |
+| Time | AM/PM value paired with date on save |
+| Calc | Derived value, not user-entered source of truth |
 
 ---
 
-## Section 11 — Status Flow (10-Status Listing Lifecycle)
+## Section 11 — Current UI / Data Boundary Rules
 
-| Status | Pill Color | Meaning |
-|---|---|---|
-| New | Blue | Listing saved. No action taken yet. |
-| Contacted | Blue | Reached out to landlord or agent. |
-| Scheduled | Blue | Viewing appointment booked. |
-| Viewed | Blue | In-person visit completed. |
-| Shortlisted | Amber | Strong candidate — under active consideration. |
-| Applied | Blue | Application submitted. |
-| Approved | Green | Application approved. |
-| Signed | Teal | Lease signed. |
-| Rejected | Red | Not proceeding — rejected or withdrew. |
-| Archived | Grey | Removed from active view. Not deleted. |
+- Display-label changes do not authorize field-key renames.
+- UI section placement changes do not authorize schema or payload changes.
+- Current accepted UI grouping places `shortTermAvailable` and `rentersInsuranceRequired` in the LISTING section.
+- Current accepted implementation still uses `buildingName` as the field key under the display label **Property Name**.
+- V4 will intentionally replace this current-state model with a canonical model.
+
+---
+
+## Section 12 — Status Flow (Current Accepted State)
+
+| Status | Meaning |
+|---|---|
+| New | Listing saved. No action taken yet |
+| Contacted | Reached out to landlord or agent |
+| Scheduled | Viewing appointment booked |
+| Viewed | Viewing completed |
+| Shortlisted | Strong candidate under active consideration |
+| Applied | Application submitted |
+| Approved | Application approved |
+| Signed | Lease signed |
+| Rejected | Not proceeding |
+| Archived | Historical record, removed from active view |
