@@ -1,13 +1,20 @@
-// components/ListingForm.tsx — Build 3.2.21
-// Changes from 3.2.20.7:
-//   Save button moved from inside ScrollView to fixed sub-footer below ScrollView.
-//   shortTermAvailable and rentersInsuranceRequired moved from PROPERTY section to LISTING section.
-//   Label "Building Name *" → "Property Name *" (display label only — field key buildingName unchanged).
-//   Label "Renters Insurance Required" → "No Renters Insurance Required" (display label only).
-//   Validation alert updated to reference "Property Name".
-//   headingLabel import removed (was a removed legacy alias) — picker modal title uses textStyles.bodyEmphasis.
-//   ScrollView paddingBottom reduced (sub-footer is now separate fixed zone).
-// No logic, option array, payload, field key, or structural changes.
+// components/ListingForm.tsx — Build 3.2.21.1 Hotfix
+// Changes from 3.2.21:
+//   Section component: card-style expandable header row.
+//     - Resting background: colors.surface. Pressed background: colors.surfacePressed.
+//     - Border: colors.border. Rounded corners (borderRadius 10).
+//     - When collapsed: full pill shape (all corners rounded).
+//     - When expanded: header top corners rounded, body bottom corners rounded — forms a
+//       complete card together. No top border on body (connects to header).
+//   KAV restructure (scroll fix):
+//     - Outer wrapper changed from KeyboardAvoidingView to plain View (flex: 1).
+//     - KAV now wraps only the ScrollView (flex: 1).
+//     - Sub-footer (Save Listing) and Modals moved outside KAV.
+//     - Eliminates KAV fighting the fixed sub-footer and causing sticky scroll.
+//   ScrollView paddingBottom cleaned up to 24 (no inset needed — sub-footer is separate).
+// No field logic, option arrays, payload, field keys, or section membership changes.
+// All approved 3.2.21 moves (shortTermAvailable, rentersInsuranceRequired → LISTING;
+//   "Property Name" label; "No Renters Insurance Required" label) are preserved exactly.
 // All sub-components defined OUTSIDE export function (DRIFT 10).
 // Option arrays copied exactly from source (DRIFT 13).
 
@@ -244,14 +251,49 @@ export function buildPayload(draft: Draft): any {
 
 // ── Sub-components — defined OUTSIDE export function (DRIFT 10) ────
 
-function Section({ title, open, onToggle, children }: { title: string; open: boolean; onToggle: () => void; children: React.ReactNode }) {
+// Card-style expandable section header.
+// Collapsed: full pill (all 4 corners rounded). background: surface / surfacePressed on press.
+// Expanded: header top-corners rounded only; body bottom-corners rounded only — together
+// they form one complete card. Body has no top border (connects flush to header bottom).
+function Section({ title, open, onToggle, children }: {
+  title: string; open: boolean; onToggle: () => void; children: React.ReactNode;
+}) {
   return (
-    <View style={{ marginBottom: 12 }}>
-      <Pressable onPress={onToggle} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+    <View style={{ marginBottom: 10 }}>
+      <Pressable
+        onPress={onToggle}
+        style={({ pressed }) => ({
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          paddingVertical: 12,
+          paddingHorizontal: 14,
+          backgroundColor: pressed ? colors.surfacePressed : colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: 10,
+          borderBottomLeftRadius: open ? 0 : 10,
+          borderBottomRightRadius: open ? 0 : 10,
+        })}
+      >
         <Text style={textStyles.sectionTitle}>{title.toUpperCase()}</Text>
         <Ionicons name={open ? "chevron-up" : "chevron-down"} size={16} color={colors.textSecondary} />
       </Pressable>
-      {open && <View style={{ paddingTop: 4 }}>{children}</View>}
+      {open && (
+        <View style={{
+          borderWidth: 1,
+          borderTopWidth: 0,
+          borderColor: colors.border,
+          borderBottomLeftRadius: 10,
+          borderBottomRightRadius: 10,
+          paddingHorizontal: 14,
+          paddingTop: 4,
+          paddingBottom: 8,
+          backgroundColor: colors.background,
+        }}>
+          {children}
+        </View>
+      )}
     </View>
   );
 }
@@ -338,7 +380,7 @@ type ListingFormProps = {
 
 // ── Main export ────────────────────────────────────────────────────
 
-export default function ListingForm({ initialDraft, toggles, saving, onSave, insets }: ListingFormProps) {
+export default function ListingForm({ initialDraft, toggles, saving, onSave }: ListingFormProps) {
   const inputRefs = useRef<Record<string, any>>({});
   const [draft, setDraft] = useState<Draft>(initialDraft);
   const [open, setOpen] = useState({ property: true, costs: true, features: true, neighborhood: true, schools: true, listing: true, timeline: true, notes: true });
@@ -356,7 +398,6 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
     setDraft(initialDraft);
   }, [initialDraft]);
 
-  // ZIP lookup — fires when zip reaches 5 digits
   useEffect(() => {
     if (draft.zipCode.length === 5) {
       setZipLooking(true);
@@ -369,7 +410,6 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
     }
   }, [draft.zipCode]);
 
-  // Listing site auto-detect from URL
   useEffect(() => {
     if (draft.listingUrl) {
       const detected = detectListingSite(draft.listingUrl);
@@ -424,141 +464,147 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
   const isAptCondoCoop = ["Apartment", "Condo", "Co-op"].includes(draft.propertyType);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}>
-      <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 16 }}
-        keyboardDismissMode="on-drag"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    // Outer View — contains KAV (scrollable body), sub-footer, and modals as siblings.
+    // KAV wraps only the ScrollView so keyboard adjustments do not displace the sub-footer.
+    <View style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
       >
+        <ScrollView
+          contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
 
-        {/* PROPERTY */}
-        <Section title="Property" open={open.property} onToggle={() => toggleSection("property")}>
-          <SelectRow label="Status" value={draft.status} onPress={() => openSingle("Status", STATUS, draft.status, set("status"))} />
-          <SelectRow label="Property Type" value={draft.propertyType} onPress={() => openSingle("Property Type", PROPERTY_TYPES, draft.propertyType, set("propertyType"))} />
-          <Toggle label="Preferred" value={draft.preferred} onValueChange={set("preferred")} />
-          <Field label="Property Name *" fieldKey="buildingName" inputRefs={inputRefs} onNext={focusNext} value={draft.buildingName} onChangeText={set("buildingName")} />
-          <Field label="Street Address" fieldKey="streetAddress" inputRefs={inputRefs} onNext={focusNext} value={draft.streetAddress} onChangeText={set("streetAddress")} />
-          <Field label="Zip Code" fieldKey="zipCode" inputRefs={inputRefs} onNext={focusNext} value={draft.zipCode} onChangeText={set("zipCode")} keyboardType="number-pad" />
-          <Field label={`City${zipLooking ? " (looking up...)" : ""}`} fieldKey="city" inputRefs={inputRefs} onNext={focusNext} value={draft.city} onChangeText={set("city")} editable={!zipLooking} />
-          <Field label="State" fieldKey="state" inputRefs={inputRefs} onNext={focusNext} value={draft.state} onChangeText={set("state")} />
-          <Field label="Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={set("unitNumber")} />
-          {isAptCondoCoop && <Field label="Floor #" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={set("floorNumber")} keyboardType="number-pad" />}
-          <Field label="# of Floors" fieldKey="numberOfFloors" inputRefs={inputRefs} onNext={focusNext} value={draft.numberOfFloors} onChangeText={set("numberOfFloors")} keyboardType="number-pad" />
-          <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={set("bedrooms")} keyboardType="number-pad" />
-          <Field label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={set("bathrooms")} keyboardType="decimal-pad" />
-          <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={set("squareFootage")} keyboardType="number-pad" />
-          {isAptCondoCoop && <Toggle label="Top Floor" value={draft.topFloor} onValueChange={set("topFloor")} />}
-          {isAptCondoCoop && <Toggle label="Corner Unit" value={draft.cornerUnit} onValueChange={set("cornerUnit")} />}
-          <Toggle label="Furnished" value={draft.furnished} onValueChange={set("furnished")} />
-        </Section>
-
-        {/* COSTS */}
-        <Section title="Costs" open={open.costs} onToggle={() => toggleSection("costs")}>
-          <Field label="Base Rent ($)" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={set("baseRent")} keyboardType="number-pad" />
-          {toggles.car && <Field label="Parking Fee ($)" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={set("parkingFee")} keyboardType="number-pad" />}
-          <Field label="Amenity Fee ($)" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={set("amenityFee")} keyboardType="number-pad" />
-          <Field label="Admin Fee ($)" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={set("adminFee")} keyboardType="number-pad" />
-          <Field label="Utility Fee ($)" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={set("utilityFee")} keyboardType="number-pad" />
-          <Field label="Storage Rent ($)" fieldKey="storageRent" inputRefs={inputRefs} onNext={focusNext} value={draft.storageRent} onChangeText={set("storageRent")} keyboardType="number-pad" />
-          {toggles.pets && <Field label="Pet Fee ($)" fieldKey="petFee" inputRefs={inputRefs} onNext={focusNext} value={draft.petFee} onChangeText={set("petFee")} keyboardType="number-pad" />}
-          <Field label="Other Fee ($)" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={set("otherFee")} keyboardType="number-pad" />
-          <Field label="Security Deposit ($)" fieldKey="securityDeposit" inputRefs={inputRefs} onNext={focusNext} value={draft.securityDeposit} onChangeText={set("securityDeposit")} keyboardType="number-pad" />
-          <Field label="Application Fee ($)" fieldKey="applicationFee" inputRefs={inputRefs} onNext={focusNext} value={draft.applicationFee} onChangeText={set("applicationFee")} keyboardType="number-pad" />
-          <Field label="Broker Fee ($)" fieldKey="brokerFee" inputRefs={inputRefs} onNext={focusNext} value={draft.brokerFee} onChangeText={set("brokerFee")} keyboardType="number-pad" />
-          <Field label="Move-in Fee ($)" fieldKey="moveInFee" inputRefs={inputRefs} onNext={focusNext} value={draft.moveInFee} onChangeText={set("moveInFee")} keyboardType="number-pad" />
-        </Section>
-
-        {/* FEATURES */}
-        <Section title="Features" open={open.features} onToggle={() => toggleSection("features")}>
-          <MultiRow label="Utilities Included" values={draft.utilitiesIncluded} onPress={() => openMulti("Utilities Included", UTILITIES, draft.utilitiesIncluded, set("utilitiesIncluded"))} />
-          <MultiRow label="Unit Features" values={draft.unitFeatures} onPress={() => openMulti("Unit Features", UNIT_FEATURES, draft.unitFeatures, set("unitFeatures"))} />
-          <SelectRow label="Cooling Type" value={draft.coolingType} onPress={() => openSingle("Cooling Type", COOLING_TYPES, draft.coolingType, set("coolingType"))} />
-          <SelectRow label="Heating Type" value={draft.heatingType} onPress={() => openSingle("Heating Type", HEATING_TYPES, draft.heatingType, set("heatingType"))} />
-          <SelectRow label="Laundry" value={draft.laundry} onPress={() => openSingle("Laundry", LAUNDRY, draft.laundry, set("laundry"))} />
-          <MultiRow label="Rooms" values={draft.roomTypes} onPress={() => openMulti("Rooms", ROOM_TYPES, draft.roomTypes, set("roomTypes"))} />
-          <MultiRow label="Building Amenities" values={draft.buildingAmenities} onPress={() => openMulti("Building Amenities", BUILDING_AMENITIES, draft.buildingAmenities, set("buildingAmenities"))} />
-          <MultiRow label="Private Outdoor Space" values={draft.privateOutdoorSpaceTypes} onPress={() => openMulti("Private Outdoor Space", PRIVATE_OUTDOOR_SPACE, draft.privateOutdoorSpaceTypes, set("privateOutdoorSpaceTypes"))} />
-          <MultiRow label="Storage" values={draft.storageTypes} onPress={() => openMulti("Storage", STORAGE_TYPES, draft.storageTypes, set("storageTypes"))} />
-          {toggles.car && <SelectRow label="Parking Type" value={draft.parkingType} onPress={() => openSingle("Parking Type", PARKING, draft.parkingType, set("parkingType"))} />}
-          {toggles.pets && <MultiRow label="Pet Amenities" values={draft.petAmenities} onPress={() => openMulti("Pet Amenities", PET_AMENITIES, draft.petAmenities, set("petAmenities"))} />}
-        </Section>
-
-        {/* NEIGHBORHOOD */}
-        <Section title="Neighborhood" open={open.neighborhood} onToggle={() => toggleSection("neighborhood")}>
-          <Field label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={set("neighborhood")} />
-          <Field label="Commute Time (min)" fieldKey="commuteTime" inputRefs={inputRefs} onNext={focusNext} value={draft.commuteTime} onChangeText={set("commuteTime")} keyboardType="number-pad" />
-          <Field label="Walk Score (0–100)" fieldKey="walkScore" inputRefs={inputRefs} onNext={focusNext} value={draft.walkScore} onChangeText={set("walkScore")} keyboardType="number-pad" />
-          <Field label="Transit Score (0–100)" fieldKey="transitScore" inputRefs={inputRefs} onNext={focusNext} value={draft.transitScore} onChangeText={set("transitScore")} keyboardType="number-pad" />
-          <Field label="Bike Score (0–100)" fieldKey="bikeScore" inputRefs={inputRefs} onNext={focusNext} value={draft.bikeScore} onChangeText={set("bikeScore")} keyboardType="number-pad" />
-          <Field label="Safety Score (0–100)" fieldKey="safetyScore" inputRefs={inputRefs} onNext={focusNext} value={draft.safetyScore} onChangeText={set("safetyScore")} keyboardType="number-pad" />
-          <Field label="Noise Score (0–100)" fieldKey="noiseScore" inputRefs={inputRefs} onNext={focusNext} value={draft.noiseScore} onChangeText={set("noiseScore")} keyboardType="number-pad" />
-          <MultiRow label="Close By" values={draft.closeBy} onPress={() => openMulti("Close By", CLOSE_BY, draft.closeBy, set("closeBy"))} />
-        </Section>
-
-        {/* SCHOOLS — children toggle gated */}
-        {toggles.children && (
-          <Section title="Schools" open={open.schools} onToggle={() => toggleSection("schools")}>
-            <Text style={{ color: textStyles.label.color, fontSize: textStyles.label.fontSize, fontWeight: textStyles.label.fontWeight, letterSpacing: 0.5, marginTop: 4, marginBottom: 2 }}>ELEMENTARY SCHOOL</Text>
-            <Field label="School Name" fieldKey="elementarySchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.elementarySchoolName} onChangeText={set("elementarySchoolName")} />
-            <Field label="Grades" fieldKey="elementaryGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryGrades} onChangeText={set("elementaryGrades")} />
-            <Field label="Rating (0–10)" fieldKey="elementaryRating" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryRating} onChangeText={(t) => set("elementaryRating")(clampRating(t))} keyboardType="decimal-pad" />
-            <Field label="Distance (mi)" fieldKey="elementaryDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryDistance} onChangeText={set("elementaryDistance")} keyboardType="decimal-pad" />
-            <Text style={{ color: textStyles.label.color, fontSize: textStyles.label.fontSize, fontWeight: textStyles.label.fontWeight, letterSpacing: 0.5, marginTop: 6, marginBottom: 2 }}>MIDDLE SCHOOL</Text>
-            <Field label="School Name" fieldKey="middleSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.middleSchoolName} onChangeText={set("middleSchoolName")} />
-            <Field label="Grades" fieldKey="middleGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.middleGrades} onChangeText={set("middleGrades")} />
-            <Field label="Rating (0–10)" fieldKey="middleRating" inputRefs={inputRefs} onNext={focusNext} value={draft.middleRating} onChangeText={(t) => set("middleRating")(clampRating(t))} keyboardType="decimal-pad" />
-            <Field label="Distance (mi)" fieldKey="middleDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.middleDistance} onChangeText={set("middleDistance")} keyboardType="decimal-pad" />
-            <Text style={{ color: textStyles.label.color, fontSize: textStyles.label.fontSize, fontWeight: textStyles.label.fontWeight, letterSpacing: 0.5, marginTop: 6, marginBottom: 2 }}>HIGH SCHOOL</Text>
-            <Field label="School Name" fieldKey="highSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.highSchoolName} onChangeText={set("highSchoolName")} />
-            <Field label="Grades" fieldKey="highGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.highGrades} onChangeText={set("highGrades")} />
-            <Field label="Rating (0–10)" fieldKey="highRating" inputRefs={inputRefs} onNext={focusNext} value={draft.highRating} onChangeText={(t) => set("highRating")(clampRating(t))} keyboardType="decimal-pad" />
-            <Field label="Distance (mi)" fieldKey="highDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.highDistance} onChangeText={set("highDistance")} keyboardType="decimal-pad" />
+          {/* PROPERTY */}
+          <Section title="Property" open={open.property} onToggle={() => toggleSection("property")}>
+            <SelectRow label="Status" value={draft.status} onPress={() => openSingle("Status", STATUS, draft.status, set("status"))} />
+            <SelectRow label="Property Type" value={draft.propertyType} onPress={() => openSingle("Property Type", PROPERTY_TYPES, draft.propertyType, set("propertyType"))} />
+            <Toggle label="Preferred" value={draft.preferred} onValueChange={set("preferred")} />
+            <Field label="Property Name *" fieldKey="buildingName" inputRefs={inputRefs} onNext={focusNext} value={draft.buildingName} onChangeText={set("buildingName")} />
+            <Field label="Street Address" fieldKey="streetAddress" inputRefs={inputRefs} onNext={focusNext} value={draft.streetAddress} onChangeText={set("streetAddress")} />
+            <Field label="Zip Code" fieldKey="zipCode" inputRefs={inputRefs} onNext={focusNext} value={draft.zipCode} onChangeText={set("zipCode")} keyboardType="number-pad" />
+            <Field label={`City${zipLooking ? " (looking up...)" : ""}`} fieldKey="city" inputRefs={inputRefs} onNext={focusNext} value={draft.city} onChangeText={set("city")} editable={!zipLooking} />
+            <Field label="State" fieldKey="state" inputRefs={inputRefs} onNext={focusNext} value={draft.state} onChangeText={set("state")} />
+            <Field label="Unit #" fieldKey="unitNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.unitNumber} onChangeText={set("unitNumber")} />
+            {isAptCondoCoop && <Field label="Floor #" fieldKey="floorNumber" inputRefs={inputRefs} onNext={focusNext} value={draft.floorNumber} onChangeText={set("floorNumber")} keyboardType="number-pad" />}
+            <Field label="# of Floors" fieldKey="numberOfFloors" inputRefs={inputRefs} onNext={focusNext} value={draft.numberOfFloors} onChangeText={set("numberOfFloors")} keyboardType="number-pad" />
+            <Field label="Bedrooms" fieldKey="bedrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bedrooms} onChangeText={set("bedrooms")} keyboardType="number-pad" />
+            <Field label="Bathrooms" fieldKey="bathrooms" inputRefs={inputRefs} onNext={focusNext} value={draft.bathrooms} onChangeText={set("bathrooms")} keyboardType="decimal-pad" />
+            <Field label="Square Footage" fieldKey="squareFootage" inputRefs={inputRefs} onNext={focusNext} value={draft.squareFootage} onChangeText={set("squareFootage")} keyboardType="number-pad" />
+            {isAptCondoCoop && <Toggle label="Top Floor" value={draft.topFloor} onValueChange={set("topFloor")} />}
+            {isAptCondoCoop && <Toggle label="Corner Unit" value={draft.cornerUnit} onValueChange={set("cornerUnit")} />}
+            <Toggle label="Furnished" value={draft.furnished} onValueChange={set("furnished")} />
           </Section>
-        )}
 
-        {/* LISTING — includes shortTermAvailable and rentersInsuranceRequired (moved from PROPERTY) */}
-        <Section title="Listing" open={open.listing} onToggle={() => toggleSection("listing")}>
-          <SelectRow label="Listing Site" value={draft.listingSite} onPress={() => openSingle("Listing Site", LISTING_SITES, draft.listingSite, set("listingSite"))} />
-          <Field label="Listing URL" fieldKey="listingUrl" inputRefs={inputRefs} onNext={focusNext} value={draft.listingUrl} onChangeText={set("listingUrl")} keyboardType="url" />
-          <Field label="Photo URL" fieldKey="photoUrl" inputRefs={inputRefs} onNext={focusNext} value={draft.photoUrl} onChangeText={set("photoUrl")} keyboardType="url" />
-          <Field label="Contact Name" fieldKey="contactName" inputRefs={inputRefs} onNext={focusNext} value={draft.contactName} onChangeText={set("contactName")} />
-          <Field label="Contact Phone" fieldKey="contactPhone" inputRefs={inputRefs} onNext={focusNext} value={draft.contactPhone} onChangeText={set("contactPhone")} keyboardType="phone-pad" />
-          <Field label="Contact Email" fieldKey="contactEmail" inputRefs={inputRefs} onNext={focusNext} value={draft.contactEmail} onChangeText={set("contactEmail")} keyboardType="email-address" />
-          <Field label="Lease Length" fieldKey="leaseLength" inputRefs={inputRefs} onNext={focusNext} value={draft.leaseLength} onChangeText={set("leaseLength")} />
-          <Toggle label="No Board Approval" value={draft.noBoardApproval} onValueChange={set("noBoardApproval")} />
-          <Toggle label="No Broker Fee" value={draft.noBrokerFee} onValueChange={set("noBrokerFee")} />
-          <Toggle label="Short Term Available" value={draft.shortTermAvailable} onValueChange={set("shortTermAvailable")} />
-          <Toggle label="No Renters Insurance Required" value={draft.rentersInsuranceRequired} onValueChange={set("rentersInsuranceRequired")} />
-        </Section>
+          {/* COSTS */}
+          <Section title="Costs" open={open.costs} onToggle={() => toggleSection("costs")}>
+            <Field label="Base Rent ($)" fieldKey="baseRent" inputRefs={inputRefs} onNext={focusNext} value={draft.baseRent} onChangeText={set("baseRent")} keyboardType="number-pad" />
+            {toggles.car && <Field label="Parking Fee ($)" fieldKey="parkingFee" inputRefs={inputRefs} onNext={focusNext} value={draft.parkingFee} onChangeText={set("parkingFee")} keyboardType="number-pad" />}
+            <Field label="Amenity Fee ($)" fieldKey="amenityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.amenityFee} onChangeText={set("amenityFee")} keyboardType="number-pad" />
+            <Field label="Admin Fee ($)" fieldKey="adminFee" inputRefs={inputRefs} onNext={focusNext} value={draft.adminFee} onChangeText={set("adminFee")} keyboardType="number-pad" />
+            <Field label="Utility Fee ($)" fieldKey="utilityFee" inputRefs={inputRefs} onNext={focusNext} value={draft.utilityFee} onChangeText={set("utilityFee")} keyboardType="number-pad" />
+            <Field label="Storage Rent ($)" fieldKey="storageRent" inputRefs={inputRefs} onNext={focusNext} value={draft.storageRent} onChangeText={set("storageRent")} keyboardType="number-pad" />
+            {toggles.pets && <Field label="Pet Fee ($)" fieldKey="petFee" inputRefs={inputRefs} onNext={focusNext} value={draft.petFee} onChangeText={set("petFee")} keyboardType="number-pad" />}
+            <Field label="Other Fee ($)" fieldKey="otherFee" inputRefs={inputRefs} onNext={focusNext} value={draft.otherFee} onChangeText={set("otherFee")} keyboardType="number-pad" />
+            <Field label="Security Deposit ($)" fieldKey="securityDeposit" inputRefs={inputRefs} onNext={focusNext} value={draft.securityDeposit} onChangeText={set("securityDeposit")} keyboardType="number-pad" />
+            <Field label="Application Fee ($)" fieldKey="applicationFee" inputRefs={inputRefs} onNext={focusNext} value={draft.applicationFee} onChangeText={set("applicationFee")} keyboardType="number-pad" />
+            <Field label="Broker Fee ($)" fieldKey="brokerFee" inputRefs={inputRefs} onNext={focusNext} value={draft.brokerFee} onChangeText={set("brokerFee")} keyboardType="number-pad" />
+            <Field label="Move-in Fee ($)" fieldKey="moveInFee" inputRefs={inputRefs} onNext={focusNext} value={draft.moveInFee} onChangeText={set("moveInFee")} keyboardType="number-pad" />
+          </Section>
 
-        {/* TIMELINE */}
-        <Section title="Timeline" open={open.timeline} onToggle={() => toggleSection("timeline")}>
-          <DateRow label="Date Available" value={draft.dateAvailable} onPress={() => openDatePicker("dateAvailable")} onClear={() => set("dateAvailable")("")} />
-          <DateRow label="Contacted Date" value={draft.contactedDate} onPress={() => openDatePicker("contactedDate")} onClear={() => set("contactedDate")("")} />
-          <DateRow label="Viewing Date" value={draft.viewingDate} onPress={() => openDatePicker("viewingDate")} onClear={() => set("viewingDate")("")} />
-          <SelectRow label="Viewing Time" value={draft.viewingTime} onPress={() => openSingle("Viewing Time", TIME_OPTIONS, draft.viewingTime, set("viewingTime"))} />
-          <DateRow label="Applied Date" value={draft.appliedDate} onPress={() => openDatePicker("appliedDate")} onClear={() => set("appliedDate")("")} />
-        </Section>
+          {/* FEATURES */}
+          <Section title="Features" open={open.features} onToggle={() => toggleSection("features")}>
+            <MultiRow label="Utilities Included" values={draft.utilitiesIncluded} onPress={() => openMulti("Utilities Included", UTILITIES, draft.utilitiesIncluded, set("utilitiesIncluded"))} />
+            <MultiRow label="Unit Features" values={draft.unitFeatures} onPress={() => openMulti("Unit Features", UNIT_FEATURES, draft.unitFeatures, set("unitFeatures"))} />
+            <SelectRow label="Cooling Type" value={draft.coolingType} onPress={() => openSingle("Cooling Type", COOLING_TYPES, draft.coolingType, set("coolingType"))} />
+            <SelectRow label="Heating Type" value={draft.heatingType} onPress={() => openSingle("Heating Type", HEATING_TYPES, draft.heatingType, set("heatingType"))} />
+            <SelectRow label="Laundry" value={draft.laundry} onPress={() => openSingle("Laundry", LAUNDRY, draft.laundry, set("laundry"))} />
+            <MultiRow label="Rooms" values={draft.roomTypes} onPress={() => openMulti("Rooms", ROOM_TYPES, draft.roomTypes, set("roomTypes"))} />
+            <MultiRow label="Building Amenities" values={draft.buildingAmenities} onPress={() => openMulti("Building Amenities", BUILDING_AMENITIES, draft.buildingAmenities, set("buildingAmenities"))} />
+            <MultiRow label="Private Outdoor Space" values={draft.privateOutdoorSpaceTypes} onPress={() => openMulti("Private Outdoor Space", PRIVATE_OUTDOOR_SPACE, draft.privateOutdoorSpaceTypes, set("privateOutdoorSpaceTypes"))} />
+            <MultiRow label="Storage" values={draft.storageTypes} onPress={() => openMulti("Storage", STORAGE_TYPES, draft.storageTypes, set("storageTypes"))} />
+            {toggles.car && <SelectRow label="Parking Type" value={draft.parkingType} onPress={() => openSingle("Parking Type", PARKING, draft.parkingType, set("parkingType"))} />}
+            {toggles.pets && <MultiRow label="Pet Amenities" values={draft.petAmenities} onPress={() => openMulti("Pet Amenities", PET_AMENITIES, draft.petAmenities, set("petAmenities"))} />}
+          </Section>
 
-        {/* NOTES */}
-        <Section title="Notes" open={open.notes} onToggle={() => toggleSection("notes")}>
-          <Field label="Pros" fieldKey="pros" inputRefs={inputRefs} onNext={focusNext} value={draft.pros} onChangeText={set("pros")} />
-          <Field label="Cons" fieldKey="cons" inputRefs={inputRefs} onNext={focusNext} value={draft.cons} onChangeText={set("cons")} />
-        </Section>
+          {/* NEIGHBORHOOD */}
+          <Section title="Neighborhood" open={open.neighborhood} onToggle={() => toggleSection("neighborhood")}>
+            <Field label="Neighborhood" fieldKey="neighborhood" inputRefs={inputRefs} onNext={focusNext} value={draft.neighborhood} onChangeText={set("neighborhood")} />
+            <Field label="Commute Time (min)" fieldKey="commuteTime" inputRefs={inputRefs} onNext={focusNext} value={draft.commuteTime} onChangeText={set("commuteTime")} keyboardType="number-pad" />
+            <Field label="Walk Score (0–100)" fieldKey="walkScore" inputRefs={inputRefs} onNext={focusNext} value={draft.walkScore} onChangeText={set("walkScore")} keyboardType="number-pad" />
+            <Field label="Transit Score (0–100)" fieldKey="transitScore" inputRefs={inputRefs} onNext={focusNext} value={draft.transitScore} onChangeText={set("transitScore")} keyboardType="number-pad" />
+            <Field label="Bike Score (0–100)" fieldKey="bikeScore" inputRefs={inputRefs} onNext={focusNext} value={draft.bikeScore} onChangeText={set("bikeScore")} keyboardType="number-pad" />
+            <Field label="Safety Score (0–100)" fieldKey="safetyScore" inputRefs={inputRefs} onNext={focusNext} value={draft.safetyScore} onChangeText={set("safetyScore")} keyboardType="number-pad" />
+            <Field label="Noise Score (0–100)" fieldKey="noiseScore" inputRefs={inputRefs} onNext={focusNext} value={draft.noiseScore} onChangeText={set("noiseScore")} keyboardType="number-pad" />
+            <MultiRow label="Close By" values={draft.closeBy} onPress={() => openMulti("Close By", CLOSE_BY, draft.closeBy, set("closeBy"))} />
+          </Section>
 
-      </ScrollView>
+          {/* SCHOOLS — children toggle gated */}
+          {toggles.children && (
+            <Section title="Schools" open={open.schools} onToggle={() => toggleSection("schools")}>
+              <Text style={{ color: textStyles.label.color, fontSize: textStyles.label.fontSize, fontWeight: textStyles.label.fontWeight, letterSpacing: 0.5, marginTop: 4, marginBottom: 2 }}>ELEMENTARY SCHOOL</Text>
+              <Field label="School Name" fieldKey="elementarySchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.elementarySchoolName} onChangeText={set("elementarySchoolName")} />
+              <Field label="Grades" fieldKey="elementaryGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryGrades} onChangeText={set("elementaryGrades")} />
+              <Field label="Rating (0–10)" fieldKey="elementaryRating" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryRating} onChangeText={(t) => set("elementaryRating")(clampRating(t))} keyboardType="decimal-pad" />
+              <Field label="Distance (mi)" fieldKey="elementaryDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.elementaryDistance} onChangeText={set("elementaryDistance")} keyboardType="decimal-pad" />
+              <Text style={{ color: textStyles.label.color, fontSize: textStyles.label.fontSize, fontWeight: textStyles.label.fontWeight, letterSpacing: 0.5, marginTop: 6, marginBottom: 2 }}>MIDDLE SCHOOL</Text>
+              <Field label="School Name" fieldKey="middleSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.middleSchoolName} onChangeText={set("middleSchoolName")} />
+              <Field label="Grades" fieldKey="middleGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.middleGrades} onChangeText={set("middleGrades")} />
+              <Field label="Rating (0–10)" fieldKey="middleRating" inputRefs={inputRefs} onNext={focusNext} value={draft.middleRating} onChangeText={(t) => set("middleRating")(clampRating(t))} keyboardType="decimal-pad" />
+              <Field label="Distance (mi)" fieldKey="middleDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.middleDistance} onChangeText={set("middleDistance")} keyboardType="decimal-pad" />
+              <Text style={{ color: textStyles.label.color, fontSize: textStyles.label.fontSize, fontWeight: textStyles.label.fontWeight, letterSpacing: 0.5, marginTop: 6, marginBottom: 2 }}>HIGH SCHOOL</Text>
+              <Field label="School Name" fieldKey="highSchoolName" inputRefs={inputRefs} onNext={focusNext} value={draft.highSchoolName} onChangeText={set("highSchoolName")} />
+              <Field label="Grades" fieldKey="highGrades" inputRefs={inputRefs} onNext={focusNext} value={draft.highGrades} onChangeText={set("highGrades")} />
+              <Field label="Rating (0–10)" fieldKey="highRating" inputRefs={inputRefs} onNext={focusNext} value={draft.highRating} onChangeText={(t) => set("highRating")(clampRating(t))} keyboardType="decimal-pad" />
+              <Field label="Distance (mi)" fieldKey="highDistance" inputRefs={inputRefs} onNext={focusNext} value={draft.highDistance} onChangeText={set("highDistance")} keyboardType="decimal-pad" />
+            </Section>
+          )}
 
-      {/* ── Sub-footer — Save Listing button (fixed, below ScrollView) ── */}
-      <View
-        style={{
-          paddingHorizontal: 14,
-          paddingVertical: 12,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-          backgroundColor: colors.surface,
-        }}
-      >
+          {/* LISTING */}
+          <Section title="Listing" open={open.listing} onToggle={() => toggleSection("listing")}>
+            <SelectRow label="Listing Site" value={draft.listingSite} onPress={() => openSingle("Listing Site", LISTING_SITES, draft.listingSite, set("listingSite"))} />
+            <Field label="Listing URL" fieldKey="listingUrl" inputRefs={inputRefs} onNext={focusNext} value={draft.listingUrl} onChangeText={set("listingUrl")} keyboardType="url" />
+            <Field label="Photo URL" fieldKey="photoUrl" inputRefs={inputRefs} onNext={focusNext} value={draft.photoUrl} onChangeText={set("photoUrl")} keyboardType="url" />
+            <Field label="Contact Name" fieldKey="contactName" inputRefs={inputRefs} onNext={focusNext} value={draft.contactName} onChangeText={set("contactName")} />
+            <Field label="Contact Phone" fieldKey="contactPhone" inputRefs={inputRefs} onNext={focusNext} value={draft.contactPhone} onChangeText={set("contactPhone")} keyboardType="phone-pad" />
+            <Field label="Contact Email" fieldKey="contactEmail" inputRefs={inputRefs} onNext={focusNext} value={draft.contactEmail} onChangeText={set("contactEmail")} keyboardType="email-address" />
+            <Field label="Lease Length" fieldKey="leaseLength" inputRefs={inputRefs} onNext={focusNext} value={draft.leaseLength} onChangeText={set("leaseLength")} />
+            <Toggle label="No Board Approval" value={draft.noBoardApproval} onValueChange={set("noBoardApproval")} />
+            <Toggle label="No Broker Fee" value={draft.noBrokerFee} onValueChange={set("noBrokerFee")} />
+            <Toggle label="Short Term Available" value={draft.shortTermAvailable} onValueChange={set("shortTermAvailable")} />
+            <Toggle label="No Renters Insurance Required" value={draft.rentersInsuranceRequired} onValueChange={set("rentersInsuranceRequired")} />
+          </Section>
+
+          {/* TIMELINE */}
+          <Section title="Timeline" open={open.timeline} onToggle={() => toggleSection("timeline")}>
+            <DateRow label="Date Available" value={draft.dateAvailable} onPress={() => openDatePicker("dateAvailable")} onClear={() => set("dateAvailable")("")} />
+            <DateRow label="Contacted Date" value={draft.contactedDate} onPress={() => openDatePicker("contactedDate")} onClear={() => set("contactedDate")("")} />
+            <DateRow label="Viewing Date" value={draft.viewingDate} onPress={() => openDatePicker("viewingDate")} onClear={() => set("viewingDate")("")} />
+            <SelectRow label="Viewing Time" value={draft.viewingTime} onPress={() => openSingle("Viewing Time", TIME_OPTIONS, draft.viewingTime, set("viewingTime"))} />
+            <DateRow label="Applied Date" value={draft.appliedDate} onPress={() => openDatePicker("appliedDate")} onClear={() => set("appliedDate")("")} />
+          </Section>
+
+          {/* NOTES */}
+          <Section title="Notes" open={open.notes} onToggle={() => toggleSection("notes")}>
+            <Field label="Pros" fieldKey="pros" inputRefs={inputRefs} onNext={focusNext} value={draft.pros} onChangeText={set("pros")} />
+            <Field label="Cons" fieldKey="cons" inputRefs={inputRefs} onNext={focusNext} value={draft.cons} onChangeText={set("cons")} />
+          </Section>
+
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* ── Sub-footer — outside KAV so keyboard does not displace it ── */}
+      <View style={{
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        backgroundColor: colors.surface,
+      }}>
         <Pressable
           onPress={handleSave}
           disabled={saving}
@@ -577,6 +623,8 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
           )}
         </Pressable>
       </View>
+
+      {/* ── Modals — outside KAV ── */}
 
       {/* Single/Multi picker modal */}
       <Modal visible={pickerVisible} transparent animationType="slide">
@@ -641,6 +689,6 @@ export default function ListingForm({ initialDraft, toggles, saving, onSave, ins
           />
         </View>
       </Modal>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

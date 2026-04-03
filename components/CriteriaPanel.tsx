@@ -1,14 +1,11 @@
-// components/CriteriaPanel.tsx — Build 3.2.21
-// Changes from 3.2.20.12:
-//   Full-width layout: panel now covers full screen width (right: 0, not width: panelW).
-//   Overlay backdrop removed — back arrow is the close mechanism.
-//   Sub-header: "Criteria" centered with back arrow on left (replaces X close button).
-//   Sub-footer: Clear and Save buttons (matching FilterPanel style).
-//     Clear: resets all criteria fields to blank, saves blank state, does not close panel.
-//     Save: saves current data then closes panel.
-//   translateX animation start updated to -screenW for full-width slide-in.
-//   Auto-save on data change (via useEffect) is preserved alongside explicit Save.
-// No save logic, persistence, or field-key changes.
+// components/CriteriaPanel.tsx — Build 3.2.21.1 Hotfix
+// Changes from 3.2.21:
+//   SectionLabel: textStyles.label properties → textStyles.sectionTitle.
+//     Section/group headings inside body now use the correct hierarchy token.
+//   NumericField input value fontSize: textStyles.bodySmall.fontSize → textStyles.bodyPrimary.fontSize.
+//     Field values are now visually primary (white, 14) vs labels (grey, 12).
+// No structural, behavioral, auto-save, or layout changes.
+// Full-page layout, sub-header, sub-footer, Clear/Save behavior all preserved from 3.2.21.
 // Sub-components remain defined outside export function (DRIFT 10).
 
 import React, { useEffect, useRef, useState } from "react";
@@ -40,30 +37,18 @@ export function CriteriaPanel({ topOffset, onClose }: Props) {
   const translateX = useRef(new Animated.Value(-screenW)).current;
 
   const [data, setData] = useState<CriteriaData>({
-    minSqFt: "",
-    maxBaseRent: "",
-    maxTotalMonthly: "",
-    maxCommuteTime: "",
+    minSqFt: "", maxBaseRent: "", maxTotalMonthly: "", maxCommuteTime: "",
   });
-
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    loadCriteriaData().then((d) => {
-      setData(d);
-      setLoaded(true);
-    });
+    loadCriteriaData().then((d) => { setData(d); setLoaded(true); });
   }, []);
 
   useEffect(() => {
-    Animated.timing(translateX, {
-      toValue: 0,
-      duration: 180,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(translateX, { toValue: 0, duration: 180, useNativeDriver: true }).start();
   }, []);
 
-  // Auto-save whenever data changes (after initial load)
   const isFirstRender = useRef(true);
   useEffect(() => {
     if (!loaded) return;
@@ -89,10 +74,7 @@ export function CriteriaPanel({ topOffset, onClose }: Props) {
   return (
     <Animated.View style={{
       position: "absolute",
-      top: topOffset,
-      bottom: 0,
-      left: 0,
-      right: 0,
+      top: topOffset, bottom: 0, left: 0, right: 0,
       zIndex: 100,
       backgroundColor: colors.surface,
       transform: [{ translateX }],
@@ -105,23 +87,16 @@ export function CriteriaPanel({ topOffset, onClose }: Props) {
 
       {/* Sub-header */}
       <View style={{
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        flexDirection: "row", alignItems: "center",
+        paddingHorizontal: 16, paddingVertical: 10,
+        borderBottomWidth: 1, borderBottomColor: colors.border,
         backgroundColor: colors.surface,
       }}>
-        <Pressable
-          onPress={onClose}
-          style={{ position: "absolute", left: 16, zIndex: 1, padding: 4 }}
-        >
+        <Pressable onPress={onClose} style={{ position: "absolute", left: 16, zIndex: 1, padding: 4 }}>
           <Ionicons name="chevron-back" size={22} color={colors.accent} />
         </Pressable>
         <Text style={{
-          flex: 1,
-          textAlign: "center",
+          flex: 1, textAlign: "center",
           color: colors.textPrimary,
           fontSize: textStyles.subHeader.fontSize,
           fontWeight: textStyles.subHeader.fontWeight,
@@ -134,55 +109,28 @@ export function CriteriaPanel({ topOffset, onClose }: Props) {
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: 14, gap: 16, paddingBottom: 24 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
       >
         {/* ── PROPERTY ── */}
         <SectionLabel label="PROPERTY" />
-        <NumericField
-          label="Min Square Footage"
-          value={data.minSqFt}
-          onChangeText={(v) => updateData("minSqFt", v)}
-          placeholder="e.g. 600"
-        />
+        <NumericField label="Min Square Footage" value={data.minSqFt} onChangeText={(v) => updateData("minSqFt", v)} placeholder="e.g. 600" />
 
         {/* ── COSTS ── */}
         <SectionLabel label="COSTS" />
-        <NumericField
-          label="Max Base Rent"
-          value={data.maxBaseRent}
-          onChangeText={(v) => updateData("maxBaseRent", v)}
-          placeholder="e.g. 3500"
-        />
-        <NumericField
-          label="Max Total Monthly"
-          value={data.maxTotalMonthly}
-          onChangeText={(v) => updateData("maxTotalMonthly", v)}
-          placeholder="e.g. 4200"
-        />
+        <NumericField label="Max Base Rent" value={data.maxBaseRent} onChangeText={(v) => updateData("maxBaseRent", v)} placeholder="e.g. 3500" />
+        <NumericField label="Max Total Monthly" value={data.maxTotalMonthly} onChangeText={(v) => updateData("maxTotalMonthly", v)} placeholder="e.g. 4200" />
 
         {/* ── TRANSPORTATION ── */}
         <SectionLabel label="TRANSPORTATION" />
-        <NumericField
-          label="Max Commute Time (mins)"
-          value={data.maxCommuteTime}
-          onChangeText={(v) => updateData("maxCommuteTime", v)}
-          placeholder="e.g. 45"
-        />
+        <NumericField label="Max Commute Time (mins)" value={data.maxCommuteTime} onChangeText={(v) => updateData("maxCommuteTime", v)} placeholder="e.g. 45" />
 
         {/* ── FEATURES ── */}
         <SectionLabel label="FEATURES" />
-        <View
-          style={{
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: 9,
-            paddingHorizontal: 12,
-            paddingVertical: 10,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
+        <View style={{
+          borderWidth: 1, borderColor: colors.border, borderRadius: 9,
+          paddingHorizontal: 12, paddingVertical: 10,
+          flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+        }}>
           <Text style={textStyles.bodyEmphasis}>Select Features</Text>
           <Text style={{ color: textStyles.micro.color, fontSize: textStyles.micro.fontSize, fontStyle: "italic" }}>
             Coming soon
@@ -192,21 +140,15 @@ export function CriteriaPanel({ topOffset, onClose }: Props) {
 
       {/* Sub-footer — Clear and Save */}
       <View style={{
-        flexDirection: "row",
-        gap: 8,
-        padding: 14,
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
+        flexDirection: "row", gap: 8, padding: 14,
+        borderTopWidth: 1, borderTopColor: colors.border,
         backgroundColor: colors.surface,
       }}>
         <Pressable
           onPress={handleClear}
           style={({ pressed }) => ({
-            flex: 1,
-            paddingVertical: 11,
-            borderRadius: 10,
-            borderWidth: 1,
-            borderColor: colors.border,
+            flex: 1, paddingVertical: 11, borderRadius: 10,
+            borderWidth: 1, borderColor: colors.border,
             alignItems: "center",
             backgroundColor: colors.surfacePressed,
             opacity: pressed ? 0.7 : 1,
@@ -217,9 +159,7 @@ export function CriteriaPanel({ topOffset, onClose }: Props) {
         <Pressable
           onPress={handleSave}
           style={({ pressed }) => ({
-            flex: 1,
-            paddingVertical: 11,
-            borderRadius: 10,
+            flex: 1, paddingVertical: 11, borderRadius: 10,
             alignItems: "center",
             backgroundColor: colors.accent,
             opacity: pressed ? 0.75 : 1,
@@ -234,32 +174,21 @@ export function CriteriaPanel({ topOffset, onClose }: Props) {
 
 // ── Sub-components ────────────────────────────────────────────────
 
+// sectionTitle token for group headings inside the panel body.
 function SectionLabel({ label }: { label: string }) {
   return (
-    <Text style={{
-      color:         textStyles.label.color,
-      fontSize:      textStyles.label.fontSize,
-      fontWeight:    textStyles.label.fontWeight,
-      letterSpacing: textStyles.label.letterSpacing,
-    }}>
+    <Text style={[textStyles.sectionTitle, { marginTop: 16, marginBottom: 8 }]}>
       {label}
     </Text>
   );
 }
 
-function NumericField({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (v: string) => void;
-  placeholder?: string;
+function NumericField({ label, value, onChangeText, placeholder }: {
+  label: string; value: string;
+  onChangeText: (v: string) => void; placeholder?: string;
 }) {
   return (
-    <View style={{ gap: 5 }}>
+    <View style={{ gap: 5, marginBottom: 10 }}>
       <Text style={textStyles.label}>{label}</Text>
       <TextInput
         value={value}
@@ -275,7 +204,7 @@ function NumericField({
           paddingHorizontal: 10,
           paddingVertical: 8,
           color: colors.textPrimary,
-          fontSize: textStyles.bodySmall.fontSize,
+          fontSize: textStyles.bodyPrimary.fontSize,
         }}
       />
     </View>

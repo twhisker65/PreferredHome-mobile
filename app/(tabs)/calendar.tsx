@@ -1,12 +1,8 @@
-// app/(tabs)/calendar.tsx — Build 3.2.21
-// Changes from 3.2.20.15:
-//   Fixed layout: outer ScrollView removed. Calendar is fixed at top; appointments
-//   scroll independently below in their own ScrollView. This keeps the calendar
-//   always visible while appointments with multiple entries scroll freely.
-//   Appt type updated: mapsAddress field added (street + city/state/zip, no unit number).
-//   Appointment address is now tappable — opens default map app using mapsAddress.
-//   pull-to-refresh moved to appointments ScrollView (RefreshControl retained).
-//   All appointment parsing, markedDates, and sorting logic unchanged.
+// app/(tabs)/calendar.tsx — Build 3.2.21.1 Hotfix
+// Changes from 3.2.21:
+//   Calendar wrapper View: minHeight: 350 added so appointment section stays at a
+//   stable vertical position across 5-row and 6-row months.
+//   No calendar module changes. No logic changes. Only the wrapper View height floor.
 
 import React, { useCallback, useMemo, useState } from "react";
 import {
@@ -141,8 +137,8 @@ export default function CalendarScreen() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <TopBar title="PreferredHome" onPressMenu={() => setMenuOpen(true)} />
 
-      {/* Calendar — fixed at top, not scrollable */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
+      {/* Calendar — fixed at top. minHeight: 350 stabilizes appointment anchor across 6-row months. */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, minHeight: 350 }}>
         <Calendar
           hideExtraDays
           markedDates={markedDates}

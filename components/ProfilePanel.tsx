@@ -1,16 +1,11 @@
-// components/ProfilePanel.tsx — Build 3.2.21
-// Changes from 3.2.20.11:
-//   Full-width layout: panel now covers full screen width (right: 0, not width: panelW).
-//   Starts from topOffset — TopBar remains visible above panel.
-//   Overlay backdrop removed — back arrow is the close mechanism.
-//   Sub-header: "Profile" centered with back arrow on left (replaces X close button).
-//   Sub-footer: Clear and Save buttons (matching FilterPanel style).
-//     Clear: resets data to blank defaults, saves blank state, does not close panel.
-//     Save: calls handleClose (saves commute recalculation if needed, closes panel).
-//   translateX animation start updated to -screenW for full-width slide-in.
-//   Profile fields continue to save immediately on change (updateData behavior unchanged).
-//   Lifestyle toggles continue to save immediately on toggle (unchanged).
-// No save logic, persistence, or field-key changes.
+// components/ProfilePanel.tsx — Build 3.2.21.1 Hotfix
+// Changes from 3.2.21:
+//   SectionLabel: textStyles.label properties → textStyles.sectionTitle.
+//     Section/group headings inside body now use the correct hierarchy token.
+//   PanelField input value fontSize: textStyles.bodySmall.fontSize → textStyles.bodyPrimary.fontSize.
+//     Field values are now visually primary (white, 14) vs labels (grey, 12).
+// No structural, behavioral, save-logic, or layout changes.
+// Full-page layout, sub-header, sub-footer, Clear/Save behavior all preserved from 3.2.21.
 // All sub-components defined outside export function (DRIFT 10).
 
 import React, { useEffect, useRef, useState } from "react";
@@ -56,16 +51,10 @@ const TIME_OPTIONS = [
 
 // ── Sub-components defined outside component (DRIFT 10) ───────────
 
+// sectionTitle token for group headings inside the panel body.
 function SectionLabel({ label }: { label: string }) {
   return (
-    <Text style={{
-      color:         textStyles.label.color,
-      fontSize:      textStyles.label.fontSize,
-      fontWeight:    textStyles.label.fontWeight,
-      letterSpacing: textStyles.label.letterSpacing,
-      marginTop: 12,
-      marginBottom: 4,
-    }}>
+    <Text style={[textStyles.sectionTitle, { marginTop: 16, marginBottom: 6 }]}>
       {label}
     </Text>
   );
@@ -76,7 +65,7 @@ function PanelField({ label, value, onChangeText, placeholder, keyboardType }: {
   placeholder?: string; keyboardType?: any;
 }) {
   return (
-    <View style={{ gap: 3, marginBottom: 6 }}>
+    <View style={{ gap: 3, marginBottom: 8 }}>
       <Text style={textStyles.label}>{label}</Text>
       <TextInput
         value={value}
@@ -92,7 +81,7 @@ function PanelField({ label, value, onChangeText, placeholder, keyboardType }: {
           paddingHorizontal: 10,
           paddingVertical: 7,
           color: colors.textPrimary,
-          fontSize: textStyles.bodySmall.fontSize,
+          fontSize: textStyles.bodyPrimary.fontSize,
         }}
       />
     </View>
@@ -111,9 +100,7 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
   });
   const [toggles, setToggles] = useState<ProfileToggles>({ children: false, pets: false, car: false });
   const [loaded, setLoaded] = useState(false);
-
   const [pickerVisible, setPickerVisible] = useState(false);
-
   const commuteSnapshot = useRef({ workAddress: "", commuteMethod: "", departureTime: "" });
 
   useEffect(() => {
@@ -160,7 +147,6 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
         departureTime: data.departureTime,
       }).catch(() => {});
     }
-
     onClose();
   }
 
@@ -171,7 +157,6 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
     };
     setData(blank);
     saveProfileData(blank).catch(() => {});
-    // Reset snapshot so close doesn't trigger unnecessary commute recalculation
     commuteSnapshot.current = { workAddress: "", commuteMethod: "Transit", departureTime: "" };
   }
 
@@ -202,15 +187,11 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
         borderBottomColor: colors.border,
         backgroundColor: colors.surface,
       }}>
-        <Pressable
-          onPress={handleClose}
-          style={{ position: "absolute", left: 16, zIndex: 1, padding: 4 }}
-        >
+        <Pressable onPress={handleClose} style={{ position: "absolute", left: 16, zIndex: 1, padding: 4 }}>
           <Ionicons name="chevron-back" size={22} color={colors.accent} />
         </Pressable>
         <Text style={{
-          flex: 1,
-          textAlign: "center",
+          flex: 1, textAlign: "center",
           color: colors.textPrimary,
           fontSize: textStyles.subHeader.fontSize,
           fontWeight: textStyles.subHeader.fontWeight,
@@ -221,7 +202,7 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
 
       {/* Scrollable body */}
       <ScrollView
-        contentContainerStyle={{ padding: 14, paddingBottom: 24 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -232,18 +213,18 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
 
         {/* ── SEARCH MODE ── */}
         <SectionLabel label="SEARCH MODE" />
-        <View style={{ flexDirection: "row", gap: 6, marginBottom: 6 }}>
+        <View style={{ flexDirection: "row", gap: 6, marginBottom: 8 }}>
           {(["Rent", "Buy"] as Array<ProfileData["searchMode"]>).map((mode) => (
             <Pressable
               key={mode}
               onPress={() => updateData("searchMode", mode)}
               style={{
-                flex: 1, paddingVertical: 7, borderRadius: 8, borderWidth: 1, alignItems: "center",
+                flex: 1, paddingVertical: 8, borderRadius: 8, borderWidth: 1, alignItems: "center",
                 borderColor: data.searchMode === mode ? colors.accent : colors.border,
                 backgroundColor: data.searchMode === mode ? `${colors.accent}18` : colors.surfacePressed,
               }}
             >
-              <Text style={{ color: data.searchMode === mode ? colors.accent : colors.textPrimary, fontSize: textStyles.bodySmall.fontSize, fontWeight: "700" }}>{mode}</Text>
+              <Text style={{ color: data.searchMode === mode ? colors.accent : colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize, fontWeight: "700" }}>{mode}</Text>
             </Pressable>
           ))}
         </View>
@@ -252,26 +233,26 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
         <SectionLabel label="COMMUTE" />
         <PanelField label="Work Address" value={data.workAddress} onChangeText={(v) => updateData("workAddress", v)} placeholder="Street, City, State" />
 
-        <View style={{ gap: 5 }}>
+        <View style={{ gap: 6, marginBottom: 8 }}>
           <Text style={textStyles.label}>Commute Method</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 5 }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
             {COMMUTE_METHODS.map((method) => (
               <Pressable
                 key={method}
                 onPress={() => updateData("commuteMethod", method)}
                 style={{
-                  paddingVertical: 7, paddingHorizontal: 10, borderRadius: 8, borderWidth: 1,
+                  paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1,
                   borderColor: data.commuteMethod === method ? colors.accent : colors.border,
                   backgroundColor: data.commuteMethod === method ? `${colors.accent}18` : colors.surfacePressed,
                 }}
               >
-                <Text style={{ color: data.commuteMethod === method ? colors.accent : colors.textPrimary, fontSize: textStyles.bodySmall.fontSize, fontWeight: "700" }}>{method}</Text>
+                <Text style={{ color: data.commuteMethod === method ? colors.accent : colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize, fontWeight: "700" }}>{method}</Text>
               </Pressable>
             ))}
           </View>
         </View>
 
-        <View style={{ marginTop: 8, marginBottom: 6 }}>
+        <View style={{ marginBottom: 8 }}>
           <Text style={textStyles.label}>Departure Time</Text>
           <Pressable
             onPress={() => setPickerVisible(true)}
@@ -288,7 +269,7 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
               alignItems: "center",
             }}
           >
-            <Text style={{ color: data.departureTime ? colors.textPrimary : colors.textSecondary, fontSize: textStyles.bodySmall.fontSize }}>
+            <Text style={{ color: data.departureTime ? colors.textPrimary : colors.textSecondary, fontSize: textStyles.bodyPrimary.fontSize }}>
               {data.departureTime || "Select time"}
             </Text>
             {data.departureTime ? (
@@ -303,7 +284,7 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
 
         {/* ── LIFESTYLE ── */}
         <SectionLabel label="LIFESTYLE" />
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
           <Text style={{ color: colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize }}>Children</Text>
           <Switch value={toggles.children} onValueChange={(v) => {
             const next = { ...toggles, children: v };
@@ -311,7 +292,7 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
             saveProfileToggles(next).catch(() => {});
           }} trackColor={{ false: colors.border, true: colors.accent }} thumbColor="#fff" />
         </View>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
           <Text style={{ color: colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize }}>Pets</Text>
           <Switch value={toggles.pets} onValueChange={(v) => {
             const next = { ...toggles, pets: v };
@@ -319,7 +300,7 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
             saveProfileToggles(next).catch(() => {});
           }} trackColor={{ false: colors.border, true: colors.accent }} thumbColor="#fff" />
         </View>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10 }}>
           <Text style={{ color: colors.textPrimary, fontSize: textStyles.bodyPrimary.fontSize }}>Car</Text>
           <Switch value={toggles.car} onValueChange={(v) => {
             const next = { ...toggles, car: v };
@@ -331,21 +312,15 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
 
       {/* Sub-footer — Clear and Save */}
       <View style={{
-        flexDirection: "row",
-        gap: 8,
-        padding: 14,
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
+        flexDirection: "row", gap: 8, padding: 14,
+        borderTopWidth: 1, borderTopColor: colors.border,
         backgroundColor: colors.surface,
       }}>
         <Pressable
           onPress={handleClear}
           style={({ pressed }) => ({
-            flex: 1,
-            paddingVertical: 11,
-            borderRadius: 10,
-            borderWidth: 1,
-            borderColor: colors.border,
+            flex: 1, paddingVertical: 11, borderRadius: 10,
+            borderWidth: 1, borderColor: colors.border,
             alignItems: "center",
             backgroundColor: colors.surfacePressed,
             opacity: pressed ? 0.7 : 1,
@@ -356,9 +331,7 @@ export function ProfilePanel({ topOffset, onClose }: Props) {
         <Pressable
           onPress={handleClose}
           style={({ pressed }) => ({
-            flex: 1,
-            paddingVertical: 11,
-            borderRadius: 10,
+            flex: 1, paddingVertical: 11, borderRadius: 10,
             alignItems: "center",
             backgroundColor: colors.accent,
             opacity: pressed ? 0.75 : 1,

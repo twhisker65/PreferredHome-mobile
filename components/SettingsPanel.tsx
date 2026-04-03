@@ -1,13 +1,9 @@
-// components/SettingsPanel.tsx — Build 3.2.21
-// Changes from 3.2.20 Closeout:
-//   Full-width layout: panel now covers full screen width (right: 0, not width: panelW).
-//   Overlay backdrop removed — back arrow is the close mechanism.
-//   Sub-header: "Settings" centered with back arrow on left (replaces X close button).
-//   Sub-footer: Close button centered (Settings has no saveable state — no Clear needed).
-//   Version label moved to bottom of scrollable body (above sub-footer).
-//   translateX animation start updated to -screenW for full-width slide-in.
-//   All content (DATA, APPEARANCE sections) is unchanged.
-// No content, logic, or behavior changes — structural consistency only.
+// components/SettingsPanel.tsx — Build 3.2.21.1 Hotfix
+// Changes from 3.2.21:
+//   Section label "DATA": textStyles.label → textStyles.sectionTitle.
+//   Section label "APPEARANCE": textStyles.label → textStyles.sectionTitle.
+//   Group headings inside body now use the correct hierarchy token.
+// No content, behavior, or layout changes. Settings content untouched.
 // Sub-components remain defined outside export function (DRIFT 10).
 
 import React, { useEffect, useRef } from "react";
@@ -34,20 +30,13 @@ export function SettingsPanel({ topOffset, onClose }: Props) {
   const translateX = useRef(new Animated.Value(-screenW)).current;
 
   useEffect(() => {
-    Animated.timing(translateX, {
-      toValue: 0,
-      duration: 180,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(translateX, { toValue: 0, duration: 180, useNativeDriver: true }).start();
   }, []);
 
   return (
     <Animated.View style={{
       position: "absolute",
-      top: topOffset,
-      bottom: 0,
-      left: 0,
-      right: 0,
+      top: topOffset, bottom: 0, left: 0, right: 0,
       zIndex: 100,
       backgroundColor: colors.surface,
       transform: [{ translateX }],
@@ -60,23 +49,16 @@ export function SettingsPanel({ topOffset, onClose }: Props) {
 
       {/* Sub-header */}
       <View style={{
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        flexDirection: "row", alignItems: "center",
+        paddingHorizontal: 16, paddingVertical: 10,
+        borderBottomWidth: 1, borderBottomColor: colors.border,
         backgroundColor: colors.surface,
       }}>
-        <Pressable
-          onPress={onClose}
-          style={{ position: "absolute", left: 16, zIndex: 1, padding: 4 }}
-        >
+        <Pressable onPress={onClose} style={{ position: "absolute", left: 16, zIndex: 1, padding: 4 }}>
           <Ionicons name="chevron-back" size={22} color={colors.accent} />
         </Pressable>
         <Text style={{
-          flex: 1,
-          textAlign: "center",
+          flex: 1, textAlign: "center",
           color: colors.textPrimary,
           fontSize: textStyles.subHeader.fontSize,
           fontWeight: textStyles.subHeader.fontWeight,
@@ -88,42 +70,38 @@ export function SettingsPanel({ topOffset, onClose }: Props) {
       {/* Scrollable body */}
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: 14, gap: 16, paddingBottom: 24 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
       >
         {/* ── DATA ── */}
-        <Text style={textStyles.label}>DATA</Text>
+        <Text style={[textStyles.sectionTitle, { marginBottom: 10 }]}>DATA</Text>
 
         <ActionButton
           label="Export All Data"
           icon="download-outline"
-          onPress={() =>
-            Alert.alert("Coming Soon", "Export will be available in a future build.")
-          }
+          onPress={() => Alert.alert("Coming Soon", "Export will be available in a future build.")}
         />
+        <View style={{ height: 8 }} />
         <ActionButton
           label="Import Backup"
           icon="cloud-upload-outline"
-          onPress={() =>
-            Alert.alert("Coming Soon", "Import will be available in a future build.")
-          }
+          onPress={() => Alert.alert("Coming Soon", "Import will be available in a future build.")}
         />
 
         {/* ── APPEARANCE ── */}
-        <Text style={[textStyles.label, { marginTop: 4 }]}>APPEARANCE</Text>
+        <Text style={[textStyles.sectionTitle, { marginTop: 20, marginBottom: 10 }]}>APPEARANCE</Text>
 
         <FutureRow label="Theme" />
+        <View style={{ height: 8 }} />
         <FutureRow label="Notifications" />
 
         {/* Version label */}
-        <Text
-          style={{
-            color:     colors.textSecondary,
-            fontSize:  textStyles.micro.fontSize,
-            textAlign: "center",
-            opacity:   0.5,
-            marginTop: 8,
-          }}
-        >
+        <Text style={{
+          color: colors.textSecondary,
+          fontSize: textStyles.micro.fontSize,
+          textAlign: "center",
+          opacity: 0.5,
+          marginTop: 20,
+        }}>
           PreferredHome v3.2.21
         </Text>
       </ScrollView>
@@ -131,15 +109,13 @@ export function SettingsPanel({ topOffset, onClose }: Props) {
       {/* Sub-footer — Close */}
       <View style={{
         padding: 14,
-        borderTopWidth: 1,
-        borderTopColor: colors.border,
+        borderTopWidth: 1, borderTopColor: colors.border,
         backgroundColor: colors.surface,
       }}>
         <Pressable
           onPress={onClose}
           style={({ pressed }) => ({
-            paddingVertical: 11,
-            borderRadius: 10,
+            paddingVertical: 11, borderRadius: 10,
             alignItems: "center",
             backgroundColor: colors.accent,
             opacity: pressed ? 0.75 : 1,
@@ -154,11 +130,7 @@ export function SettingsPanel({ topOffset, onClose }: Props) {
 
 // ── Sub-components ────────────────────────────────────────────────
 
-function ActionButton({
-  label,
-  icon,
-  onPress,
-}: {
+function ActionButton({ label, icon, onPress }: {
   label: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
   onPress: () => void;
@@ -167,14 +139,9 @@ function ActionButton({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => ({
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-        paddingHorizontal: 12,
-        paddingVertical: 12,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: colors.border,
+        flexDirection: "row", alignItems: "center", gap: 10,
+        paddingHorizontal: 12, paddingVertical: 12,
+        borderRadius: 10, borderWidth: 1, borderColor: colors.border,
         backgroundColor: pressed ? colors.surfacePressed : colors.background,
         opacity: pressed ? 0.75 : 1,
       })}
@@ -187,20 +154,13 @@ function ActionButton({
 
 function FutureRow({ label }: { label: string }) {
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingHorizontal: 12,
-        paddingVertical: 12,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.background,
-        opacity: 0.45,
-      }}
-    >
+    <View style={{
+      flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+      paddingHorizontal: 12, paddingVertical: 12,
+      borderRadius: 10, borderWidth: 1, borderColor: colors.border,
+      backgroundColor: colors.background,
+      opacity: 0.45,
+    }}>
       <Text style={textStyles.button}>{label}</Text>
       <Text style={{ color: colors.textSecondary, fontSize: textStyles.micro.fontSize, fontStyle: "italic" }}>
         Future build
