@@ -1,66 +1,68 @@
-PreferredHome — Build 3.2.21.1 Hotfix
-======================================
-Add/Edit layout restoration and panel hierarchy cleanup
+PreferredHome — README
+Build 3.2.22 | April 2026
 
-COMMIT MESSAGE
---------------
-Build 3.2.21.1 Hotfix - Add/Edit card-style sections, scroll fix, panel hierarchy cleanup
+=============================================================
+CURRENT STABLE BUILD
+=============================================================
+Build 3.2.22 — Android APK Build Configuration
 
-CHANGED FILES
--------------
-PreferredHome-mobile/components/ListingForm.tsx
-  — Section component: card-style expandable header (surface bg, border, rounded corners,
-    surfacePressed on press, body connects flush to header). KAV restructured to wrap only
-    the ScrollView — sub-footer and modals moved outside KAV, eliminating sticky scroll.
+=============================================================
+WHAT CHANGED IN THIS BUILD
+=============================================================
+eas.json
+  - Added "android": { "buildType": "apk" } to the preview profile.
+  - Without this, EAS defaults to AAB on Android, which cannot be
+    sideloaded to a physical device for local testing.
+  - No other profiles were modified.
 
-PreferredHome-mobile/components/ProfilePanel.tsx
-  — SectionLabel token: textStyles.label → textStyles.sectionTitle. PanelField input
-    fontSize: bodySmall → bodyPrimary. Hierarchy tightening only.
+=============================================================
+WHAT WAS NOT CHANGED
+=============================================================
+- No UI changes.
+- No screen, component, token, or shared file changes.
+- No routing, schema, storage, or data architecture changes.
+- No API repo changes.
+- app.json was not changed — all required Android config was already present.
+- package.json was not changed.
 
-PreferredHome-mobile/components/CriteriaPanel.tsx
-  — SectionLabel token: textStyles.label → textStyles.sectionTitle. NumericField input
-    fontSize: bodySmall → bodyPrimary. Hierarchy tightening only.
+=============================================================
+EAS BUILD COMMAND
+=============================================================
+Run this from the PreferredHome-mobile repo root:
 
-PreferredHome-mobile/components/SettingsPanel.tsx
-  — DATA and APPEARANCE labels: textStyles.label → textStyles.sectionTitle.
-    Content and behavior unchanged.
+  eas build -p android --profile preview
 
-PreferredHome-mobile/app/(tabs)/calendar.tsx
-  — minHeight: 350 added to calendar wrapper View. Appointment section stays visually
-    anchored at a stable position across 5-row and 6-row months. No other changes.
+After the build completes (typically 10–20 min), download the .apk
+from the Expo dashboard link or the CLI output URL. Install directly
+on your Android device by sideloading.
 
-API REPO
---------
-Not touched. No schema changes. No storage changes. No dependency changes. No routing changes.
+=============================================================
+PRE-BUILD CHECKLIST
+=============================================================
+1. Confirm you are logged in to EAS:
+     eas login
+2. Confirm you are on the main branch with Build 3.2.22 committed.
+3. Run the build command above.
 
-EXPO RESTART
-------------
-cd C:\Users\twhis\OneDrive\Documents\GitHub\PreferredHome-mobile && npx expo start --tunnel --clear
-
+=============================================================
 TEST CHECKLIST
---------------
-[ ] No red screen on launch
-[ ] All 5 tabs render
-[ ] Add page: section headers are card-style pills with surface background, border, rounded corners
-[ ] Add page: all sections open by default
-[ ] Add page: field rows — label left, input/control right (matches Filter/Sort alignment)
-[ ] Add page: scrolls smoothly without stickiness
-[ ] Add page: Save Listing button fixed in sub-footer, does not scroll
-[ ] Add page: Save Listing saves successfully
-[ ] Edit page: same card-style sections as Add
-[ ] Edit page: scrolls smoothly without stickiness
-[ ] Edit page: Save Listing saves successfully
-[ ] Edit page: bottom nav visible and functional
-[ ] Profile panel: section group headings (PERSONAL, COMMUTE, etc.) are larger/bolder
-[ ] Profile panel: field labels are grey/secondary, field values are white/primary
-[ ] Profile panel: Clear and Save buttons present and functional
-[ ] Criteria panel: section group headings (PROPERTY, COSTS, etc.) are larger/bolder
-[ ] Criteria panel: field values are white/primary, labels are grey/secondary
-[ ] Criteria panel: Clear and Save buttons present and functional
-[ ] Settings panel: DATA and APPEARANCE headings are larger/bolder
-[ ] Settings panel: Close button present and functional
-[ ] Calendar: appointment section stays at consistent vertical position on a 6-row month (e.g. May 2026)
-[ ] Calendar: calendar still visible and scrolls to correct month
-[ ] Calendar: appointments scroll independently
-[ ] No TypeScript errors
-[ ] API repo unchanged — no deploy needed
+=============================================================
+1. EAS CLI confirms profile "preview" is found and build type is APK.
+2. Build completes on Expo servers — no errors.
+3. APK downloads successfully from the dashboard or CLI link.
+4. APK installs on Android device via sideload.
+5. App launches and all screens behave identically to the
+   last stable Expo Go tunnel session (Build 3.2.21).
+
+=============================================================
+REPO STATE
+=============================================================
+Mobile repo:  twhisker65/PreferredHome-mobile — main branch
+API repo:     twhisker65/PreferredHome-api — unchanged, not touched
+
+=============================================================
+UP NEXT
+=============================================================
+Build 3.2.22 APK testing on physical device.
+V4 — Canonical Data Model (first step: schema rename buildingName → propertyName,
+pending explicit approval).
